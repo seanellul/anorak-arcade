@@ -6,7 +6,7 @@
   const API = 'https://anorak-arcade-api.sean-ellul.workers.dev';   // deployed Worker (leaderboard API)
   // ==============================================================================
   const SKEY='aa.stats', CKEY='aa.clientId', NKEY='aa.name';
-  const GAMES=['CINDER','STRATA','CONDUIT','HOMEOSTAT','MOTHERLOAD'];
+  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','MOTHERLOAD'];
 
   const lget=k=>{ try{return localStorage.getItem(k);}catch(e){return null;} };
   const lset=(k,v)=>{ try{localStorage.setItem(k,v);}catch(e){} };

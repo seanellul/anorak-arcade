@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Admin — Anorak Arcade</title>
+<link rel="stylesheet" href="site.css">
+<style>
+  .keybar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 20px}
+  .keybar input{flex:1;min-width:200px;background:#0a0e14;border:1px solid var(--line2);color:var(--ink);font-family:inherit;font-size:14px;padding:11px 12px;border-radius:9px;outline:none}
+  .keybar button{background:var(--acc);color:#1a0d06;border:0;font-family:inherit;font-weight:700;letter-spacing:.1em;padding:11px 20px;border-radius:9px;cursor:pointer}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0 8px}
+  .c{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:14px 16px}
+  .c .k{color:var(--dim);font-size:10px;letter-spacing:.18em}.c .v{font-size:24px;font-weight:700;margin-top:3px}
+  table.t{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0 24px}
+  table.t th{color:var(--dim);text-align:left;font-size:10px;letter-spacing:.16em;padding:7px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg)}
+  table.t td{padding:8px 10px;border-bottom:1px solid #161d2b;vertical-align:top}
+  table.t td.r{text-align:right;font-variant-numeric:tabular-nums}
+  .gtag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.1em;padding:2px 8px;border-radius:20px;color:#0a0e14}
+  .muted{color:var(--dim)} .err{color:var(--bad)}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span>ANORAK ARCADE</a>
+  <span class="spacer"></span>
+  <a class="link" href="index.html">ARCADE</a>
+  <a class="link" href="leaderboard.html">LEADERBOARD</a>
+  <a class="link" href="about.html">ABOUT</a>
+  <a class="link" href="research.html">RESEARCH</a>
+</nav>
+<div class="wrap">
+  <div class="eyebrow">PRIVATE · WHO PLAYS WHAT</div>
+  <h1 class="title">Admin <span class="amber">dashboard</span></h1>
+  <div class="keybar">
+    <input id="key" type="password" placeholder="admin key" autocomplete="off">
+    <button id="go">LOAD</button>
+    <span id="msg" class="muted" style="font-size:12px"></span>
+  </div>
+  <div id="out"></div>
+</div>
+<div class="footer">Anorak Arcade · admin. The key is never stored in the page — kept in this tab's sessionStorage only.</div>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',MOTHERLOAD:'#e8a13a'};
+  const fmt = ms => (window.GameStats ? GameStats.fmt(ms) : Math.round(ms/1000)+'s');
+  const esc = s => String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const gtag = g => '<span class="gtag" style="background:'+(COLORS[g]||'#8ea2cf')+'">'+esc(g)+'</span>';
+  const keyEl=document.getElementById('key'), out=document.getElementById('out'), msg=document.getElementById('msg');
+  keyEl.value = sessionStorage.getItem('aa.adminkey') || '';
+
+  async function load(){
+    const key=keyEl.value.trim(); if(!key){ msg.textContent='enter the admin key'; return; }
+    msg.textContent='loading…'; out.innerHTML='';
+    if(!window.GameStats || !GameStats.hasAPI){ msg.innerHTML='<span class="err">API not configured</span>'; return; }
+    try{
+      const d = await GameStats.api('/api/admin?key='+encodeURIComponent(key));
+      sessionStorage.setItem('aa.adminkey', key); msg.textContent='';
+      render(d);
+    }catch(e){
+      msg.innerHTML = '<span class="err">'+(String(e).includes('401')?'wrong key':'failed: '+esc(e))+'</span>';
+    }
+  }
+
+  function render(d){
+    const byName=d.byName||[], rows=d.rows||[];
+    const totalMs=rows.reduce((s,r)=>s+(r.total_ms||0),0);
+    const totalPlays=rows.reduce((s,r)=>s+(r.plays||0),0);
+    const devices=new Set(rows.map(r=>r.client_id)).size;
+    let html='<div class="cards">'
+      +'<div class="c"><div class="k">PLAYERS (NAMED)</div><div class="v">'+byName.length+'</div></div>'
+      +'<div class="c"><div class="k">DEVICES</div><div class="v">'+devices+'</div></div>'
+      +'<div class="c"><div class="k">TOTAL TIME</div><div class="v">'+fmt(totalMs)+'</div></div>'
+      +'<div class="c"><div class="k">TOTAL PLAYS</div><div class="v">'+totalPlays.toLocaleString()+'</div></div></div>';
+
+    html+='<h2 class="section-h">BY PLAYER</h2>';
+    if(!byName.length){ html+='<p class="muted">No named players yet.</p>'; }
+    else{
+      html+='<table class="t"><tr><th>NAME</th><th class="r">TIME</th><th class="r">GAMES</th><th class="r">PLAYS</th></tr>';
+      html+=byName.map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td class="r">'+fmt(p.ms)+'</td><td class="r">'+p.games+'</td><td class="r">'+(p.plays||0).toLocaleString()+'</td></tr>').join('');
+      html+='</table>';
+    }
+
+    html+='<h2 class="section-h">BY PLAYER × GAME · '+rows.length+' rows</h2>';
+    html+='<table class="t"><tr><th>NAME</th><th>GAME</th><th class="r">TIME</th><th class="r">PLAYS</th><th class="r">BEST</th><th class="r muted">LAST</th></tr>';
+    html+=rows.map(r=>{
+      const name = r.name && r.name.trim() ? esc(r.name) : '<span class="muted">anon</span>';
+      const last = r.updated_at ? new Date(r.updated_at).toISOString().slice(0,10) : '';
+      return '<tr><td>'+name+'</td><td>'+gtag(r.game)+'</td><td class="r">'+fmt(r.total_ms)+'</td><td class="r">'+(r.plays||0)+'</td><td class="r">'+(r.best_score||0).toLocaleString()+'</td><td class="r muted">'+last+'</td></tr>';
+    }).join('');
+    html+='</table>';
+    out.innerHTML=html;
+  }
+
+  document.getElementById('go').onclick=load;
+  keyEl.addEventListener('keydown',e=>{ if(e.key==='Enter') load(); });
+  if(keyEl.value) load();  // auto-load if a key is remembered this session
+})();
+</script>
+</body>
+</html>

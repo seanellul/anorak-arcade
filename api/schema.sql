@@ -5,7 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS totals (
   client_id  TEXT    NOT NULL,      -- random uuid stored in the browser (a loose "device")
-  game       TEXT    NOT NULL,      -- CINDER | STRATA | CONDUIT | HOMEOSTAT
+  game       TEXT    NOT NULL,      -- CINDER | SHIFT | CONDUIT | HOMEOSTAT
   name       TEXT    NOT NULL DEFAULT '',   -- whatever they typed (free-text handle); '' = anon
   total_ms   INTEGER NOT NULL DEFAULT 0,
   plays      INTEGER NOT NULL DEFAULT 0,

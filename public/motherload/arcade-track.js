@@ -27,10 +27,35 @@
     return; // don't run the playtime tracker — it isn't playable here
   }
 
-  // ---- playtime tracking (desktop): count active run time (HUD visible, tab focused) ----
+  // ---- playtime tracking + high score (desktop) ----
+  // Time: count active run time (HUD visible, tab focused).
+  // Score: submit max depth reached (metres) when a run ends (game-over or victory).
   var last = Date.now();
+  var submitted = false;
+  function runEnded() {
+    var go = document.getElementById('gameover-screen'), win = document.getElementById('victory-screen');
+    var goV = go && !go.classList.contains('hidden');
+    var winV = win && !win.classList.contains('hidden');
+    return goV || winV;
+  }
   setInterval(function () {
     var now = Date.now(), dt = now - last; last = now;
+
+    // score: on the transition into a game-over / victory screen, submit max depth once
+    if (window.GameStats) {
+      if (runEnded()) {
+        if (!submitted) {
+          submitted = true;
+          var g = window.__game;
+          var depth = (g && g.state && g.state.stats && g.state.stats.maxDepth) || 0;
+          if (depth > 0) window.GameStats.submitScore('MOTHERLOAD', Math.round(depth));
+        }
+      } else {
+        submitted = false; // back in a run / menu — arm for the next ending
+      }
+    }
+
+    // time: only while actively playing
     if (dt < 0 || dt > 4000) return;                 // backgrounded / throttled tick — don't count
     if (document.visibilityState !== 'visible') return;
     var hud = document.getElementById('hud');

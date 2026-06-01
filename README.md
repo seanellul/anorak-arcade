@@ -13,7 +13,7 @@ public/                 ← the deployable static site (Cloudflare Pages output 
   about.html              About Anorak Arcade — origin, the seed prompt, philosophy
   research.html           "The Tetris Lab" — pillars, neuro-loop, dossier links
   doc.html                in-site Markdown viewer for the research docs
-  cinder.html  strata.html  conduit.html  homeostat.html
+  cinder.html  shift.html  conduit.html  homeostat.html
   motherload/             featured full game — SYNCED from the motherload repo (don't hand-edit)
     arcade-track.js         arcade glue: desktop-only gate + playtime tracking (lives here, not in the game)
   site.css  site.js        shared shell (nav, styling, Markdown renderer, TOC, back-to-top)
@@ -99,7 +99,7 @@ for auto-deploy on every push.
 | Game | Verb | One line | Leans hardest on |
 |------|------|----------|------------------|
 | **CINDER** `cinder.html` | **enclose** | Wall a spreading fire into sealed pockets to suffocate it | order-from-chaos · risk/reward release |
-| **STRATA** `strata.html` | **shift** | Slide rising rock layers to align mineral veins and cascade them | perpetual pressure · order-from-chaos |
+| **SHIFT** `shift.html` | **shift** | Slide rising rock layers to align mineral veins and cascade them | perpetual pressure · order-from-chaos |
 | **CONDUIT** `conduit.html` | **rotate** | Rotate nodes to channel a rhythmic pulse to its sink before overload | tension→resolution rhythm · self-scaling |
 | **HOMEOSTAT** `homeostat.html` | **allocate** | One feed stream, many draining reactors — keep each in its flow band | perpetual pressure · loss-aversion |
 

@@ -38,12 +38,13 @@
 </nav>
 <div class="wrap">
   <h1 class="title" style="margin-top:8px">Anorak <span class="amber">Arcade</span></h1>
-  <p class="lede">Games reverse-engineered from <b>why play works</b>. Each one is built from the eight design pillars behind Tetris — but with a <b>different core verb</b> and <b>no falling blocks or line clears</b>. Drop in for 30 seconds or 30 minutes; chase a best.</p>
+  <p class="lede">A <b>love letter to a bygone era</b>. Each game is a prototype, aimed at testing experimental ideas and game loops.</p>
+  <p class="lede">Thank you for playing my game(s).</p>
 
   <h2 class="section-h">★ FEATURED</h2>
   <div class="grid">
     <a class="card feature" href="motherload/" style="--c:#e8a13a">
-      <span class="glow"></span><span class="verb">FULL GAME · MINE</span>
+      <span class="glow"></span><span class="verb">FULL GAME</span>
       <h2>MOTHERLOAD</h2>
       <div class="tag">mining roguelite · dig deep, strike it rich</div>
       <p>Drill into a procedural planet, haul ore up to sell, upgrade your pod, and chase the Heart of Natas through biomes, shops, a skill tree, missions and daily seeds. A complete game — a love letter to the 2004 Flash classic.</p>
@@ -54,28 +55,28 @@
   <h2 class="section-h">▶ THE PROTOTYPES</h2>
   <div class="grid">
     <a class="card" href="cinder.html" style="--c:#ff6a3d">
-      <span class="glow"></span><span class="verb">ENCLOSE</span>
+      <span class="glow"></span>
       <h2>CINDER</h2>
       <div class="tag">containment · draw walls</div>
       <p>A fire spreads across the grid. Wall it into sealed pockets to suffocate it. Bigger captures pay more — but the longer you wait, the faster it spreads.</p>
       <div class="pill">order-from-chaos · risk/reward release</div>
     </a>
-    <a class="card" href="strata.html" style="--c:#5ad1ff">
-      <span class="glow"></span><span class="verb">SHIFT</span>
-      <h2>STRATA</h2>
+    <a class="card" href="shift.html" style="--c:#5ad1ff">
+      <span class="glow"></span>
+      <h2>SHIFT</h2>
       <div class="tag">shifting field · slide rows</div>
       <p>Mineral layers push up from below. Slide rows to line up big groups — but matches only resolve on the rise. Time the Shift for a cascade.</p>
       <div class="pill">perpetual pressure · order-from-chaos</div>
     </a>
     <a class="card" href="conduit.html" style="--c:#b98cff">
-      <span class="glow"></span><span class="verb">ROTATE</span>
+      <span class="glow"></span>
       <h2>CONDUIT</h2>
       <div class="tag">rhythmic routing · rotate nodes</div>
       <p>A source fires a pulse every beat toward a lit sink. Rotate nodes to connect a live path before the beat lands. The beat is the metronome of tension.</p>
       <div class="pill">tension→resolution rhythm · self-scaling</div>
     </a>
     <a class="card" href="homeostat.html" style="--c:#36d399">
-      <span class="glow"></span><span class="verb">ALLOCATE</span>
+      <span class="glow"></span>
       <h2>HOMEOSTAT</h2>
       <div class="tag">equilibrium · feed meters</div>
       <p>Reactors drain on their own clocks. One feed stream, one at a time. Keep every needle in its green flow band — a starve or overload ends the run.</p>
@@ -83,17 +84,33 @@
     </a>
   </div>
 
-  <h2 class="section-h">⏱ PLAYTIME · <span id="totalTime" style="color:var(--ink)">0s</span> total <button id="resetStats" style="margin-left:8px;background:none;border:1px solid var(--line2);color:var(--dim);font-family:inherit;font-size:10px;padding:3px 9px;border-radius:6px;cursor:pointer;letter-spacing:.12em">RESET</button></h2>
-  <div id="statList"><div class="empty">No play recorded yet — go break something.</div></div>
+  <section class="leaders" id="leadersWrap" style="margin:42px 0 0;border-top:1px solid var(--line);padding-top:24px;display:none">
+    <div style="letter-spacing:.2em;font-size:13px;color:var(--dim);margin-bottom:12px">🏆 TOP SCORES &nbsp;·&nbsp; <a href="leaderboard.html" style="font-size:11px;letter-spacing:.12em">full board →</a></div>
+    <div id="leaders"></div>
+  </section>
 
-  <p class="note">Zero dependencies — pure HTML5 canvas. Click in any game once to enable sound. Every game has a fail→instant-restart loop, so loss is cheap and clearly your own fault. Playtime is tracked locally in your browser; soon it’ll sync to a live leaderboard.</p>
+  <section class="playtime">
+    <div class="pt-head">
+      <span class="pt-title">⏱ PLAYTIME</span>
+      <span class="pt-total"><span id="totalTime">0s</span> <span class="pt-lbl">total</span></span>
+      <button id="resetStats" class="pt-reset">RESET</button>
+    </div>
+    <div id="statList"><div class="empty">No play recorded yet — go break something.</div></div>
+  </section>
+
+  <div class="infochips">
+    <div class="chip"><span class="ico">⚡</span><div class="ctxt"><b>Zero dependencies</b><span>Pure HTML5 canvas — nothing to install.</span></div></div>
+    <div class="chip"><span class="ico">🔊</span><div class="ctxt"><b>Click once for sound</b><span>Tap inside any game to enable audio.</span></div></div>
+    <div class="chip"><span class="ico">↻</span><div class="ctxt"><b>Instant restart</b><span>Fail → retry loop. Loss is cheap, and clearly your own fault.</span></div></div>
+    <div class="chip"><span class="ico">💾</span><div class="ctxt"><b>Tracked locally</b><span>Saved in your browser; live leaderboard syncing soon.</span></div></div>
+  </div>
 </div>
-<div class="footer">Anorak Arcade · <a href="about.html">about</a> · <a href="research.html">research</a> · <a href="https://github.com/seanellul/anorak-arcade" target="_blank" rel="noopener">source ↗</a></div>
+<div class="footer">Anorak Arcade · <a href="about.html">about</a> · <a href="research.html">research</a> · <a href="https://github.com/seanellul/anorak-arcade" target="_blank" rel="noopener">source ↗</a> · built by <a class="byline" href="https://seanellul.com" target="_blank" rel="noopener">seanellul ↗</a></div>
 <script src="stats.js"></script>
 <script>
 (()=>{
-  const COLORS={CINDER:'#ff6a3d',STRATA:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',MOTHERLOAD:'#e8a13a'};
-  const ORDER=['MOTHERLOAD','CINDER','STRATA','CONDUIT','HOMEOSTAT'];
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',MOTHERLOAD:'#e8a13a'};
+  const ORDER=['MOTHERLOAD','CINDER','SHIFT','CONDUIT','HOMEOSTAT'];
   function render(){
     if(!window.GameStats) return;
     const all=GameStats.all(); const map={}; all.forEach(a=>map[a.game]=a);
@@ -105,7 +122,7 @@
     let html='';
     for(const g of ORDER){ const a=map[g]||{ms:0,sessions:0}; const w=(a.ms/max*100)||0;
       html+='<div class="srow"><span class="sname" style="color:'+COLORS[g]+'">'+g+'</span>'+
-            '<div class="sbar"><i style="width:'+w+'%;background:'+COLORS[g]+'"></i></div>'+
+            '<div class="sbar"><i style="width:'+w+'%;background:'+COLORS[g]+';color:'+COLORS[g]+'"></i></div>'+
             '<span class="stime">'+GameStats.fmt(a.ms)+'</span>'+
             '<span class="ssess">'+(a.sessions||0)+'×</span></div>';
     }
@@ -113,6 +130,23 @@
   }
   render(); setInterval(render,1000);
   document.getElementById('resetStats').onclick=()=>{ if(confirm('Reset all playtime stats?')){ GameStats.reset(); render(); } };
+
+  // ---- top-scores strip (global leaderboard leaders) ----
+  const esc=s=>String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  function loadLeaders(){
+    if(!window.GameStats || !GameStats.hasAPI) return;
+    GameStats.api('/api/leaderboard').then(d=>{
+      const boards=d.boards||{}; let any=false, html='';
+      for(const g of ORDER){ const top=(boards[g]||[])[0]; const c=COLORS[g]; if(top) any=true;
+        html+='<a href="leaderboard.html" style="display:grid;grid-template-columns:118px 1fr auto;gap:12px;align-items:center;padding:7px 0;color:inherit;text-decoration:none;border-bottom:1px solid #161d2b">'
+          +'<span style="font-size:13px;letter-spacing:.12em;font-weight:700;color:'+c+'">'+g+'</span>'
+          +'<span style="font-weight:700;letter-spacing:.04em;color:'+(top?'#e7ecf5':'#7d8aa0')+'">'+(top?esc(top.name):'—')+'</span>'
+          +'<span style="color:var(--dim);font-variant-numeric:tabular-nums">'+(top?Number(top.score).toLocaleString():'')+'</span></a>';
+      }
+      if(any){ document.getElementById('leaders').innerHTML=html; document.getElementById('leadersWrap').style.display='block'; }
+    }).catch(()=>{});
+  }
+  loadLeaders();
 })();
 </script>
 </body>

@@ -6,7 +6,7 @@
 //   GET  /api/admin?key=...                                         -> full name x game breakdown (secret)
 // CORS-open so the games can be embedded anywhere.
 
-const GAMES = ['CINDER', 'STRATA', 'CONDUIT', 'HOMEOSTAT', 'MOTHERLOAD'];
+const GAMES = ['CINDER', 'SHIFT', 'CONDUIT', 'HOMEOSTAT', 'MOTHERLOAD'];
 const SCORE_CAP = 50000000;       // absurd-value guard (per-game scores stay well under this)
 const MS_CAP    = 600000;         // max time accepted per single sync (10 min) - anti-inflation
 const PLAYS_CAP = 100;

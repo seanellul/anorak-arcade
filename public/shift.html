@@ -14,17 +14,17 @@
 <link rel="apple-touch-icon" href="icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Anorak Arcade">
-<meta property="og:title" content="STRATA — Anorak Arcade">
+<meta property="og:title" content="SHIFT — Anorak Arcade">
 <meta property="og:description" content="Slide rising layers to line up big groups, then time the Shift for a cascade.">
-<meta property="og:image" content="https://anorak-arcade.pages.dev/og-strata.png">
+<meta property="og:image" content="https://anorak-arcade.pages.dev/og-shift.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="STRATA — Anorak Arcade">
+<meta name="twitter:title" content="SHIFT — Anorak Arcade">
 <meta name="twitter:description" content="Original arcade games reverse-engineered from why play works.">
-<meta name="twitter:image" content="https://anorak-arcade.pages.dev/og-strata.png">
+<meta name="twitter:image" content="https://anorak-arcade.pages.dev/og-shift.png">
 
-<title>STRATA — shifting-field prototype</title>
+<title>SHIFT — shifting-field prototype</title>
 <style>
   :root{ --bg:#0a0e14; --panel:#121826; --ink:#e7ecf5; --dim:#7d8aa0; --accent:#5ad1ff; --bad:#ff4d6d; }
   *{box-sizing:border-box}
@@ -76,7 +76,7 @@
 </head>
 <body>
 <a class="back" href="index.html">← arcade</a>
-<header><div><h1>STRA<span class="v">TA</span></h1><div class="sub">SHIFTING FIELD · align the veins</div></div><div class="sub">verb: <b style="color:var(--ink)">shift</b></div></header>
+<header><div><h1>SHI<span class="v">FT</span></h1><div class="sub">SHIFTING FIELD · align the veins</div></div></header>
 <div class="hud">
   <div class="stat"><div class="k">SCORE</div><div class="val" id="score">0</div></div>
   <div class="stat"><div class="k">CLEARED</div><div class="val" id="cleared">0</div></div>
@@ -167,7 +167,7 @@
     for(let x=0;x<COLS;x++) grid[idx(x,ROWS-1)]=anim.newRow[x];
     if(sel>0) sel--; mult=1; comboShown=0; beginFall(true); }   // resolve after everything has moved up
 
-  function gameover(){ dead=true; phase='idle'; if(window.GameStats) GameStats.submitScore('STRATA', score); document.getElementById('overmsg').textContent='Reached depth '+depth+' · score '+score; document.getElementById('over').style.display='flex'; beep(110,0.6,'sawtooth',0.09); }
+  function gameover(){ dead=true; phase='idle'; if(window.GameStats) GameStats.submitScore('SHIFT', score); document.getElementById('overmsg').textContent='Reached depth '+depth+' · score '+score; document.getElementById('over').style.display='flex'; beep(110,0.6,'sawtooth',0.09); }
 
   function selFromY(py){ const r=cv.getBoundingClientRect(); return Math.max(0,Math.min(ROWS-1, Math.floor(py/(r.height/ROWS)))); }
   cv.addEventListener('mousemove',e=>{ const r=cv.getBoundingClientRect(); sel=selFromY(e.clientY-r.top); });
@@ -194,7 +194,7 @@
 
   function loop(now){ const dt=Math.min(80,now-last); last=now;
     if(!dead){
-      if(window.GameStats) GameStats.ping('STRATA', dt);
+      if(window.GameStats) GameStats.ping('SHIFT', dt);
       if(phase==='idle'){ riseT-=dt; if(riseT<=0){ beginRise(); riseT=riseEvery; }
         depthAcc+=dt; if(depthAcc>11000){ depth++; riseEvery=Math.max(800,riseEvery*0.85); depthAcc-=11000; } }
       if(anim){ anim.t+=dt/anim.dur; if(anim.t>=1){ const ph=phase; anim.t=1; if(ph==='shift') commitShift(); else if(ph==='clear') commitClear(); else if(ph==='fall') commitFall(); else if(ph==='rise') commitRise(); } }
@@ -239,7 +239,7 @@
     ctx.strokeStyle='rgba(255,77,109,0.5)'; ctx.setLineDash([6,6]); ctx.beginPath(); ctx.moveTo(0,CELL); ctx.lineTo(W,CELL); ctx.stroke(); ctx.setLineDash([]);
   }
 
-  window.__strata={ idx, findMatches, settleInstant, applyGravity, beginShift, beginRise, beginDrop, COLS, ROWS, get grid(){return grid;}, getScore:()=>score, getPhase:()=>phase, setDead:v=>dead=v };
+  window.__shift={ idx, findMatches, settleInstant, applyGravity, beginShift, beginRise, beginDrop, COLS, ROWS, get grid(){return grid;}, getScore:()=>score, getPhase:()=>phase, setDead:v=>dead=v };
   reset(); requestAnimationFrame(loop);
 })();
 </script>
