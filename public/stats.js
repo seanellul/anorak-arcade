@@ -5,6 +5,10 @@
   // ===== set this to your deployed Worker URL to enable global leaderboards =====
   const API = 'https://anorak-arcade-api.sean-ellul.workers.dev';   // deployed Worker (leaderboard API)
   // ==============================================================================
+  // Never WRITE to the live leaderboard from local dev (localhost / file://) — only
+  // the real domain syncs. Prevents test runs from polluting production. Reads still work.
+  const LOCAL = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|.*\.local)$/i.test(location.hostname);
+  if (API && LOCAL) try { console.info('[GameStats] local dev — leaderboard writes disabled (reads still live).'); } catch (e) {}
   const SKEY='aa.stats', CKEY='aa.clientId', NKEY='aa.name';
   const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','MOTHERLOAD'];
 
@@ -45,7 +49,7 @@
     for(const g of games){ const p=pending[g];
       const body=JSON.stringify({clientId,name,game:g,addMs:Math.round(p.addMs),plays:p.plays,score:p.score});
       pending[g]={addMs:0,plays:0,score:0,force:false};
-      if(!API) continue;  // local-only mode
+      if(!API || LOCAL) continue;  // local-only mode / never write from local dev
       try{
         if(useBeacon && navigator.sendBeacon){ navigator.sendBeacon(API+'/api/sync', new Blob([body],{type:'application/json'})); }
         else fetch(API+'/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{});
