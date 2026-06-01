@@ -92,8 +92,8 @@
 <script src="stats.js"></script>
 <script>
 (()=>{
-  const COLORS={CINDER:'#ff6a3d',STRATA:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399'};
-  const ORDER=['CINDER','STRATA','CONDUIT','HOMEOSTAT'];
+  const COLORS={CINDER:'#ff6a3d',STRATA:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',MOTHERLOAD:'#e8a13a'};
+  const ORDER=['MOTHERLOAD','CINDER','STRATA','CONDUIT','HOMEOSTAT'];
   function render(){
     if(!window.GameStats) return;
     const all=GameStats.all(); const map={}; all.forEach(a=>map[a.game]=a);

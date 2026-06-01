@@ -6,7 +6,7 @@
   const API = 'https://anorak-arcade-api.sean-ellul.workers.dev';   // deployed Worker (leaderboard API)
   // ==============================================================================
   const SKEY='aa.stats', CKEY='aa.clientId', NKEY='aa.name';
-  const GAMES=['CINDER','STRATA','CONDUIT','HOMEOSTAT'];
+  const GAMES=['CINDER','STRATA','CONDUIT','HOMEOSTAT','MOTHERLOAD'];
 
   const lget=k=>{ try{return localStorage.getItem(k);}catch(e){return null;} };
   const lset=(k,v)=>{ try{localStorage.setItem(k,v);}catch(e){} };
@@ -26,7 +26,7 @@
 
   function ping(game, ms){ if(!game||!(ms>0)) return; const now=Date.now(); const e=ensure(game);
     if(!lastPing[game]||now-lastPing[game]>30000) e.sessions++;
-    lastPing[game]=now; e.last=now; ms=Math.min(ms,200); e.ms+=ms; pend(game).addMs+=ms;
+    lastPing[game]=now; e.last=now; ms=Math.min(ms,2000); e.ms+=ms; pend(game).addMs+=ms;
     if(now-lastSave>1000){ save(); lastSave=now; }
     if(now-lastFlush>20000) flush(false);
   }
