@@ -16,8 +16,9 @@ DST="$ARCADE/public/motherload"
 
 [ -f "$SRC/index.html" ] || { echo "✗ Motherload source not found at: $SRC"; exit 1; }
 
-# Optional: pull latest from the Motherload remote first
-if [ -d "$SRC/.git" ]; then
+# Optional: pull latest from the Motherload remote first — only when using the
+# default local checkout (CI passes an explicit, freshly-cloned path as $1).
+if [ "$#" -eq 0 ] && [ -d "$SRC/.git" ]; then
   echo "→ git pull in $SRC"
   git -C "$SRC" pull --ff-only || echo "  (skipped pull — resolve manually if needed)"
 fi

@@ -1,0 +1,48 @@
+name: Sync Motherload
+
+# Keeps public/motherload in step with the Motherload repo (the single source of truth).
+# Triggers:
+#   - manual:        Actions tab → "Run workflow"  (or: gh workflow run sync-motherload.yml)
+#   - instant:       repository_dispatch from the Motherload repo (see its notify-arcade.yml)
+#   - safety net:    every 2 hours
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [motherload-updated]
+  schedule:
+    - cron: '17 */2 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-motherload
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout arcade
+        uses: actions/checkout@v4
+
+      - name: Clone Motherload (public)
+        run: git clone --depth 1 https://github.com/seanellul/motherload.git /tmp/motherload
+
+      - name: Sync web files + re-inject arcade glue
+        run: |
+          chmod +x tools/sync-motherload.sh
+          tools/sync-motherload.sh /tmp/motherload
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "anorak-arcade-bot"
+          git config user.email "actions@users.noreply.github.com"
+          if [ -n "$(git status --porcelain public/motherload)" ]; then
+            git add public/motherload
+            git commit -m "Sync Motherload (auto)"
+            git push
+            echo "Synced and pushed — Cloudflare Pages will deploy."
+          else
+            echo "Already up to date — nothing to commit."
+          fi

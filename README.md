@@ -25,26 +25,35 @@ tools/
   sync-motherload.sh      pull the latest Motherload web build into public/motherload
 ```
 
-## Updating Motherload
+## Updating Motherload (automatic)
 
-Motherload is its **own repo** (`github.com/seanellul/motherload`) and is the **single source of
-truth** — edit the game *there*, never inside `public/motherload/` (that copy gets overwritten).
+Motherload is its **own (public) repo** (`github.com/seanellul/motherload`) and is the **single
+source of truth** — edit the game *there only*, never inside `public/motherload/` (it's a synced
+copy and gets overwritten).
 
-`public/motherload/` is a synced copy. To update the arcade to the latest Motherload:
+A GitHub Action (`.github/workflows/sync-motherload.yml`) keeps the arcade in step automatically: it
+clones the public Motherload repo, copies its web files into `public/motherload/`, re-injects the
+arcade glue, and commits **only if something changed** — which then auto-deploys via Pages. It runs:
 
-```bash
-tools/sync-motherload.sh            # pulls the motherload repo, copies its web files in,
-                                    # and re-injects the arcade glue (stats.js + arcade-track.js)
-git add public/motherload && git commit -m "Sync Motherload" && git push   # → Pages auto-deploys
-```
+- **every 2 hours** (safety net),
+- **on demand** — Actions tab → *Run workflow*, or `gh workflow run sync-motherload.yml`,
+- **instantly** — when the Motherload repo pushes a `repository_dispatch` (see below).
 
 The arcade-specific bits (desktop-only mobile gate + playtime tracking) live in
-`public/motherload/arcade-track.js`, which the game source never touches — so syncing is a clean
+`public/motherload/arcade-track.js`, which the game source never touches, so syncing is a clean
 overwrite. (Motherload is keyboard/gamepad-only, so it's gated off on phones for now.)
 
-> Fully-automatic loading (git submodule / CI sync) is possible later, but the Motherload repo is
-> currently **private**, which makes a Pages-build submodule fetch unreliable — the sync script keeps
-> it to one command without that complexity.
+### Instant sync on every Motherload push (optional)
+The Motherload repo has `.github/workflows/notify-arcade.yml`, which pings this arcade's sync the
+moment you push. It needs one secret in the **Motherload** repo: a fine-grained PAT with
+`contents:write` on `anorak-arcade`, saved as `ARCADE_SYNC_TOKEN`. Until that secret exists it
+no-ops harmlessly, and the 2-hour schedule + manual trigger still keep things in sync.
+
+### Manual one-off (no CI)
+```bash
+tools/sync-motherload.sh            # pull motherload, copy web files, re-inject glue
+git add public/motherload && git commit -m "Sync Motherload" && git push
+```
 
 The site has four sections: **Arcade** (home, the games), **Leaderboard** (scores + global stats),
 **About** (the origin story and philosophy), and **Research** — *The Tetris Lab* — where the full
