@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research · The Tetris Lab — Anorak Arcade</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span>ANORAK ARCADE</a>
+  <span class="spacer"></span>
+  <a class="link" href="index.html">ARCADE</a>
+  <a class="link" href="about.html">ABOUT</a>
+  <a class="link active" href="research.html">RESEARCH</a>
+</nav>
+<div class="wrap prose">
+  <div class="eyebrow">RESEARCH · THE TETRIS LAB</div>
+  <h1 class="title">The Tetris <span class="amber">Lab</span></h1>
+  <p class="lede">The research engine behind the arcade — <b>everything we dug up about why Tetris works</b>, and the principles we’ve since confirmed actually <i>land</i> in playtesting. Every game in the arcade is built from what’s on this page.</p>
+
+  <nav class="toc" id="toc" style="display:none"></nav>
+
+  <h2 class="section-h" style="border:0;margin-top:30px">The thesis</h2>
+  <div class="panel" style="margin-top:0">
+    <p class="prose" style="margin:0">The magic of Tetris isn’t the falling blocks — it’s a <b>loop</b>: it opens "unfinished-task" tension faster than you can close it, under a single self-scaling pressure, with the whole state visible and every loss clearly your own fault; closing a loop pays a small, skill-contingent dopamine hit, and the stakes immediately escalate. Reproduce that loop with <i>any</i> verb and you reproduce the grip.</p>
+  </div>
+
+  <h2>The 8 pillars</h2>
+  <p>We distilled the research into eight transferable mechanisms. These are the spec every prototype is built against.</p>
+  <div class="pillars">
+    <div class="pillar"><div class="n">01</div><div class="nm">Perpetual Pressure</div><p>The system always tightens — an idle player’s default outcome is loss. The threat advances on its own clock.</p></div>
+    <div class="pillar"><div class="n">02</div><div class="nm">Order From Chaos</div><p>Hand the player entropy; the satisfaction <i>is</i> organising it. Disordered generator → tidy completion.</p></div>
+    <div class="pillar"><div class="n">03</div><div class="nm">Tractable Decisions</div><p>Each atomic choice is small and legible, even though the whole problem is intractable (Tetris is NP-complete).</p></div>
+    <div class="pillar"><div class="n">04</div><div class="nm">Tension→Resolution</div><p>Build tension continuously; release it in discrete, juiced bursts. A gradual accumulator, an instant payoff.</p></div>
+    <div class="pillar"><div class="n">05</div><div class="nm">Transparent State</div><p>Nothing hidden about the present. Uncertainty comes only from the future draw, never from obscured state.</p></div>
+    <div class="pillar"><div class="n">06</div><div class="nm">Mastery Ceiling</div><p>Trivial to enter, effectively impossible to exhaust. Depth emerges from a fixed rule set, never added on.</p></div>
+    <div class="pillar"><div class="n">07</div><div class="nm">Fairness</div><p>Every loss is attributable to a player decision. Randomness in inputs only; adjudication deterministic and visible.</p></div>
+    <div class="pillar"><div class="n">08</div><div class="nm">Self-Scaling Difficulty</div><p>One knob — driven by the player’s own performance — that is simultaneously the reward signal and the difficulty.</p></div>
+  </div>
+
+  <h2>The neuro-loop</h2>
+  <p>The pillars exist to produce one circuit, pulled straight from the literature (Zeigarnik, Berridge, Schultz, Csikszentmihalyi):</p>
+  <pre><code>OPEN LOOP (Zeigarnik) ─▶ WANTING (dopamine, Berridge) ─▶ ACTION (skill) ─▶ CLOSURE
+unfinished task piles    anticipation pulls you forward    tractable choice    order restored
+      ▲                                                                            │
+      └──── ESCALATE (stakes rise) ◀── RELIEF + PREDICTION-ERROR REWARD (Schultz) ◀┘
+                                       juiced release, then it speeds up</code></pre>
+  <p>Throughout, the loop must <b>saturate visuospatial attention</b> — the absorption mechanism behind both "flow" and the clinical findings that Tetris can crowd out trauma flashbacks and cravings.</p>
+
+  <h2>Read the full dossier</h2>
+  <p>The complete, cited research — rendered here in-site (or read the source on GitHub):</p>
+  <div class="doclinks">
+    <a href="doc.html?src=research/01-tetris-dossier.md"><span class="num">01</span><span><b>Tetris Dossier</b><br><span class="d">History &amp; story · mechanics &amp; execution · neuroscience of the dopamine loop · why it succeeded (incl. NP-completeness). Evidence-graded and cited.</span></span></a>
+    <a href="doc.html?src=research/02-design-pillars.md"><span class="num">02</span><span><b>The 8 Pillars</b><br><span class="d">Tetris distilled into a buildable spec — the pillar table, the neuro-loop, and an "is it Tetris-shaped?" acceptance test.</span></span></a>
+    <a href="doc.html?src=research/03-prototype-rationale.md"><span class="num">03</span><span><b>Prototype Rationale</b><br><span class="d">How each of the four arcade games maps back to the pillars — and what each one is really testing.</span></span></a>
+  </div>
+
+  <p class="note">Sources are graded by strength of evidence, and marketing or disputed claims (sales figures, the "1984 vs 1985" origin date, the rumoured Nintendo licensing fee) are flagged as such rather than asserted. The point of the Lab isn’t trivia — it’s a working theory of <b>what reliably makes play compelling</b>, which every new game is then a test of.</p>
+
+  <div class="btnrow"><a class="btn" href="index.html">Go play the results →</a><a class="btn ghost" href="about.html">About the project</a></div>
+</div>
+<div class="footer">Anorak Arcade · The Tetris Lab. <a href="https://github.com/seanellul/anorak-arcade" target="_blank" rel="noopener">Source ↗</a></div>
+<script src="site.js"></script>
+<script>window.buildTOC(document.querySelector('.wrap.prose'), document.getElementById('toc'));</script>
+</body>
+</html>

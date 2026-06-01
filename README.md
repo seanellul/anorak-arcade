@@ -7,13 +7,21 @@ psychology with **four different core verbs** and **no falling tetrominoes or li
 ## Repo layout
 
 ```
-public/        ← the deployable static site (Cloudflare Pages output dir)
-  index.html     launcher + live playtime panel
+public/                 ← the deployable static site (Cloudflare Pages output dir)
+  index.html              Arcade home — games + live playtime panel
+  about.html              About Anorak Arcade — origin, the seed prompt, philosophy
+  research.html           "The Tetris Lab" — pillars, neuro-loop, dossier links
+  doc.html                in-site Markdown viewer for the research docs
   cinder.html  strata.html  conduit.html  homeostat.html
-  stats.js       shared playtime tracker (localStorage)
-research/      ← the research dossier (source of truth; linked from the launcher)
-api/           ← (planned) Cloudflare Worker + D1 leaderboard / data API
+  site.css  site.js        shared shell (nav, styling, Markdown renderer)
+  stats.js                shared playtime tracker (localStorage)
+  research/               the research dossier (Markdown, rendered in-site)
+api/                    ← (planned) Cloudflare Worker + D1 leaderboard / data API
 ```
+
+The site has three sections: **Arcade** (home, the games), **About** (the origin story and
+philosophy), and **Research** — *The Tetris Lab* — where the full dossier is rendered natively
+in-site via `doc.html`.
 
 ## Play locally
 
@@ -61,7 +69,7 @@ in active play, not paused/dead) to `localStorage`. The launcher (`index.html`) 
 **PLAYTIME** panel — time + session count per game, with a reset button. Serve over http (below) so
 all pages share one origin.
 
-## The research (`research/`)
+## The research (`public/research/`)
 
 1. **`01-tetris-dossier.md`** — history & story, mechanics & design, neuroscience (Stickgold,
    Holmes/Oxford PTSD, Skorka-Brown cravings, Haier PET, Zeigarnik, Berridge wanting-vs-liking,

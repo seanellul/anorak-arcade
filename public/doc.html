@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research — Anorak Arcade</title>
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span>ANORAK ARCADE</a>
+  <span class="spacer"></span>
+  <a class="link" href="index.html">ARCADE</a>
+  <a class="link" href="about.html">ABOUT</a>
+  <a class="link active" href="research.html">RESEARCH</a>
+</nav>
+<div class="wrap narrow">
+  <a class="link" href="research.html" style="color:var(--dim);font-size:12px;letter-spacing:.14em">← The Tetris Lab</a>
+  <nav class="toc" id="toc" style="display:none"></nav>
+  <div id="docbody" class="prose"><div class="loading">Loading…</div></div>
+  <div class="btnrow" id="srcrow" style="display:none"><a class="btn ghost" id="srclink" target="_blank" rel="noopener">View source on GitHub ↗</a></div>
+</div>
+<div class="footer">Anorak Arcade · research rendered in-site from the source Markdown.</div>
+<script src="site.js"></script>
+<script>
+(()=>{
+  const params=new URLSearchParams(location.search);
+  let src=params.get('src')||'';
+  const body=document.getElementById('docbody');
+  const gh='https://github.com/seanellul/anorak-arcade/blob/main/public/';
+  // whitelist: only our research markdown
+  if(!/^research\/[\w.-]+\.md$/.test(src)){ body.innerHTML='<p>Unknown document.</p>'; return; }
+  const ghUrl=gh+src;
+  fetch(src).then(r=>{ if(!r.ok) throw new Error(r.status); return r.text(); })
+    .then(md=>{ body.innerHTML=window.mdToHtml(md);
+      const h1=body.querySelector('h1'); if(h1) document.title=h1.textContent+' — Anorak Arcade';
+      window.buildTOC(body, document.getElementById('toc'));
+      const row=document.getElementById('srcrow'); document.getElementById('srclink').href=ghUrl; row.style.display='flex';
+    })
+    .catch(()=>{ body.innerHTML='<p>Couldn’t load this document locally (are you opening via <code>file://</code>? serve over http, or read it on GitHub).</p><p><a href="'+ghUrl+'" target="_blank" rel="noopener">Open '+src+' on GitHub ↗</a></p>'; });
+})();
+</script>
+</body>
+</html>
