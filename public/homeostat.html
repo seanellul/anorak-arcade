@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Original arcade games reverse-engineered from why play works — built from the design pillars behind Tetris, with no falling blocks. Play, chase a high score, hit the global leaderboard.">
+<meta name="description" content="A love letter to a bygone era — original browser games, each a hand-built prototype exploring a different game loop. Zero dependencies, pure HTML5 canvas.">
 <meta name="theme-color" content="#0a0e14">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,7 +21,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="HOMEOSTAT — Anorak Arcade">
-<meta name="twitter:description" content="Original arcade games reverse-engineered from why play works.">
+<meta name="twitter:description" content="A love letter to a bygone era — original browser games built as experimental prototypes.">
 <meta name="twitter:image" content="https://anorak-arcade.pages.dev/og-homeostat.png">
 
 <title>HOMEOSTAT — balance prototype</title>
@@ -102,12 +102,15 @@
   const W=MOBILE?404:560, H=MOBILE?672:420;  // taller, narrower on phones
   const cv=document.getElementById('c'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
   const FEED=40, BAND_LO=38, BAND_HI=72;
-  let reactors, feeding, score, t0, last, dead, load, addAcc, surgeAcc, loadAcc, flashes, pulse, state;
+  let reactors, feeding, score, t0, last, dead, load, addAcc, surgeAcc, loadAcc, flashes, pulse, state, tNow=0, splashAcc=0;
   const fx = Juice.layer();
   const beep=(f,d,ty,g)=>Juice.tone(f, d||0.12, ty||'sine', g||0.05);
   const playing=()=> state==='play' && !dead;
 
-  function mkReactor(){ return { level:55, drain:7+Math.random()*4, baseDrain:7+Math.random()*4, surge:0, crit:false }; }
+  function mkReactor(){
+    const bub=[]; for(let k=0;k<7;k++) bub.push({x:0.16+Math.random()*0.68, spd:0.12+Math.random()*0.22, r:1.1+Math.random()*1.8, ph:Math.random()});
+    return { level:55, disp:55, drain:7+Math.random()*4, baseDrain:7+Math.random()*4, surge:0, crit:false, bub, wseed:Math.random()*6.28 };
+  }
   function reset(showTitle){
     reactors=[mkReactor(),mkReactor(),mkReactor()]; feeding=-1; score=0; t0=performance.now(); last=t0; dead=false; load=1;
     addAcc=0; surgeAcc=0; loadAcc=0; flashes=[]; pulse=0;
@@ -124,11 +127,13 @@
     document.getElementById('over').style.display='flex'; Juice.sfx.dead(); fx.shake(22); }
 
   const reactorX=i=>{ const L=layout(); return L.x0+i*(L.bw+L.gap)+L.bw/2; };
-  function loop(now){ const dt=Math.min(60,now-last)/1000; last=now;
+  function loop(now){ const dt=Math.min(60,now-last)/1000; last=now; tNow=now/1000;
     if(playing()){
       if(window.GameStats) GameStats.ping('HOMEOSTAT', dt*1000);
       // feeding
-      if(feeding>=0 && feeding<reactors.length){ reactors[feeding].level += FEED*dt; pulse=1; }
+      if(feeding>=0 && feeding<reactors.length){ reactors[feeding].level += FEED*dt; pulse=1;
+        splashAcc+=dt; if(splashAcc>0.05){ splashAcc=0; const L=layout(); const sy=L.bot-(reactors[feeding].disp/100)*L.h; const sx=reactorX(feeding);
+          fx.burst(sx, sy, '#9fe9ff', 3, {spread:1.6, up:0.5, decay:0.06, grav:0.04, r:1.6}); } }
       let inBand=0;
       for(let i=0;i<reactors.length;i++){ const r=reactors[i];
         const d=(r.drain + r.surge); r.level -= d*dt; if(r.surge>0) r.surge=Math.max(0,r.surge-12*dt);
@@ -156,6 +161,7 @@
       loadAcc+=dt; if(loadAcc>12){ loadAcc=0; load++; for(const r of reactors){ r.drain+=1.4; } }
     }
     if(pulse>0) pulse-=0.05;
+    for(const r of reactors){ r.disp += (r.level-r.disp)*Math.min(1,dt*12); }  // ease the visual surface
     fx.update(dt*1000);
     draw();
     document.getElementById('score').textContent=score|0;
@@ -164,36 +170,81 @@
     requestAnimationFrame(loop);
   }
 
+  function rr(x,y,w,h,rad){ rad=Math.min(rad,w/2,h/2); ctx.beginPath(); ctx.moveTo(x+rad,y); ctx.arcTo(x+w,y,x+w,y+h,rad); ctx.arcTo(x+w,y+h,x,y+h,rad); ctx.arcTo(x,y+h,x,y,rad); ctx.arcTo(x,y,x+w,y,rad); ctx.closePath(); }
+  function colsFor(r){ const inb=r.level>=BAND_LO&&r.level<=BAND_HI, crit=r.level<16||r.level>84;
+    return { inb, crit, base: crit?'#ff4d6d':(inb?'#36d399':'#ffb13d'), top: crit?'#ff9aae':(inb?'#9bffd2':'#ffd98a') }; }
+  function drawBackdrop(){ ctx.save(); ctx.fillStyle='rgba(120,150,200,0.04)';
+    for(let gx=18; gx<W; gx+=38) for(let gy=18; gy<H; gy+=38) ctx.fillRect(gx,gy,1.5,1.5);
+    const L=layout(); ctx.strokeStyle='rgba(120,150,200,0.10)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(16,L.bot+9); ctx.lineTo(W-16,L.bot+9); ctx.stroke(); ctx.restore(); }
+
   function draw(){ ctx.clearRect(0,0,W,H);
+    drawBackdrop();
     ctx.save(); const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
     const L=layout();
     for(let i=0;i<reactors.length;i++){ const r=reactors[i]; const x=L.x0+i*(L.bw+L.gap);
-      // tube
-      ctx.fillStyle='#0c1422'; ctx.fillRect(x,L.top,L.bw,L.h);
-      ctx.strokeStyle='#1e2638'; ctx.strokeRect(x,L.top,L.bw,L.h);
-      // band
-      const by=L.bot-(BAND_HI/100)*L.h, bh=((BAND_HI-BAND_LO)/100)*L.h;
-      ctx.fillStyle='rgba(54,211,153,0.16)'; ctx.fillRect(x,by,L.bw,bh);
-      ctx.strokeStyle='rgba(54,211,153,0.5)'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(x,by);ctx.lineTo(x+L.bw,by); ctx.moveTo(x,by+bh);ctx.lineTo(x+L.bw,by+bh); ctx.stroke(); ctx.setLineDash([]);
-      // fill
-      const fh=(r.level/100)*L.h; const fy=L.bot-fh; const inb=r.level>=BAND_LO&&r.level<=BAND_HI;
-      const crit=r.level<16||r.level>84;
-      ctx.fillStyle= crit?'#ff4d6d':(inb?'#36d399':'#ffb13d'); ctx.fillRect(x+2,fy,L.bw-4,fh);
-      // feeding glow + arrow
-      if(feeding===i){ ctx.fillStyle=`rgba(90,209,255,${0.25+pulse*0.4})`; ctx.fillRect(x+2,L.top,L.bw-4,L.h);
-        ctx.fillStyle='#5ad1ff'; ctx.font='bold 16px monospace'; ctx.textAlign='center'; ctx.fillText('▲',x+L.bw/2,L.top-2); }
-      // label
-      ctx.fillStyle='#7d8aa0'; ctx.font='11px monospace'; ctx.textAlign='center'; ctx.fillText('['+(i+1)+']',x+L.bw/2,H-26);
-      ctx.fillStyle=inb?'#36d399':'#e7ecf5'; ctx.font='bold 13px monospace'; ctx.fillText((r.level|0),x+L.bw/2,H-10);
-      // surge marker
-      if(r.surge>1){ ctx.fillStyle='#ff4d6d'; ctx.font='10px monospace'; ctx.fillText('⚡',x+L.bw/2,L.top+12); }
-      // flashes
+      const {inb,crit,base,top:colT}=colsFor(r);
+      const lv=r.disp, fh=(lv/100)*L.h, fy=L.bot-fh, fed=(feeding===i);
+
+      // outer bloom — steady glow in-band, fast red pulse when critical
+      if(inb||crit){ const pul = crit? 0.5+0.5*Math.sin(tNow*9) : 0.45+0.25*Math.sin(tNow*2.4);
+        ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.shadowColor=base; ctx.shadowBlur=22*pul+8;
+        ctx.strokeStyle=base; ctx.globalAlpha=0.22*pul+0.08; ctx.lineWidth=3; rr(x,L.top,L.bw,L.h,10); ctx.stroke(); ctx.restore(); }
+
+      // vial well
+      const wg=ctx.createLinearGradient(x,0,x+L.bw,0); wg.addColorStop(0,'#0d1524'); wg.addColorStop(.5,'#0a111d'); wg.addColorStop(1,'#0d1524');
+      ctx.fillStyle=wg; rr(x,L.top,L.bw,L.h,10); ctx.fill();
+
+      ctx.save(); rr(x,L.top,L.bw,L.h,10); ctx.clip();
+        // band safe-zone
+        const by=L.bot-(BAND_HI/100)*L.h, bh=((BAND_HI-BAND_LO)/100)*L.h;
+        ctx.fillStyle='rgba(54,211,153,0.10)'; ctx.fillRect(x,by,L.bw,bh);
+        ctx.strokeStyle='rgba(54,211,153,0.5)'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+        ctx.beginPath(); ctx.moveTo(x,by); ctx.lineTo(x+L.bw,by); ctx.moveTo(x,by+bh); ctx.lineTo(x+L.bw,by+bh); ctx.stroke(); ctx.setLineDash([]);
+
+        // liquid body with a wavy surface
+        const amp=Math.min(5, 2.2+(fed?2.4:0)), ph=tNow*2.4+r.wseed;
+        ctx.beginPath(); ctx.moveTo(x, L.bot+2); ctx.lineTo(x, fy);
+        for(let xx=0; xx<=L.bw; xx+=4) ctx.lineTo(x+xx, fy+Math.sin(xx*0.16+ph)*amp);
+        ctx.lineTo(x+L.bw, L.bot+2); ctx.closePath();
+        const lg=ctx.createLinearGradient(0,fy-amp,0,L.bot); lg.addColorStop(0,colT); lg.addColorStop(0.14,base); lg.addColorStop(1,base);
+        ctx.save(); if(inb||crit){ ctx.shadowColor=base; ctx.shadowBlur=14; } ctx.fillStyle=lg; ctx.fill(); ctx.restore();
+        // depth shading at the bottom
+        const sg=ctx.createLinearGradient(0,fy,0,L.bot); sg.addColorStop(0,'rgba(0,0,0,0)'); sg.addColorStop(1,'rgba(0,0,0,0.30)'); ctx.fillStyle=sg; ctx.fillRect(x,fy-6,L.bw,fh+8);
+        // bright surface line
+        ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.strokeStyle=colT; ctx.globalAlpha=0.85; ctx.lineWidth=2;
+        ctx.beginPath(); for(let xx=0; xx<=L.bw; xx+=4){ const yy=fy+Math.sin(xx*0.16+ph)*amp; xx===0?ctx.moveTo(x+xx,yy):ctx.lineTo(x+xx,yy); } ctx.stroke(); ctx.restore();
+        // rising bubbles
+        if(fh>6){ ctx.save(); ctx.globalCompositeOperation='lighter';
+          for(const b of r.bub){ const sp=b.spd*(fed?1.8:1), fr=(tNow*sp+b.ph)%1, by2=L.bot-fr*fh; if(by2<fy+2) continue;
+            ctx.globalAlpha=Math.max(0,(1-fr))*0.55; ctx.fillStyle=colT; ctx.beginPath(); ctx.arc(x+b.x*L.bw, by2, b.r, 0, 7); ctx.fill(); }
+          ctx.restore(); }
+        // feed pour-beam with moving ticks
+        if(fed){ const bw2=5+Math.sin(tNow*22)*1.4, cxm=x+L.bw/2, beamH=Math.max(0,fy-L.top);
+          const bg=ctx.createLinearGradient(0,L.top,0,fy); bg.addColorStop(0,'rgba(159,233,255,0)'); bg.addColorStop(.25,'rgba(159,233,255,.45)'); bg.addColorStop(1,'rgba(159,233,255,.85)');
+          ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.fillStyle=bg; ctx.fillRect(cxm-bw2/2, L.top, bw2, beamH);
+          ctx.fillStyle='rgba(220,248,255,.9)'; for(let yy=(tNow*220)%16; yy<beamH; yy+=16) ctx.fillRect(cxm-1, L.top+yy, 2, 6); ctx.restore(); }
+      ctx.restore();
+
+      // glass shell — left sheen + frame
+      const sheen=ctx.createLinearGradient(x,0,x+L.bw,0); sheen.addColorStop(0,'rgba(255,255,255,0.10)'); sheen.addColorStop(0.18,'rgba(255,255,255,0.02)'); sheen.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=sheen; rr(x,L.top,L.bw,L.h,10); ctx.fill();
+      ctx.strokeStyle='rgba(200,215,240,0.16)'; ctx.lineWidth=1.5; rr(x,L.top,L.bw,L.h,10); ctx.stroke();
+
+      // pour arrow above
+      if(fed){ ctx.save(); ctx.fillStyle='#9fe9ff'; ctx.font='bold 16px ui-monospace,monospace'; ctx.textAlign='center'; ctx.shadowColor='#5ad1ff'; ctx.shadowBlur=10; ctx.fillText('▼', x+L.bw/2, L.top-4); ctx.restore(); }
+      // alarm / surge marker
+      if(crit){ const a=0.5+0.5*Math.sin(tNow*9); ctx.save(); ctx.globalAlpha=a; ctx.fillStyle='#ff4d6d'; ctx.font='bold 13px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillText('⚠', x+L.bw/2, L.top+15); ctx.restore(); }
+      else if(r.surge>1){ ctx.fillStyle='#ffcaca'; ctx.font='11px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillText('⚡', x+L.bw/2, L.top+15); }
+
+      // bottom readout
+      ctx.fillStyle='#7d8aa0'; ctx.font='10px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillText('['+(i+1)+']', x+L.bw/2, H-28);
+      ctx.fillStyle= inb?'#8effc9':(crit?'#ff8aa0':'#e7ecf5'); ctx.font='bold 14px ui-monospace,monospace'; ctx.fillText(Math.round(r.level), x+L.bw/2, H-11);
     }
     for(let i=flashes.length-1;i>=0;i--){ const f=flashes[i]; f.t-=0.03; if(f.i>=reactors.length){flashes.splice(i,1);continue;}
-      const x=L.x0+f.i*(L.bw+L.gap); ctx.globalAlpha=Math.max(0,f.t); ctx.fillStyle='#5ad1ff'; ctx.font='bold 12px monospace'; ctx.textAlign='center'; ctx.fillText(f.txt,x+L.bw/2,L.top+L.h/2); ctx.globalAlpha=1; if(f.t<=0) flashes.splice(i,1); }
+      const x=L.x0+f.i*(L.bw+L.gap); ctx.globalAlpha=Math.max(0,f.t); ctx.fillStyle='#9fe9ff'; ctx.font='bold 12px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillText(f.txt,x+L.bw/2,L.top+L.h/2); ctx.globalAlpha=1; if(f.t<=0) flashes.splice(i,1); }
     fx.render(ctx);
     ctx.restore();
-    // danger creeps in as any reactor nears starve/overload
+    // danger vignette as any reactor nears starve/overload
     let crit=0; for(const r of reactors){ const c=Math.max((16-r.level)/16,(r.level-84)/16); if(c>crit) crit=c; }
     if(playing()) Juice.vignette(ctx, W, H, Math.max(0,crit)*0.5, 'rgba(255,77,109,A)');
   }
