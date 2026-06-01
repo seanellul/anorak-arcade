@@ -117,7 +117,7 @@
     for(let x=0;x<COLS;x++) grid[idx(x,ROWS-1)]=anim.newRow[x];
     if(sel>0) sel--; mult=1; comboShown=0; beginFall(true); }   // resolve after everything has moved up
 
-  function gameover(){ dead=true; phase='idle'; document.getElementById('overmsg').textContent='Reached depth '+depth+' · score '+score; document.getElementById('over').style.display='flex'; beep(110,0.6,'sawtooth',0.09); }
+  function gameover(){ dead=true; phase='idle'; if(window.GameStats) GameStats.submitScore('STRATA', score); document.getElementById('overmsg').textContent='Reached depth '+depth+' · score '+score; document.getElementById('over').style.display='flex'; beep(110,0.6,'sawtooth',0.09); }
 
   function selFromY(py){ const r=cv.getBoundingClientRect(); return Math.max(0,Math.min(ROWS-1, Math.floor(py/(r.height/ROWS)))); }
   cv.addEventListener('mousemove',e=>{ const r=cv.getBoundingClientRect(); sel=selFromY(e.clientY-r.top); });

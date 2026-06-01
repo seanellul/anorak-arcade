@@ -89,7 +89,7 @@
       const k=2+Math.min(2,(score/6|0)); for(let i=0;i<k;i++){ let q; do{ q=Math.random()*mask.length|0; }while(q===idx(0,SRC_Y)); const old=mask[q]; mask[q]=randPiece(); if(mask[q]!==old) spin[q]-=Math.PI/2; }
       newSink();
     } else { streak=0; charge++; shake=10; beep(150,0.22,'sawtooth',0.07);
-      if(charge>=CHARGE_MAX){ dead=true; document.getElementById('overmsg').textContent='Delivered '+score+' pulses'; document.getElementById('over').style.display='flex'; beep(90,0.6,'sawtooth',0.1); } }
+      if(charge>=CHARGE_MAX){ dead=true; if(window.GameStats) GameStats.submitScore('CONDUIT', score); document.getElementById('overmsg').textContent='Delivered '+score+' pulses'; document.getElementById('over').style.display='flex'; beep(90,0.6,'sawtooth',0.1); } }
   }
 
   function rotateAt(x,y,cw){ if(dead) return; const i=idx(x,y); mask[i]=cw?rotCW(mask[i]):rotCCW(mask[i]); spin[i]+=cw?-Math.PI/2:Math.PI/2; beep(cw?330:300,0.04,'square',0.03); }

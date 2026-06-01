@@ -9,19 +9,30 @@ psychology with **four different core verbs** and **no falling tetrominoes or li
 ```
 public/                 ← the deployable static site (Cloudflare Pages output dir)
   index.html              Arcade home — games + live playtime panel
+  leaderboard.html        high scores per game + global time + most-played
   about.html              About Anorak Arcade — origin, the seed prompt, philosophy
   research.html           "The Tetris Lab" — pillars, neuro-loop, dossier links
   doc.html                in-site Markdown viewer for the research docs
   cinder.html  strata.html  conduit.html  homeostat.html
-  site.css  site.js        shared shell (nav, styling, Markdown renderer)
-  stats.js                shared playtime tracker (localStorage)
+  site.css  site.js        shared shell (nav, styling, Markdown renderer, TOC, back-to-top)
+  stats.js                playtime + leaderboard client (localStorage + optional sync)
   research/               the research dossier (Markdown, rendered in-site)
-api/                    ← (planned) Cloudflare Worker + D1 leaderboard / data API
+api/                    ← Cloudflare Worker + D1 leaderboard / data API
+  worker.js  schema.sql  wrangler.toml  README.md
 ```
 
-The site has three sections: **Arcade** (home, the games), **About** (the origin story and
-philosophy), and **Research** — *The Tetris Lab* — where the full dossier is rendered natively
-in-site via `doc.html`.
+The site has four sections: **Arcade** (home, the games), **Leaderboard** (scores + global stats),
+**About** (the origin story and philosophy), and **Research** — *The Tetris Lab* — where the full
+dossier is rendered natively in-site via `doc.html`.
+
+## Leaderboards & data (Cloudflare Worker + D1)
+
+`stats.js` is local-first and works with no backend. To turn on the **global leaderboard** (per-name
+high scores, global time played, most-played games, and an admin "who plays what" view), deploy the
+Worker in `api/` (see `api/README.md`) and paste its URL into `const API` at the top of
+`public/stats.js`. Until then the site runs fine in local-only mode and the Leaderboard page shows
+your local bests. Players set a free-text name (arcade-style); the home **RESET** clears only the
+local copy — the server keeps the global record.
 
 ## Play locally
 

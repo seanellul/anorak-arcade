@@ -57,7 +57,8 @@
   }
   function layout(){ const n=reactors.length; const gap=24; const bw=Math.min(70,(W-gap*(n+1))/n); const total=bw*n+gap*(n+1); const x0=(W-total)/2+gap; return {bw,gap,x0,top:30,bot:H-46,h:H-46-30}; }
 
-  function loseGame(which,why){ dead=true; document.getElementById('overh').textContent = why==='over'?'OVERLOAD':'STARVED';
+  function loseGame(which,why){ dead=true; if(window.GameStats) GameStats.submitScore('HOMEOSTAT', Math.round(score));
+    document.getElementById('overh').textContent = why==='over'?'OVERLOAD':'STARVED';
     document.getElementById('overmsg').textContent='Reactor '+(which+1)+' '+(why==='over'?'overloaded':'starved')+' · score '+score+' · '+((performance.now()-t0)/1000|0)+'s';
     document.getElementById('over').style.display='flex'; beep(90,0.6,'sawtooth',0.1); }
 

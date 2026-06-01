@@ -233,6 +233,7 @@
   }
 
   function gameOver(){ state='dead'; sfxDead(); shake=24;
+    if(window.GameStats) GameStats.submitScore('CINDER', score);
     document.getElementById('finalScore').textContent=Math.round(score);
     document.getElementById('finalStats').innerHTML='captures <b>'+caps+'</b> &nbsp;·&nbsp; biggest seal <b>'+bestCap+'</b> embers &nbsp;·&nbsp; reached <b>'+heatName+'</b>';
     document.getElementById('over').style.display='flex'; }
