@@ -45,6 +45,12 @@
   .key{color:var(--ink);background:#1b2335;border:1px solid #2a3447;border-radius:5px;padding:1px 7px;font-size:11px}
   #over{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,10,16,.86);border-radius:10px;text-align:center}
   #over h2{margin:0 0 6px;letter-spacing:.2em;color:var(--bad)}#over p{color:var(--dim);margin:4px 0 16px}
+  .scr{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,10,16,.9);border-radius:10px;text-align:center;padding:24px}
+  .scr.show{display:flex}
+  .scr h2{margin:0 0 8px;letter-spacing:.2em;font-size:26px}
+  .scr p{color:var(--dim);margin:4px 0;max-width:420px;line-height:1.6;font-size:13px}
+  .scr p b{color:var(--ink)}
+  .scr .hint{color:var(--dim);font-size:12px;margin-top:14px}
   button{background:var(--accent);color:#04121a;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:10px 22px;border-radius:8px;cursor:pointer}
   .ctrls{display:flex;gap:10px;justify-content:center;width:100%;max-width:560px;padding:0 8px;margin:8px 0 0}
   .ctrls button{flex:1;background:#1b2335;border:1px solid #2a3447;color:var(--ink);font-weight:700;letter-spacing:.1em;padding:13px;border-radius:9px;font-size:13px}
@@ -86,6 +92,13 @@
 <div class="bar" id="riseWrap"><i id="rise"></i><span class="lab">NEXT SHIFT (rise + resolve)</span></div>
 <div id="wrap"><canvas id="c"></canvas>
   <div id="over"><h2>BURIED</h2><p id="overmsg"></p><button id="again">RESTART ⏎</button></div>
+  <div id="title" class="scr show">
+    <h2>SHI<span style="color:var(--accent)">FT</span></h2>
+    <p>Layers push up on each <b>Shift</b>. Between Shifts, <b>slide a row</b> (tap its left/right half) to line up <b>3+ of a colour</b> and <b>drop</b> to stack — then the rise <b>resolves it all at once</b> for a chain.</p>
+    <button id="startBtn">▶ PLAY</button>
+    <div class="hint"><span class="key">tap L/R</span> slide · <span class="key">↓</span> drop · <span class="key">↑</span> push up · <span class="key">P</span> pause</div>
+  </div>
+  <div id="paused" class="scr"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
 </div>
 <div class="ctrls">
   <button id="btnDrop" type="button">▼ DROP</button>
@@ -95,6 +108,7 @@
   Layers push up on each <b>Shift</b> — and <b>matches only clear during a Shift</b>, after everything rises. So take your time between Shifts: <b>slide rows</b> to line up <b>big</b> groups of one color, <b>drop</b> to compact your stack, then let the rise resolve it all for a <b>chain</b>. You lose if a filled cell is pushed past the top.<br>
   <span class="key">tap / click L·R half</span> slide that row &nbsp; <span class="key">↓ / DROP</span> compact &nbsp; <span class="key">↑ / space / PUSH UP</span> rise &amp; resolve &nbsp;·&nbsp; <span class="key">W S</span> pick · <span class="key">← →</span> slide (desktop)
 </div>
+<script src="juice.js"></script>
 <script src="stats.js"></script>
 <script>
 (()=>{
@@ -102,21 +116,27 @@
   const cv=document.getElementById('c'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
   const COLORS=[null,'#5ad1ff','#ff5ada','#9cff5a','#ffb13d'];
   const NC=4;
-  let grid, sel, score, cleared, depth, riseEvery, riseT, last, dead, depthAcc;
+  let grid, sel, score, cleared, depth, riseEvery, riseT, last, dead, depthAcc, state;
   let phase, anim, mult, comboShown, sparks;
-
-  let AC; function beep(f,d,t,g){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),v=AC.createGain();o.type=t||'sine';o.frequency.value=f;v.gain.value=g||0.05;o.connect(v);v.connect(AC.destination);o.start();v.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(d||0.12));o.stop(AC.currentTime+(d||0.12));}catch(e){}}
+  const fx = Juice.layer();
+  const beep=(f,d,t,g)=>Juice.tone(f, d||0.12, t||'sine', g||0.05);
+  const cx=x=>x*CELL+CELL/2, cy=y=>y*CELL+CELL/2;
+  const playing=()=> state==='play' && !dead;
   const idx=(x,y)=>y*COLS+x;
   const easeOut=t=>1-Math.pow(1-t,3);
   const easeIn=t=>t*t;
 
-  function reset(){
+  function reset(showTitle){
     grid=new Uint8Array(COLS*ROWS); sel=ROWS-3; score=0; cleared=0; depth=1;
     riseEvery=2400; riseT=riseEvery; last=performance.now(); dead=false; depthAcc=0;
     phase='idle'; anim=null; mult=1; comboShown=0; sparks=[];
     for(let y=ROWS-5;y<ROWS;y++) fillRow(y);
     let guard=40; while(guard-- && settleInstant()){}
-    document.getElementById('over').style.display='none'; updateHUD();
+    state = showTitle ? 'title' : 'play';
+    document.getElementById('over').style.display='none';
+    document.getElementById('paused').classList.remove('show');
+    document.getElementById('title').classList.toggle('show', !!showTitle);
+    updateHUD();
   }
   function fillRow(y){ for(let x=0;x<COLS;x++) grid[idx(x,y)] = Math.random()<0.82 ? (1+(Math.random()*NC|0)) : 0; }
 
@@ -134,13 +154,13 @@
   function settleInstant(){ const m=findMatches(); if(!m.size) return false; for(const i of m) grid[i]=0; applyGravity(); return true; }
 
   // ---- SLIDE (sideways): rearrange only, never resolves ----
-  function beginShift(row,dir){ if(phase!=='idle'||dead) return; phase='shift'; anim={t:0,dur:100,row,dir}; beep(420,0.04,'square',0.025); }
+  function beginShift(row,dir){ if(phase!=='idle'||!playing()) return; phase='shift'; anim={t:0,dur:100,row,dir}; Juice.sfx.tick(440); }
   function commitShift(){ const {row,dir}=anim; const r=[]; for(let x=0;x<COLS;x++) r.push(grid[idx(x,row)]);
     if(dir>0) r.unshift(r.pop()); else r.push(r.shift()); for(let x=0;x<COLS;x++) grid[idx(x,row)]=r[x];
     phase='idle'; }
 
   // ---- DROP (down): compact via gravity, never resolves ----
-  function beginDrop(){ if(phase!=='idle'||dead) return; beginFall(false); }
+  function beginDrop(){ if(phase!=='idle'||!playing()) return; Juice.tone(150,0.09,'sine',0.04); beginFall(false); }
 
   // ---- FALL: shared gravity animation; resolveMode chains into clears ----
   function beginFall(resolve){ const fallers=[]; let maxD=0;
@@ -154,28 +174,36 @@
 
   // ---- CLEAR: only ever reached via a Shift's resolve ----
   function beginClear(set){ phase='clear'; anim={t:0,dur:180, cells:[...set].map(i=>({x:i%COLS,y:(i/COLS)|0,color:grid[i]}))};
-    beep(300+mult*120,0.18,'triangle',0.07); if(mult>1) comboShown=mult; }
-  function commitClear(){ const cells=anim.cells; score+=cells.length*10*mult; cleared+=cells.length;
-    for(const c of cells){ grid[idx(c.x,c.y)]=0; for(let k=0;k<3;k++) sparks.push({x:c.x*CELL+CELL/2,y:c.y*CELL+CELL/2,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,t:1,color:c.color}); }
+    Juice.chord(300+mult*70, 3+Math.min(mult,4), {step:1.16, dur:0.16, gain:0.06}); if(mult>1) comboShown=mult; }
+  function commitClear(){ const cells=anim.cells; const gain=cells.length*10*mult; score+=gain; cleared+=cells.length;
+    let sx=0,sy=0;
+    for(const c of cells){ grid[idx(c.x,c.y)]=0; const px=cx(c.x),py=cy(c.y); sx+=px; sy+=py;
+      fx.burst(px,py,COLORS[c.color],6,{spread:3.2,decay:0.05,r:3}); }
+    const ccx=sx/cells.length, ccy=sy/cells.length;
+    fx.float(ccx, ccy, '+'+gain, mult>1?'#ffd23f':'#fff', {size: mult>1?26:20});
+    fx.ring(ccx, ccy, mult>1?'#ffd23f':'#5ad1ff', 38+cells.length*4);
+    fx.shake(Math.min(16, 3+cells.length*0.5+mult*1.5));
     mult++; beginFall(true); }
 
   // ---- SHIFT (rise): move everything up, then resolve ----
-  function beginRise(){ if(phase!=='idle'||dead) return; const newRow=[]; for(let x=0;x<COLS;x++) newRow[x]=Math.random()<0.82?(1+(Math.random()*NC|0)):0;
-    phase='rise'; anim={t:0,dur:160,newRow}; }
+  function beginRise(){ if(phase!=='idle'||!playing()) return; const newRow=[]; for(let x=0;x<COLS;x++) newRow[x]=Math.random()<0.82?(1+(Math.random()*NC|0)):0;
+    phase='rise'; anim={t:0,dur:160,newRow}; Juice.tone(110,0.18,'sawtooth',0.04); Juice.tone(180,0.2,'sine',0.03,0.04); fx.shake(4); }
   function commitRise(){ for(let x=0;x<COLS;x++) if(grid[idx(x,0)]!==0){ return gameover(); }
     for(let y=0;y<ROWS-1;y++) for(let x=0;x<COLS;x++) grid[idx(x,y)]=grid[idx(x,y+1)];
     for(let x=0;x<COLS;x++) grid[idx(x,ROWS-1)]=anim.newRow[x];
     if(sel>0) sel--; mult=1; comboShown=0; beginFall(true); }   // resolve after everything has moved up
 
-  function gameover(){ dead=true; phase='idle'; if(window.GameStats) GameStats.submitScore('SHIFT', score); document.getElementById('overmsg').textContent='Reached depth '+depth+' · score '+score; document.getElementById('over').style.display='flex'; beep(110,0.6,'sawtooth',0.09); }
+  function gameover(){ dead=true; state='dead'; phase='idle'; if(window.GameStats) GameStats.submitScore('SHIFT', score); document.getElementById('overmsg').textContent='Reached depth '+depth+' · score '+score; document.getElementById('over').style.display='flex'; Juice.sfx.dead(); fx.shake(20); }
 
   function selFromY(py){ const r=cv.getBoundingClientRect(); return Math.max(0,Math.min(ROWS-1, Math.floor(py/(r.height/ROWS)))); }
   cv.addEventListener('mousemove',e=>{ const r=cv.getBoundingClientRect(); sel=selFromY(e.clientY-r.top); });
   cv.addEventListener('mousedown',e=>{ const r=cv.getBoundingClientRect(); const y=selFromY(e.clientY-r.top); const left=(e.clientX-r.left)<r.width/2; beginShift(y,left?-1:1); });
   cv.addEventListener('touchstart',e=>{ if(dead) return; e.preventDefault(); const r=cv.getBoundingClientRect(); const t=e.touches[0]; sel=selFromY(t.clientY-r.top); const left=(t.clientX-r.left)<r.width/2; beginShift(sel,left?-1:1); },{passive:false});
   window.addEventListener('keydown',e=>{
-    if(dead){ if(e.key==='Enter') reset(); return; }
     const k=e.key.toLowerCase();
+    if(k==='p' && (state==='play'||state==='paused')){ togglePause(); e.preventDefault(); return; }
+    if(dead){ if(e.key==='Enter') reset(false); return; }
+    if(state!=='play') return;
     if(k==='w'){ sel=Math.max(0,sel-1); e.preventDefault(); }
     else if(k==='s'){ sel=Math.min(ROWS-1,sel+1); e.preventDefault(); }
     else if(k==='arrowleft'||k==='a'){ beginShift(sel,-1); e.preventDefault(); }
@@ -184,8 +212,11 @@
     else if(k==='arrowup'||k===' '){ if(phase==='idle'){ beginRise(); riseT=riseEvery; } e.preventDefault(); }
   });
   document.getElementById('btnDrop').onclick=()=>beginDrop();
-  document.getElementById('btnPush').onclick=()=>{ if(phase==='idle'){ beginRise(); riseT=riseEvery; } };
-  document.getElementById('again').onclick=reset;
+  document.getElementById('btnPush').onclick=()=>{ if(phase==='idle'&&playing()){ beginRise(); riseT=riseEvery; } };
+  document.getElementById('again').onclick=()=>reset(false);
+  document.getElementById('startBtn').onclick=()=>{ Juice.unlock(); reset(false); };
+  function togglePause(){ if(state==='play'){ state='paused'; document.getElementById('paused').classList.add('show'); } else if(state==='paused'){ state='play'; last=performance.now(); document.getElementById('paused').classList.remove('show'); } }
+  window.addEventListener('blur',()=>{ if(state==='play') togglePause(); });
 
   function updateHUD(){ document.getElementById('score').textContent=score; document.getElementById('cleared').textContent=cleared; document.getElementById('depth').textContent=depth;
     document.getElementById('combo').textContent= comboShown>1?('x'+comboShown):'—';
@@ -193,13 +224,14 @@
     document.getElementById('riseWrap').classList.toggle('danger', f>82); }
 
   function loop(now){ const dt=Math.min(80,now-last); last=now;
-    if(!dead){
+    if(playing()){
       if(window.GameStats) GameStats.ping('SHIFT', dt);
       if(phase==='idle'){ riseT-=dt; if(riseT<=0){ beginRise(); riseT=riseEvery; }
         depthAcc+=dt; if(depthAcc>11000){ depth++; riseEvery=Math.max(800,riseEvery*0.85); depthAcc-=11000; } }
       if(anim){ anim.t+=dt/anim.dur; if(anim.t>=1){ const ph=phase; anim.t=1; if(ph==='shift') commitShift(); else if(ph==='clear') commitClear(); else if(ph==='fall') commitFall(); else if(ph==='rise') commitRise(); } }
       if(comboShown>1 && phase==='idle') comboShown=0;
     }
+    fx.update(dt);
     for(let i=sparks.length-1;i>=0;i--){ const s=sparks[i]; s.x+=s.vx; s.y+=s.vy; s.vy+=0.25; s.t-=0.05; if(s.t<=0) sparks.splice(i,1); }
     draw(); updateHUD(); requestAnimationFrame(loop);
   }
@@ -210,6 +242,7 @@
     ctx.fillStyle='rgba(255,255,255,0.18)'; rr(px+5+m,py+5+m,CELL-10-2*m,5*s,3); ctx.fill(); ctx.globalAlpha=1; }
 
   function draw(){ ctx.clearRect(0,0,W,H);
+    ctx.save(); const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
     // selection: full when idle, faded to 20% during any animation (don't vanish)
     const selA = phase==='idle' ? 1 : 0.2;
     ctx.globalAlpha=selA*0.08*1; ctx.fillStyle='#5ad1ff'; ctx.fillRect(0,sel*CELL,W,CELL); ctx.globalAlpha=1;
@@ -237,10 +270,14 @@
     ctx.textAlign='left'; ctx.fillText('‹',3,sel*CELL+CELL/2); ctx.textAlign='right'; ctx.fillText('›',W-3,sel*CELL+CELL/2); ctx.globalAlpha=1;
     if(comboShown>1){ ctx.globalAlpha=0.9; ctx.fillStyle='#ffd23f'; ctx.font='bold 30px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('CHAIN x'+comboShown, W/2, H*0.32); ctx.globalAlpha=1; }
     ctx.strokeStyle='rgba(255,77,109,0.5)'; ctx.setLineDash([6,6]); ctx.beginPath(); ctx.moveTo(0,CELL); ctx.lineTo(W,CELL); ctx.stroke(); ctx.setLineDash([]);
+    fx.render(ctx);
+    ctx.restore();
+    // rising tension as the next Shift approaches
+    if(playing()){ const prox=1-riseT/riseEvery; Juice.vignette(ctx, W, H, Math.max(0, prox-0.6)*0.9, 'rgba(255,77,109,A)'); }
   }
 
-  window.__shift={ idx, findMatches, settleInstant, applyGravity, beginShift, beginRise, beginDrop, COLS, ROWS, get grid(){return grid;}, getScore:()=>score, getPhase:()=>phase, setDead:v=>dead=v };
-  reset(); requestAnimationFrame(loop);
+  window.__shift={ idx, findMatches, settleInstant, applyGravity, beginShift, beginRise, beginDrop, COLS, ROWS, get grid(){return grid;}, getScore:()=>score, getPhase:()=>phase, setDead:v=>dead=v, setState:v=>state=v };
+  reset(true); requestAnimationFrame(loop);
 })();
 </script>
 </body>
