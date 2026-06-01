@@ -76,6 +76,6 @@ reactor hits 0 (starve) or 100 (overload).
 - **Which release feels best:** an enclosure *pop*, a cascade *chain*, a delivery *pulse*, or a
   recovery *save*. The one with the strongest tension→resolution "snap" is the candidate to deepen.
 
-Each ships as a standalone zero-dependency HTML file (`prototypes/*.html`) with on-screen controls,
+Each ships as a standalone zero-dependency HTML file (`public/*.html`) with on-screen controls,
 a live score/pressure readout, WebAudio tension-release cues, and a fail→instant-restart loop so the
-loss-is-cheap property (dossier §3.7) holds. Open `prototypes/index.html` to launch all four.
+loss-is-cheap property (dossier §3.7) holds. Open `public/index.html` to launch all four.

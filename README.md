@@ -4,19 +4,44 @@ A deep study of *why Tetris works* — history, mechanics, neuroscience, and gam
 into **8 design pillars**, then rebuilt as **4 playable prototypes** that capture the same
 psychology with **four different core verbs** and **no falling tetrominoes or line clears**.
 
-## Play
+## Repo layout
 
-```bash
-# from this directory
-python3 -m http.server 8753
-# then open http://localhost:8753/prototypes/index.html
+```
+public/        ← the deployable static site (Cloudflare Pages output dir)
+  index.html     launcher + live playtime panel
+  cinder.html  strata.html  conduit.html  homeostat.html
+  stats.js       shared playtime tracker (localStorage)
+research/      ← the research dossier (source of truth; linked from the launcher)
+api/           ← (planned) Cloudflare Worker + D1 leaderboard / data API
 ```
 
-Or just open `prototypes/index.html` directly in a browser (the games are zero-dependency; serving
-over http only matters for the relative links to the research docs). Click once in any game to
-enable sound.
+## Play locally
 
-## The four prototypes (`prototypes/`)
+```bash
+cd public && python3 -m http.server 8753
+# open http://localhost:8753/
+```
+
+Or open `public/index.html` directly in a browser. Click once in any game to enable sound.
+
+## Deploy (Cloudflare Pages)
+
+The static site is `public/`. With a Cloudflare account:
+
+```bash
+# one-time auth (either):
+npx wrangler login                 # interactive OAuth
+# …or set a scoped token for CI/non-interactive:
+export CLOUDFLARE_API_TOKEN=...     # Pages:Edit
+export CLOUDFLARE_ACCOUNT_ID=...
+
+npx wrangler pages deploy public --project-name re-imagine-tetris
+```
+
+Or connect the GitHub repo in the Cloudflare dashboard (Pages → Connect to Git → output dir `public`)
+for auto-deploy on every push.
+
+## The four prototypes (`public/`)
 
 | Game | Verb | One line | Leans hardest on |
 |------|------|----------|------------------|
@@ -31,7 +56,7 @@ with transparent state and skill-contingent release** — but tests a different 
 
 ## Playtime tracker
 
-A shared `prototypes/stats.js` records how long each game is actively played (per-frame ping while
+A shared `public/stats.js` records how long each game is actively played (per-frame ping while
 in active play, not paused/dead) to `localStorage`. The launcher (`index.html`) shows a live
 **PLAYTIME** panel — time + session count per game, with a reset button. Serve over http (below) so
 all pages share one origin.
