@@ -64,7 +64,7 @@
         rings.push({ x, y, r: o.r0 || 8, maxR: maxR || 60, life: 1, decay: o.decay || 0.05, color, lw: o.lw || 3 });
       },
       update(dt) {
-        const k = Math.min(3, dt / 16.7);
+        const k = Math.max(0, Math.min(3, dt / 16.7));
         shakeMag *= Math.pow(0.86, k); if (shakeMag < 0.3) shakeMag = 0;
         for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.x += p.vx * k; p.y += p.vy * k; p.vy += p.grav * k; p.life -= p.decay * k; if (p.life <= 0) parts.splice(i, 1); }
         for (let i = floats.length - 1; i >= 0; i--) { const f = floats[i]; f.y += f.vy * k; f.life -= f.decay * k; if (f.life <= 0) floats.splice(i, 1); }
@@ -74,7 +74,7 @@
       render(ctx) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        for (const r of rings) { ctx.globalAlpha = Math.max(0, r.life) * 0.6; ctx.strokeStyle = r.color; ctx.lineWidth = r.lw; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, 7); ctx.stroke(); }
+        for (const r of rings) { if (r.r <= 0) continue; ctx.globalAlpha = Math.max(0, r.life) * 0.6; ctx.strokeStyle = r.color; ctx.lineWidth = r.lw; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, 7); ctx.stroke(); }
         ctx.globalCompositeOperation = 'source-over';
         for (const p of parts) { ctx.globalAlpha = Math.max(0, Math.min(1, p.life)); ctx.fillStyle = p.color; ctx.fillRect(p.x - p.r / 2, p.y - p.r / 2, p.r, p.r); }
         ctx.globalAlpha = 1;

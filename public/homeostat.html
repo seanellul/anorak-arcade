@@ -41,6 +41,12 @@
   .key{color:var(--ink);background:#1b2335;border:1px solid #2a3447;border-radius:5px;padding:1px 7px;font-size:11px}
   #over{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,10,16,.86);border-radius:10px;text-align:center}
   #over h2{margin:0 0 6px;letter-spacing:.2em;color:var(--bad)}#over p{color:var(--dim);margin:4px 0 16px}
+  .scr{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,10,16,.9);border-radius:10px;text-align:center;padding:24px}
+  .scr.show{display:flex}
+  .scr h2{margin:0 0 8px;letter-spacing:.2em;font-size:26px}
+  .scr p{color:var(--dim);margin:4px 0;max-width:420px;line-height:1.6;font-size:13px}
+  .scr p b{color:var(--ink)}
+  .scr .hint{color:var(--dim);font-size:12px;margin-top:14px}
   button{background:var(--accent);color:#04150f;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:10px 22px;border-radius:8px;cursor:pointer}
   a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px}a.back:hover{color:var(--ink)}
   @media(max-width:560px){a.back{position:static;display:block;margin:10px 0 0 12px}header{padding-top:6px}}
@@ -76,11 +82,19 @@
 </div>
 <div id="wrap"><canvas id="c"></canvas>
   <div id="over"><h2 id="overh">FLATLINE</h2><p id="overmsg"></p><button id="again">RESTART ⏎</button></div>
+  <div id="title" class="scr show">
+    <h2>HOMEO<span style="color:var(--accent)">STAT</span></h2>
+    <p>Reactors drain on their own. You have <b>one feed stream</b> — <b>hold</b> a reactor (tap-and-hold, or keys 1–6) to raise it. Keep every needle in its <b>green flow band</b>; a starve (0) or overload (100) ends the run.</p>
+    <button id="startBtn">▶ PLAY</button>
+    <div class="hint"><span class="key">hold</span> a reactor &nbsp; <span class="key">1–6</span> feed &nbsp; <span class="key">P</span> pause</div>
+  </div>
+  <div id="paused" class="scr"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
 </div>
 <div class="foot">
   Every reactor drains on its own. You have <b>one feed stream</b> — pour it into a reactor to raise it, but only one at a time. Keep each needle inside its <b>green flow band</b> to score; a reactor that <b>starves (0)</b> or <b>overloads (100)</b> ends the run. Drain accelerates and new reactors keep coming online.<br>
   <span class="key">hold 1–6</span> feed reactor &nbsp; <span class="key">click + hold</span> a reactor &nbsp; <span class="key">⏎</span> restart
 </div>
+<script src="juice.js"></script>
 <script src="stats.js"></script>
 <script>
 (()=>{
@@ -88,25 +102,30 @@
   const W=MOBILE?404:560, H=MOBILE?672:420;  // taller, narrower on phones
   const cv=document.getElementById('c'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
   const FEED=40, BAND_LO=38, BAND_HI=72;
-  let reactors, feeding, score, t0, last, dead, load, addAcc, surgeAcc, loadAcc, flashes, pulse;
-
-  let AC; function beep(f,d,ty,g){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),v=AC.createGain();o.type=ty||'sine';o.frequency.value=f;v.gain.value=g||0.05;o.connect(v);v.connect(AC.destination);o.start();v.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(d||0.12));o.stop(AC.currentTime+(d||0.12));}catch(e){}}
+  let reactors, feeding, score, t0, last, dead, load, addAcc, surgeAcc, loadAcc, flashes, pulse, state;
+  const fx = Juice.layer();
+  const beep=(f,d,ty,g)=>Juice.tone(f, d||0.12, ty||'sine', g||0.05);
+  const playing=()=> state==='play' && !dead;
 
   function mkReactor(){ return { level:55, drain:7+Math.random()*4, baseDrain:7+Math.random()*4, surge:0, crit:false }; }
-  function reset(){
+  function reset(showTitle){
     reactors=[mkReactor(),mkReactor(),mkReactor()]; feeding=-1; score=0; t0=performance.now(); last=t0; dead=false; load=1;
     addAcc=0; surgeAcc=0; loadAcc=0; flashes=[]; pulse=0;
+    state = showTitle ? 'title' : 'play';
     document.getElementById('over').style.display='none';
+    document.getElementById('paused').classList.remove('show');
+    document.getElementById('title').classList.toggle('show', !!showTitle);
   }
   function layout(){ const n=reactors.length; const gap=24; const bw=Math.min(70,(W-gap*(n+1))/n); const total=bw*n+gap*(n+1); const x0=(W-total)/2+gap; return {bw,gap,x0,top:30,bot:H-46,h:H-46-30}; }
 
-  function loseGame(which,why){ dead=true; if(window.GameStats) GameStats.submitScore('HOMEOSTAT', Math.round(score));
+  function loseGame(which,why){ dead=true; state='dead'; if(window.GameStats) GameStats.submitScore('HOMEOSTAT', Math.round(score));
     document.getElementById('overh').textContent = why==='over'?'OVERLOAD':'STARVED';
-    document.getElementById('overmsg').textContent='Reactor '+(which+1)+' '+(why==='over'?'overloaded':'starved')+' · score '+score+' · '+((performance.now()-t0)/1000|0)+'s';
-    document.getElementById('over').style.display='flex'; beep(90,0.6,'sawtooth',0.1); }
+    document.getElementById('overmsg').textContent='Reactor '+(which+1)+' '+(why==='over'?'overloaded':'starved')+' · score '+(score|0)+' · '+((performance.now()-t0)/1000|0)+'s';
+    document.getElementById('over').style.display='flex'; Juice.sfx.dead(); fx.shake(22); }
 
+  const reactorX=i=>{ const L=layout(); return L.x0+i*(L.bw+L.gap)+L.bw/2; };
   function loop(now){ const dt=Math.min(60,now-last)/1000; last=now;
-    if(!dead){
+    if(playing()){
       if(window.GameStats) GameStats.ping('HOMEOSTAT', dt*1000);
       // feeding
       if(feeding>=0 && feeding<reactors.length){ reactors[feeding].level += FEED*dt; pulse=1; }
@@ -116,7 +135,12 @@
         // critical tracking for "save" release
         const critical = r.level<16 || r.level>84;
         if(critical && !r.crit){ r.crit=true; }
-        if(!critical && r.crit){ r.crit=false; score+=25; flashes.push({i,txt:'SAVE +25',t:1.2}); beep(520,0.12,'sine',0.06); setTimeout(()=>beep(780,0.16,'triangle',0.06),70); }
+        if(!critical && r.crit){ r.crit=false; score+=25;
+          const sx=reactorX(i), L=layout();
+          fx.burst(sx, L.top+18, '#36d399', 12, {spread:3, up:1, decay:0.04});
+          fx.ring(sx, L.top+18, '#36d399', 46);
+          fx.float(sx, L.top+6, 'SAVE +25', '#36d399', {size:15});
+          fx.shake(5); Juice.sfx.up(560); }
         if(r.level<=0){ r.level=0; return loseGame(i,'starve'); }
         if(r.level>=100){ r.level=100; return loseGame(i,'over'); }
         if(r.level>=BAND_LO && r.level<=BAND_HI) inBand++;
@@ -132,6 +156,7 @@
       loadAcc+=dt; if(loadAcc>12){ loadAcc=0; load++; for(const r of reactors){ r.drain+=1.4; } }
     }
     if(pulse>0) pulse-=0.05;
+    fx.update(dt*1000);
     draw();
     document.getElementById('score').textContent=score|0;
     document.getElementById('uptime').textContent=((dead?0:(now-t0))/1000|0)+'s';
@@ -139,7 +164,9 @@
     requestAnimationFrame(loop);
   }
 
-  function draw(){ ctx.clearRect(0,0,W,H); const L=layout();
+  function draw(){ ctx.clearRect(0,0,W,H);
+    ctx.save(); const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
+    const L=layout();
     for(let i=0;i<reactors.length;i++){ const r=reactors[i]; const x=L.x0+i*(L.bw+L.gap);
       // tube
       ctx.fillStyle='#0c1422'; ctx.fillRect(x,L.top,L.bw,L.h);
@@ -164,25 +191,36 @@
     }
     for(let i=flashes.length-1;i>=0;i--){ const f=flashes[i]; f.t-=0.03; if(f.i>=reactors.length){flashes.splice(i,1);continue;}
       const x=L.x0+f.i*(L.bw+L.gap); ctx.globalAlpha=Math.max(0,f.t); ctx.fillStyle='#5ad1ff'; ctx.font='bold 12px monospace'; ctx.textAlign='center'; ctx.fillText(f.txt,x+L.bw/2,L.top+L.h/2); ctx.globalAlpha=1; if(f.t<=0) flashes.splice(i,1); }
+    fx.render(ctx);
+    ctx.restore();
+    // danger creeps in as any reactor nears starve/overload
+    let crit=0; for(const r of reactors){ const c=Math.max((16-r.level)/16,(r.level-84)/16); if(c>crit) crit=c; }
+    if(playing()) Juice.vignette(ctx, W, H, Math.max(0,crit)*0.5, 'rgba(255,77,109,A)');
   }
 
   // input
   function feedAt(clientX,clientY){ const r=cv.getBoundingClientRect(); const L=layout(); const px=(clientX-r.left)*(W/r.width);
     for(let i=0;i<reactors.length;i++){ const x=L.x0+i*(L.bw+L.gap); if(px>=x-L.gap/2 && px<=x+L.bw+L.gap/2){ feeding=i; return; } } }
-  cv.addEventListener('mousedown',e=>{ if(!dead) feedAt(e.clientX,e.clientY); });
-  cv.addEventListener('mousemove',e=>{ if(e.buttons&&!dead) feedAt(e.clientX,e.clientY); });
+  cv.addEventListener('mousedown',e=>{ if(playing()) feedAt(e.clientX,e.clientY); });
+  cv.addEventListener('mousemove',e=>{ if(e.buttons&&playing()) feedAt(e.clientX,e.clientY); });
   window.addEventListener('mouseup',()=>{ if(!pointerKeyHeld) feeding=-1; });
-  cv.addEventListener('touchstart',e=>{e.preventDefault(); if(!dead) feedAt(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
-  cv.addEventListener('touchmove',e=>{e.preventDefault(); if(!dead) feedAt(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+  cv.addEventListener('touchstart',e=>{e.preventDefault(); if(playing()) feedAt(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+  cv.addEventListener('touchmove',e=>{e.preventDefault(); if(playing()) feedAt(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
   window.addEventListener('touchend',()=>{ feeding=-1; });
   let pointerKeyHeld=false;
-  window.addEventListener('keydown',e=>{ if(e.key==='Enter'&&dead){ reset(); return; }
+  window.addEventListener('keydown',e=>{ const kk=(e.key||'').toLowerCase();
+    if(kk==='p' && (state==='play'||state==='paused')){ togglePause(); e.preventDefault(); return; }
+    if(e.key==='Enter'&&dead){ reset(false); return; }
+    if(!playing()) return;
     const n=parseInt(e.key,10); if(n>=1&&n<=reactors.length){ feeding=n-1; pointerKeyHeld=true; } });
   window.addEventListener('keyup',e=>{ const n=parseInt(e.key,10); if(n>=1&&n<=6 && feeding===n-1){ feeding=-1; pointerKeyHeld=false; } });
-  document.getElementById('again').onclick=reset;
+  document.getElementById('again').onclick=()=>reset(false);
+  document.getElementById('startBtn').onclick=()=>{ Juice.unlock(); reset(false); };
+  function togglePause(){ if(state==='play'){ state='paused'; document.getElementById('paused').classList.add('show'); } else if(state==='paused'){ state='play'; last=performance.now(); document.getElementById('paused').classList.remove('show'); } }
+  window.addEventListener('blur',()=>{ if(state==='play') togglePause(); });
 
-  window.__homeo={ get reactors(){return reactors;}, feed:i=>feeding=i, getScore:()=>score, isDead:()=>dead, reset };
-  reset(); requestAnimationFrame(loop);
+  window.__homeo={ get reactors(){return reactors;}, feed:i=>feeding=i, getScore:()=>score, isDead:()=>dead, reset, setState:v=>state=v };
+  reset(true); requestAnimationFrame(loop);
 })();
 </script>
 </body>
