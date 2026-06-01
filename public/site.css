@@ -49,6 +49,11 @@ a.card p{color:#b6c0d4;font-size:13px;margin:0}
 a.card .pill{margin-top:14px;font-size:11px;color:var(--dim)}
 a.card .glow{position:absolute;right:-40px;top:-40px;width:120px;height:120px;border-radius:50%;background:var(--c);opacity:.14;filter:blur(20px)}
 
+/* ---- featured (full game) card ---- */
+a.card.feature{grid-column:1/-1;background:linear-gradient(120deg,#1c1408,var(--panel) 62%)}
+a.card.feature h2{font-size:30px}
+a.card.feature .verb{background:var(--c)}
+
 /* ---- generic panels / prose ---- */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;margin:16px 0}
 .prose p{color:#c4cde0;margin:14px 0}

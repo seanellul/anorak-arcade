@@ -14,6 +14,7 @@ public/                 ← the deployable static site (Cloudflare Pages output 
   research.html           "The Tetris Lab" — pillars, neuro-loop, dossier links
   doc.html                in-site Markdown viewer for the research docs
   cinder.html  strata.html  conduit.html  homeostat.html
+  motherload/             featured full game — self-contained vanilla-JS canvas roguelite
   site.css  site.js        shared shell (nav, styling, Markdown renderer, TOC, back-to-top)
   stats.js                playtime + leaderboard client (localStorage + optional sync)
   research/               the research dossier (Markdown, rendered in-site)

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Motherload</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23e8a13a'/></svg>" />
+  <link rel="stylesheet" href="css/style.css?v=43" />
+</head>
+<body>
+  <div id="game-root">
+    <div id="stage">
+    <canvas id="game" width="800" height="600"></canvas>
+
+    <!-- HUD overlay -->
+    <div id="hud" class="hidden">
+      <div class="gauge">
+        <span class="gauge-label">FUEL</span>
+        <div class="bar"><div id="fuel-fill" class="fill fuel"></div></div>
+        <span id="fuel-text" class="gauge-text">0/0</span>
+      </div>
+      <div class="gauge">
+        <span class="gauge-label">HULL</span>
+        <div class="bar"><div id="hull-fill" class="fill hull"></div></div>
+        <span id="hull-text" class="gauge-text">0/0</span>
+      </div>
+      <div class="gauge" id="heat-gauge">
+        <span class="gauge-label">HEAT</span>
+        <div class="bar"><div id="heat-fill" class="fill heat"></div></div>
+      </div>
+      <div class="gauge">
+        <span class="gauge-label">CARGO</span>
+        <div class="bar"><div id="cargo-fill" class="fill cargo"></div></div>
+        <span id="cargo-text" class="gauge-text">0/0</span>
+      </div>
+      <div class="stat"><span class="stat-label">$</span><span id="money-text">0</span></div>
+      <div class="stat"><span class="stat-label" id="depth-label">DEPTH</span><span id="depth-text">0 m</span></div>
+    </div>
+
+    <!-- Objective tracker -->
+    <div id="objective" class="hidden">
+      <div class="obj-label">OBJECTIVE</div>
+      <div class="obj-title" id="obj-title"></div>
+      <div class="obj-bar"><div class="obj-fill" id="obj-fill"></div></div>
+      <div class="obj-progress" id="obj-progress"></div>
+    </div>
+
+    <!-- Lore transmission overlay -->
+    <div id="lore" class="hidden">
+      <div class="lore-box">
+        <div class="lore-head">◇ INCOMING TRANSMISSION ◇</div>
+        <div class="lore-text" id="lore-text"></div>
+      </div>
+    </div>
+
+    <!-- Reward celebration popup -->
+    <div id="celebrate" class="hidden"></div>
+
+    <!-- Interaction prompt -->
+    <div id="prompt" class="hidden"></div>
+
+    <!-- Toast / messages -->
+    <div id="toast-container"></div>
+
+    <!-- Mute toggle -->
+    <button id="mute-btn" title="Toggle sound (or press P)">♪</button>
+
+    <!-- Fullscreen toggle -->
+    <button id="fs-btn" title="Toggle fullscreen (or press F)">⛶</button>
+
+    <!-- Start screen -->
+    <div id="start-screen" class="screen">
+      <h1 class="title">MOTHERLOAD</h1>
+      <p class="subtitle">Mine deep. Strike it rich. Don't die down there.</p>
+      <div id="setup-panel" class="setup-panel">
+        <div class="setup-row">
+          <span class="setup-label">DIFFICULTY</span>
+          <div id="diff-buttons" class="diff-buttons">
+            <button class="diff-btn" data-diff="casual">Casual</button>
+            <button class="diff-btn active" data-diff="normal">Normal</button>
+            <button class="diff-btn" data-diff="hardcore">Hardcore</button>
+          </div>
+        </div>
+        <div id="diff-desc" class="diff-desc">The intended Motherload experience.</div>
+        <div class="setup-row">
+          <span class="setup-label">SEED</span>
+          <input id="seed-input" class="seed-input" type="text" placeholder="random" maxlength="12" autocomplete="off" />
+          <button id="daily-btn" class="small-btn" title="Today's shared world">📅 Daily</button>
+          <button id="random-seed-btn" class="small-btn" title="Random seed">🎲</button>
+        </div>
+      </div>
+      <button id="start-btn" class="big-btn" data-nav-default>START MINING</button>
+      <button id="continue-btn" class="big-btn secondary hidden">CONTINUE</button>
+      <button id="howto-btn" class="big-btn secondary">📖 HOW TO PLAY</button>
+      <button id="garage-btn" class="big-btn secondary">🛠 GARAGE</button>
+      <button id="records-btn" class="big-btn secondary">🏆 RECORDS</button>
+      <button id="mutators-btn" class="big-btn secondary">☣ MUTATORS</button>
+      <button id="settings-btn" class="big-btn secondary">⚙ SETTINGS</button>
+      <button id="about-btn" class="big-btn secondary">✍ DEVELOPER'S NOTE</button>
+      <div class="controls-help">
+        <h3>CONTROLS</h3>
+        <p><b>Arrow keys / WASD</b> — Fly &amp; thrust · <b>Down</b> — Drill · <b>Left / Right into dirt</b> — Tunnel</p>
+        <p><b>E / Enter</b> Use building · <b>C</b> Codex · <b>M</b> Map · <b>B</b> Dynamite · <b>T</b> Teleport · <b>ESC</b> Pause</p>
+        <p>🎮 <b>Gamepad supported</b> — stick / d-pad to fly · <b>A</b> use · <b>X</b> dynamite · <b>Y</b> teleport · <b>Start</b> pause</p>
+      </div>
+    </div>
+
+    <!-- How to Play (first-run tutorial + menu reference) -->
+    <div id="howto-screen" class="screen hidden">
+      <h1 class="title" style="font-size:44px">HOW TO PLAY</h1>
+      <p class="subtitle">Four steps. Then just keep digging.</p>
+      <div class="howto-steps">
+        <div class="howto-step"><span class="howto-num">1</span><div><b>DIG DOWN</b><br>Hold <b>↓</b> to drill into the ground. Press <b>←/→</b> into dirt to tunnel sideways.</div></div>
+        <div class="howto-step"><span class="howto-num">2</span><div><b>COLLECT ORE</b><br>Minerals load into your cargo automatically. The deeper you go, the richer they get.</div></div>
+        <div class="howto-step"><span class="howto-num">3</span><div><b>FLY HOME &amp; SELL</b><br>Thrust back <b>↑</b> to the surface base. Sell at the <span class="c-sell">Mineral Depot</span>, top up at the <span class="c-fuel">Fuel Station</span>, fix up at the <span class="c-rep">Repair Bay</span>.</div></div>
+        <div class="howto-step"><span class="howto-num">4</span><div><b>UPGRADE &amp; REPEAT</b><br>Spend your earnings on a bigger tank, stronger drill and more cargo — then dig deeper than ever.</div></div>
+      </div>
+      <p class="howto-warn">⚠ Keep an eye on <b class="c-fuel">FUEL</b> (you need enough to climb home) and <b class="c-rep">HULL</b> (lava, gas and long falls hurt). Out of fuel? Press <b>R</b> for a paid rescue.</p>
+      <div class="controls-help" style="margin-top:14px">
+        <p><b>Move/Fly</b> Arrows or WASD · <b>Drill</b> Down · <b>Use</b> E/Enter · <b>Dynamite</b> B · <b>Teleport up</b> T · <b>Pause</b> ESC</p>
+        <p>🎮 <b>Gamepad</b>: stick/d-pad fly · <b>A</b> use · <b>X</b> dynamite · <b>Y</b> teleport · <b>Start</b> pause</p>
+      </div>
+      <button id="howto-start" class="big-btn" data-nav-default>⛏ START DIGGING</button>
+      <button id="howto-back" class="big-btn secondary">BACK</button>
+    </div>
+
+    <!-- Developer's note -->
+    <div id="about-screen" class="screen hidden">
+      <h1 class="title" style="font-size:40px">A NOTE FROM THE DEV</h1>
+      <div class="about-text">
+        <p>This is our little <b>love letter to Motherload</b> — the 2004 Flash classic by XGen Studios that ate so many of our afternoons.</p>
+        <p>We rebuilt it from scratch in <b>just a few days</b>, as a challenge: no game engine, no downloaded assets, no build step. Every tile, every sound, every star in the sky is generated in code.</p>
+        <p>It's <b>free</b>, and it's a demo in the truest sense — a proof of what a few days of obsession can make. If you enjoy it, we'd love nothing more than to keep digging: more biomes, more story, more depth, more pod.</p>
+        <p><b>All feedback is genuinely welcome.</b> Tell us what felt great, what felt clunky, and what you'd want to see next.</p>
+        <p class="about-sign">— Thanks for playing. Now go strike the Motherlode. ⛏</p>
+      </div>
+      <button id="about-back" class="big-btn" data-nav-default>BACK</button>
+    </div>
+
+    <!-- Pause menu -->
+    <div id="pause-screen" class="screen hidden">
+      <h1 class="title" style="font-size:48px">PAUSED</h1>
+      <div id="pause-stats" class="gameover-stats"></div>
+      <button id="resume-btn" class="big-btn">RESUME</button>
+      <button id="pause-skills-btn" class="big-btn secondary">🧬 SKILL TREE</button>
+      <button id="pause-settings-btn" class="big-btn secondary">⚙ SETTINGS</button>
+      <button id="pause-save-btn" class="big-btn secondary">SAVE GAME</button>
+      <button id="pause-quit-btn" class="big-btn secondary">SAVE &amp; QUIT TO MENU</button>
+    </div>
+
+    <!-- Shop / building modal -->
+    <div id="modal" class="screen hidden">
+      <div class="modal-box">
+        <h2 id="modal-title">SHOP</h2>
+        <div id="modal-body"></div>
+        <button id="modal-close" class="big-btn secondary">CLOSE (ESC)</button>
+      </div>
+    </div>
+
+    <!-- Garage / customization -->
+    <div id="garage-screen" class="screen hidden">
+      <h1 class="title" style="font-size:46px">GARAGE</h1>
+      <p class="subtitle">Choose your pod's paint scheme</p>
+      <canvas id="garage-preview" width="200" height="160"></canvas>
+      <div id="skin-grid"></div>
+      <button id="garage-close" class="big-btn">DONE</button>
+    </div>
+
+    <!-- Settings / accessibility -->
+    <div id="settings-screen" class="screen hidden">
+      <h1 class="title" style="font-size:42px">⚙ SETTINGS</h1>
+      <div id="settings-body"></div>
+      <button id="settings-close" class="big-btn">DONE</button>
+    </div>
+
+    <!-- Perk / skill tree -->
+    <div id="skills-screen" class="screen hidden">
+      <h1 class="title" style="font-size:42px">🧬 SKILL TREE</h1>
+      <div id="skills-points" class="subtitle"></div>
+      <div id="skills-body"></div>
+      <button id="skills-close" class="big-btn">DONE</button>
+    </div>
+
+    <!-- New Game+ mutators -->
+    <div id="mutators-screen" class="screen hidden">
+      <h1 class="title" style="font-size:42px">☣ MUTATORS</h1>
+      <p class="subtitle">Twist the rules. Combine freely — boons and curses stack with your difficulty.</p>
+      <div id="mutators-body"></div>
+      <button id="mutators-start" class="big-btn">START RUN</button>
+      <button id="mutators-close" class="big-btn secondary">BACK</button>
+    </div>
+
+    <!-- Records / achievements -->
+    <div id="records-screen" class="screen hidden">
+      <h1 class="title" style="font-size:46px">🏆 RECORDS</h1>
+      <div id="records-body"></div>
+      <button id="records-close" class="big-btn">DONE</button>
+    </div>
+
+    <!-- Ending choice (the Heart of Natas) -->
+    <div id="ending-choice" class="screen hidden">
+      <h1 class="title win" style="font-size:40px">THE HEART OF NATAS</h1>
+      <p class="subtitle" style="max-width:560px">Your drill rests against the black, pulsing Heart at the bottom of the world. It is warm. It is waiting. What do you do?</p>
+      <div id="ending-options"></div>
+    </div>
+
+    <!-- Victory -->
+    <div id="victory-screen" class="screen hidden">
+      <h1 id="victory-title" class="title win">THE HEART STILLS</h1>
+      <div id="victory-text" class="victory-text"></div>
+      <div id="victory-stats" class="gameover-stats"></div>
+      <button id="victory-btn" class="big-btn">NEW GAME +</button>
+    </div>
+
+    <!-- Game over -->
+    <div id="gameover-screen" class="screen hidden">
+      <h1 class="title danger">GAME OVER</h1>
+      <p id="gameover-reason" class="subtitle"></p>
+      <div id="gameover-stats" class="gameover-stats"></div>
+      <button id="gameover-load-btn" class="big-btn secondary hidden">⟲ LOAD LAST SAVE</button>
+      <button id="restart-btn" class="big-btn">NEW GAME</button>
+    </div>
+    </div><!-- /#stage -->
+  </div>
+
+  <script type="module" src="js/main.js?v=43"></script>
+</body>
+</html>
