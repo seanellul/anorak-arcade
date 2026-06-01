@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Original arcade games reverse-engineered from why play works — built from the design pillars behind Tetris, with no falling blocks. Play, chase a high score, hit the global leaderboard.">
+<meta name="description" content="A love letter to a bygone era — original browser games, each a hand-built prototype exploring a different game loop. Zero dependencies, pure HTML5 canvas.">
 <meta name="theme-color" content="#0a0e14">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -21,7 +21,7 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="CONDUIT — Anorak Arcade">
-<meta name="twitter:description" content="Original arcade games reverse-engineered from why play works.">
+<meta name="twitter:description" content="A love letter to a bygone era — original browser games built as experimental prototypes.">
 <meta name="twitter:image" content="https://anorak-arcade.pages.dev/og-conduit.png">
 
 <title>CONDUIT — rhythmic routing prototype</title>
@@ -189,36 +189,66 @@
   const DIRV={1:[0,-1],2:[1,0],4:[0,1],8:[-1,0]};
   function draw(){ ctx.save(); if(shake>0) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
     ctx.clearRect(-20,-20,W+40,H+40);
-    const {reach}=trace(); const live=delivered(); const flowing = !!live;
+    const {reach}=trace(); const path=delivered(); const live=!!path; const onPath=new Set(path||[]);
     const t=performance.now();
-    for(let y=0;y<G;y++)for(let x=0;x<G;x++){ const c=idx(x,y), m=mask[c]; const lit=reach.has(c);
-      ctx.save(); ctx.translate(cx(x),cy(y)); ctx.rotate(spin[c]);
-      ctx.strokeStyle = lit ? (flowing?'#7fe3ff':'#c9aaff') : '#2c3550'; ctx.lineWidth = lit?9:7; ctx.lineCap='round';
-      if(lit&&flowing){ ctx.setLineDash([10,8]); ctx.lineDashOffset = -(t/26)%18; } else ctx.setLineDash([]);
+
+    // pipes — three legible states: inert (dark) · powered (calm purple) · live route (bright cyan, glowing)
+    for(let y=0;y<G;y++)for(let x=0;x<G;x++){ const c=idx(x,y), m=mask[c];
+      const lit=reach.has(c), hot=onPath.has(c);
+      ctx.save(); ctx.translate(cx(x),cy(y)); ctx.rotate(spin[c]); ctx.lineCap='round';
+      ctx.strokeStyle = hot?'#8be9ff':(lit?'#5f6f9e':'#283248'); ctx.lineWidth = hot?9:(lit?8:6);
+      if(hot){ ctx.shadowColor='#5ad1ff'; ctx.shadowBlur=10; }
       for(const bit of [N,E,S,Wb]){ if(m&bit){ const [dx,dy]=DIRV[bit]; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(dx*CELL/2,dy*CELL/2); ctx.stroke(); } }
-      ctx.setLineDash([]);
-      ctx.fillStyle = lit ? (flowing?'#5ad1ff':'#b98cff') : '#39435c'; ctx.beginPath(); ctx.arc(0,0,lit?8:6,0,7); ctx.fill();
+      ctx.shadowBlur=0;
+      ctx.fillStyle = hot?'#d6f4ff':(lit?'#8a99c4':'#39435c'); ctx.beginPath(); ctx.arc(0,0, hot?7:(lit?6:5),0,7); ctx.fill();
       ctx.restore();
     }
-    // source + beat anticipation ring
-    const sy=cy(SRC_Y); const frac=Math.max(0,beatT/beatEvery);
-    ctx.strokeStyle='rgba(54,211,153,'+(0.15+0.5*(1-frac))+')'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(6,sy, 8+frac*30, 0,7); ctx.stroke();
-    ctx.fillStyle='#36d399'; ctx.shadowColor='#36d399'; ctx.shadowBlur=10+ (1-frac)*16; ctx.beginPath(); ctx.arc(6,sy,10,0,7); ctx.fill(); ctx.shadowBlur=0;
-    ctx.strokeStyle='#36d399'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(CELL/2,sy); ctx.stroke();
-    // sinks
-    for(const r of SINK_ROWS){ const yy=cy(r); const on=(r===litSink); const ok=on&&live;
-      ctx.strokeStyle = ok?'#5ad1ff':(on?'#ffd23f':'#39435c'); ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(W-CELL/2,yy); ctx.lineTo(W,yy); ctx.stroke();
-      const pr = on? 11+Math.sin(t/150)*2 : 8; if(on){ ctx.shadowColor=ok?'#5ad1ff':'#ffd23f'; ctx.shadowBlur=14; }
-      ctx.fillStyle = ok?'#5ad1ff':(on?'#ffd23f':'#39435c'); ctx.beginPath(); ctx.arc(W-6,yy,pr,0,7); ctx.fill(); ctx.shadowBlur=0; }
-    if(flashT>0){ ctx.fillStyle=`rgba(90,209,255,${flashT*0.16})`; ctx.fillRect(0,0,W,H); }
+
+    // energy visibly flowing along the actual route (only the live path — keeps it readable)
+    if(live) drawFlow(path, t);
+
+    // source
+    const sy=cy(SRC_Y); const fed=(mask[idx(0,SRC_Y)]&Wb); const frac=Math.max(0,beatT/beatEvery);
+    ctx.strokeStyle='rgba(54,211,153,'+(0.12+0.45*(1-frac))+')'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(15,sy, 11+frac*24, 0,7); ctx.stroke();
+    ctx.strokeStyle= fed?'#36d399':'#2c4a40'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(2,sy); ctx.lineTo(CELL/2,sy); ctx.stroke();
+    ctx.fillStyle='#36d399'; ctx.shadowColor='#36d399'; ctx.shadowBlur=12+(1-frac)*14; ctx.beginPath(); ctx.arc(15,sy,11,0,7); ctx.fill(); ctx.shadowBlur=0;
+
+    // sinks — connected (filled, glowing, ring) vs target waiting (hollow amber + visible gap) vs idle
+    for(const r of SINK_ROWS){ const yy=cy(r); const on=(r===litSink); const connected=on&&live; const nx=W-15;
+      if(connected){
+        ctx.strokeStyle='#8be9ff'; ctx.lineWidth=9; ctx.shadowColor='#5ad1ff'; ctx.shadowBlur=14; ctx.beginPath(); ctx.moveTo(W-CELL/2,yy); ctx.lineTo(nx,yy); ctx.stroke(); ctx.shadowBlur=0;
+        ctx.fillStyle='#aef0ff'; ctx.shadowColor='#8be9ff'; ctx.shadowBlur=20; ctx.beginPath(); ctx.arc(nx,yy,12,0,7); ctx.fill(); ctx.shadowBlur=0;
+        ctx.strokeStyle='rgba(139,233,255,'+(0.45+0.35*Math.sin(t/110))+')'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(nx,yy,16+2*Math.sin(t/110),0,7); ctx.stroke();
+      } else if(on){
+        const p=0.5+0.5*Math.sin(t/170);
+        ctx.strokeStyle='rgba(255,210,80,0.22)'; ctx.lineWidth=3; ctx.setLineDash([3,6]); ctx.beginPath(); ctx.moveTo(W-CELL/2+8,yy); ctx.lineTo(nx-13,yy); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle='#ffd23f'; ctx.lineWidth=3; ctx.shadowColor='#ffd23f'; ctx.shadowBlur=8+p*12; ctx.beginPath(); ctx.arc(nx,yy,12,0,7); ctx.stroke(); ctx.shadowBlur=0;
+        ctx.fillStyle='rgba(255,210,80,'+(0.25+p*0.4)+')'; ctx.beginPath(); ctx.arc(nx,yy,4.5,0,7); ctx.fill();
+      } else {
+        ctx.strokeStyle='#243049'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(nx-14,yy); ctx.lineTo(nx,yy); ctx.stroke();
+        ctx.fillStyle='#39435c'; ctx.beginPath(); ctx.arc(nx,yy,6,0,7); ctx.fill();
+      }
+    }
+
+    if(flashT>0){ ctx.fillStyle=`rgba(139,233,255,${flashT*0.16})`; ctx.fillRect(0,0,W,H); }
     if(pulse&&pulse.path.length){ const i=Math.min(pulse.path.length-1,Math.floor(pulse.t)); const f=pulse.t-i;
       const a=pulse.path[i], b=pulse.path[Math.min(pulse.path.length-1,i+1)];
       const X=cx(a%G)+(cx(b%G)-cx(a%G))*f, Y=cy((a/G)|0)+(cy((b/G)|0)-cy((a/G)|0))*f;
-      ctx.fillStyle='#fff'; ctx.shadowColor='#5ad1ff'; ctx.shadowBlur=20; ctx.beginPath(); ctx.arc(X,Y,7,0,7); ctx.fill(); ctx.shadowBlur=0; }
+      ctx.fillStyle='#fff'; ctx.shadowColor='#8be9ff'; ctx.shadowBlur=20; ctx.beginPath(); ctx.arc(X,Y,7,0,7); ctx.fill(); ctx.shadowBlur=0; }
     fx.render(ctx);
     ctx.restore();
-    // overload danger creeps in as the charge fills
     Juice.vignette(ctx, W, H, Math.max(0, charge/CHARGE_MAX - 0.5), 'rgba(255,77,109,A)');
+  }
+
+  function drawFlow(path, t){
+    if(!path||!path.length) return;
+    ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.strokeStyle='rgba(225,250,255,0.92)'; ctx.lineWidth=3; ctx.shadowColor='#8be9ff'; ctx.shadowBlur=8;
+    ctx.setLineDash([5,17]); ctx.lineDashOffset = -(t/7)%22;
+    ctx.beginPath(); ctx.moveTo(2, cy(SRC_Y));
+    for(const c of path) ctx.lineTo(cx(c%G), cy((c/G)|0));
+    ctx.lineTo(W-15, cy(litSink));
+    ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur=0; ctx.restore();
   }
 
   window.__conduit={ idx, trace, delivered, get mask(){return mask;}, getLitSink:()=>litSink, G, N,E,S,Wb, SRC_Y, setLitSink:v=>litSink=v, setState:v=>state=v, onBeat };
