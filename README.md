@@ -1,4 +1,4 @@
-# The Tetris Lab — research → 4 playable prototypes
+# Anorak Arcade — research → 4 playable prototypes
 
 A deep study of *why Tetris works* — history, mechanics, neuroscience, and game theory — distilled
 into **8 design pillars**, then rebuilt as **4 playable prototypes** that capture the same
@@ -35,7 +35,7 @@ npx wrangler login                 # interactive OAuth
 export CLOUDFLARE_API_TOKEN=...     # Pages:Edit
 export CLOUDFLARE_ACCOUNT_ID=...
 
-npx wrangler pages deploy public --project-name re-imagine-tetris
+npx wrangler pages deploy public --project-name anorak-arcade
 ```
 
 Or connect the GitHub repo in the Cloudflare dashboard (Pages → Connect to Git → output dir `public`)
