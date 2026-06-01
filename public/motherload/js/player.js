@@ -4,14 +4,14 @@
 import {
   TILE, COLS, ROWS, GROUND_ROW, T, SPAWN_COL,
   PLAYER_W, PLAYER_H, GRAVITY, THRUST_UP, THRUST_SIDE,
-  MAX_FALL, MAX_RISE, MAX_HSPEED, DRAG_X, SKY_CEILING_ROWS, SPACE_ALT,
+  MAX_FALL, MAX_RISE, MAX_HSPEED, DRAG_X, SKY_CEILING_ROWS,
   FALL_DAMAGE_THRESHOLD, FALL_DAMAGE_SCALE,
   FUEL_THRUST_UP, FUEL_THRUST_SIDE, FUEL_DRILL, FUEL_IDLE,
   MINERALS, UPGRADES, upgradeTier, ARTIFACTS, stratumAt, CORE_DRILL_LEVEL,
   HEAT_MAX, HEAT_BASE_COOL, HEAT_RADIATOR_COOL, HEAT_AMBIENT_SCALE,
   HEAT_LAVA_RADIANT, HEAT_DAMAGE_THRESHOLD, HEAT_DAMAGE_SCALE,
   PRESSURE_DAMAGE_SCALE,
-} from "./config.js?v=43";
+} from "./config.js?v=40";
 
 export class Player {
   constructor(world) {
@@ -35,7 +35,7 @@ export class Player {
     this.tier = {
       fuelTank: 0, drill: 0, cargo: 0, hull: 0, engine: 0, radiator: 0,
       fuelReactor: 0, dampers: 0, nanobots: 0, drillWidth: 0, scanner: 0,
-      headlight: 0, sensor: 0, booster: 0,
+      headlight: 0, sensor: 0,
     };
 
     // Resources
@@ -78,10 +78,6 @@ export class Player {
   get scanRange() { return upgradeTier("scanner", this.tier.scanner).value; }
   get headlightRange() { return upgradeTier("headlight", this.tier.headlight || 0).value; }
   get sensorRange() { return upgradeTier("sensor", this.tier.sensor || 0).value; }
-  get riseMult() { return upgradeTier("booster", this.tier.booster || 0).value; }
-  get climbFuelMult() { return upgradeTier("booster", this.tier.booster || 0).fuel ?? 1; }
-  // Metres above the surface (0 on/under the ground).
-  get altitudeMeters() { return Math.max(0, (GROUND_ROW - this.centerY / TILE) * 2); }
 
   get cargoCount() {
     let n = 0;
@@ -169,33 +165,27 @@ export class Player {
     const horizThrusting = ax !== 0 && !outOfFuel;
     if (!horizThrusting) ax = 0;
 
-    // In space (high above the surface) gravity nearly vanishes and the pod
-    // drifts — low-g floaty handling with much less drag.
-    const inSpace = this.altitudeMeters >= SPACE_ALT;
-    const gScale = inSpace ? 0.16 : 1;
-    const dragMul = inSpace ? 0.12 : 1;
-
     this.vx += ax * dt;
-    // Horizontal drag when not actively thrusting (barely any in space → drift)
+    // Horizontal drag when not actively thrusting
     if (!horizThrusting) {
       const sign = Math.sign(this.vx);
-      this.vx -= sign * Math.min(Math.abs(this.vx), DRAG_X * dragMul * 60 * dt);
+      this.vx -= sign * Math.min(Math.abs(this.vx), DRAG_X * 60 * dt);
     }
     const hCap = MAX_HSPEED * this.engineMult; // Engine upgrade raises top speed
     this.vx = clamp(this.vx, -hCap, hCap);
 
-    // ----- Vertical: gravity + up thrust (Vertical Booster lifts the rise cap) -----
-    this.vy += GRAVITY * gScale * dt;
+    // ----- Vertical: gravity + up thrust -----
+    this.vy += GRAVITY * dt;
     let upThrusting = false;
     if (wantUp) {
       this.vy -= THRUST_UP * this.engineMult * (this.thrustMul || 1) * dt;
       upThrusting = true;
     }
-    this.vy = clamp(this.vy, -MAX_RISE * this.riseMult, MAX_FALL);
+    this.vy = clamp(this.vy, -MAX_RISE, MAX_FALL);
 
-    // ----- Fuel burn (reduced by Fuel Reactor; climbing reduced by Booster) -----
+    // ----- Fuel burn (reduced by Fuel Reactor) -----
     let burn = FUEL_IDLE;
-    if (upThrusting) burn += FUEL_THRUST_UP * this.climbFuelMult;
+    if (upThrusting) burn += FUEL_THRUST_UP;
     if (horizThrusting) burn += FUEL_THRUST_SIDE;
     // Reserve mode: below 5% the engine sips fuel, giving you a forgiving limp home
     const reserve = this.fuel <= this.maxFuel * 0.05 ? 0.55 : 1;

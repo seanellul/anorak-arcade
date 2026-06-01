@@ -5,7 +5,7 @@
 //  time), and occasional surges/crashes shake things up. Prices are
 //  stored as a multiplier on each mineral's base value.
 // ============================================================
-import { MINERALS, MINERAL_KEYS } from "./config.js?v=43";
+import { MINERALS, MINERAL_KEYS } from "./config.js?v=40";
 
 function rngFrom(seed) {
   let a = (seed ^ 0x85ebca6b) >>> 0;

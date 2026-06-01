@@ -1,10 +1,10 @@
 // ============================================================
 //  UI — DOM-based HUD, toasts, prompts, and shop modals
 // ============================================================
-import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION } from "./config.js?v=43";
-import * as Shop from "./shops.js?v=43";
-import { CAMPAIGN } from "./missions.js?v=43";
-import { ARTIFACTS, ENDINGS } from "./config.js?v=43";
+import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION } from "./config.js?v=40";
+import * as Shop from "./shops.js?v=40";
+import { CAMPAIGN } from "./missions.js?v=40";
+import { ARTIFACTS, ENDINGS } from "./config.js?v=40";
 
 const el = (id) => document.getElementById(id);
 
@@ -498,21 +498,6 @@ export const UI = {
         () => { this.game.elevatorTo(i); }, false, "GO"
       ));
     });
-
-    // Launch Pad — unlocks only after reaching space the hard way.
-    const lp = document.createElement("div");
-    lp.innerHTML = `<div class="sell-summary" style="margin-top:12px">— 🚀 Launch Pad —</div>`;
-    body.appendChild(lp);
-    if (!state.reachedSpace) {
-      const note = document.createElement("div");
-      note.innerHTML = `<div class="empty-note">Locked. Rocket up to space under your own thrust at least once to commission the launch pad.</div>`;
-      body.appendChild(note);
-    } else {
-      body.appendChild(this.shopRow(
-        "Asteroid Belt", "Blast straight up to the asteroid belt", "", true,
-        () => { this.game.launchToOrbit(); }, false, "LAUNCH"
-      ));
-    }
   },
 
   // ---- Repair ----

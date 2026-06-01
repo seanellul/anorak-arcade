@@ -4,7 +4,7 @@
 //  Achievements are state-checkable predicates evaluated each tick;
 //  records track lifetime personal bests.
 // ============================================================
-import { ORE_KEYS, ALLOYS, ARTIFACTS, SPACE_ORE_KEYS } from "./config.js?v=43";
+import { ORE_KEYS, ALLOYS, ARTIFACTS } from "./config.js?v=40";
 
 const PROGRESS_KEY = "motherload_progress_v1";
 const ALLOY_KEYS = Object.keys(ALLOYS);
@@ -35,9 +35,6 @@ export const ACHIEVEMENTS = [
     cond: (c) => (c.state.upgradesPurchased || 0) >= 15 },
   { id: "hardcore_legend", icon: "💀", name: "Hardcore Legend", desc: "Reach 1,000m in Hardcore mode.",
     cond: (c) => c.state.difficulty === "hardcore" && c.state.stats.maxDepth >= 1000 },
-  { id: "astronaut", icon: "🚀", name: "Astronaut", desc: "Rocket all the way up to space.", cond: () => false },
-  { id: "void_miner", icon: "☄", name: "Void Miner", desc: "Mine ore from an asteroid.",
-    cond: (c) => SPACE_ORE_KEYS.some((k) => (c.state.player.cargo[k] || 0) > 0) },
   // Ending achievements — granted directly when you make the choice (cond never auto-fires).
   { id: "ending_free",    icon: "👁", name: "Liberator", desc: "Free the Heart of Natas.",     cond: () => false },
   { id: "ending_seal",    icon: "🔒", name: "Warden",    desc: "Seal the Heart of Natas away.", cond: () => false },
@@ -77,20 +74,8 @@ export class AchievementManager {
     if (this.unlocked[id]) return;
     this.unlocked[id] = Date.now();
     this.save();
-    this._mirrorToSteam(id);
     const a = ACHIEVEMENTS.find((x) => x.id === id);
     if (a && this.onUnlock) this.onUnlock(a);
-  }
-
-  // In the desktop/Steam build a preload exposes window.steamAPI; the in-game
-  // achievement ID doubles as the Steam achievement API name. No-op in the
-  // browser (the object simply isn't there).
-  _mirrorToSteam(id) {
-    try {
-      if (typeof window !== "undefined" && window.steamAPI && window.steamAPI.unlockAchievement) {
-        window.steamAPI.unlockAchievement(id);
-      }
-    } catch {}
   }
 
   // Evaluate predicates + roll personal bests. Called on a slow tick.
@@ -105,7 +90,6 @@ export class AchievementManager {
       if (ok) {
         this.unlocked[a.id] = Date.now();
         changed = true;
-        this._mirrorToSteam(a.id);
         if (this.onUnlock) this.onUnlock(a);
       }
     }

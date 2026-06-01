@@ -27,20 +27,14 @@ export const DRAG_X = 7;               // horizontal damping when no input (per 
 export const FALL_DAMAGE_THRESHOLD = 470; // impact speed before hull damage
 export const FALL_DAMAGE_SCALE = 0.32;    // hull dmg per (speed-threshold) unit
 
-// Sky / ascent — fly up off the surface, through the atmosphere, into space.
-// Reaching space is a major investment: a huge fuel tank AND Vertical Booster
-// upgrades. Space begins at SPACE_ALT (low-gravity drift + asteroid field).
-export const SKY_CEILING_ROWS = 1400;  // tiles the pod may climb above ground (~2800m)
-export const SPACE_ALT = 1000;         // metres of altitude where space (low-g + asteroids) begins
-export const ASTEROID_MIN_ROWS = 500;  // tiles above ground the asteroid field starts (~1000m)
-export const ASTEROID_MAX_ROWS = 1320; // tiles above ground it extends to (~2640m)
+// Sky / ascent — fly up off the surface into the atmosphere & space.
+export const SKY_CEILING_ROWS = 250;   // how many tiles the pod may climb above ground (~500m)
+export const SPACE_ALT = 300;          // metres of altitude where space begins
 export const SKY_LAYERS = [            // named bands for the altitude readout
   { name: "Lower Sky",    start: 0 },
-  { name: "Open Sky",     start: 90 },
-  { name: "Stratosphere", start: 280 },
-  { name: "Mesosphere",   start: 600 },
-  { name: "Space",        start: 1000 },
-  { name: "Asteroid Belt", start: 1100 },
+  { name: "Open Sky",     start: 70 },
+  { name: "Stratosphere", start: 170 },
+  { name: "Space",        start: 300 },
 ];
 export function skyLayerAt(altM) {
   let n = SKY_LAYERS[0].name;
@@ -305,30 +299,15 @@ export const MINERALS = {
   amazonite:   { name: "Amazonite",   color: "#b06bff", value: 500000, minDepth: 440, maxDepth: 540, weight: 1.2 },
 };
 
-// Space ores — found ONLY in the asteroid field high above the surface (never
-// underground; STRATA lists don't include them). A whole new high-value loop.
-export const SPACE_ORES = {
-  meteorite: { name: "Meteoric Iron", color: "#9fb0c0", value: 1500,   space: true },
-  palladium: { name: "Palladium",     color: "#e6ecf4", value: 7000,   space: true },
-  helium3:   { name: "Helium-3",      color: "#8affe6", value: 28000,  space: true },
-  iridium:   { name: "Iridium",       color: "#cdbfff", value: 120000, space: true },
-};
-Object.assign(MINERALS, SPACE_ORES);
-export const SPACE_ORE_KEYS = Object.keys(SPACE_ORES);
-// Weighted table for asteroid generation (rarer = deeper into the belt).
-export const ASTEROID_ORES = [["meteorite", 100], ["palladium", 46], ["helium3", 15], ["iridium", 4]];
-
 // Refined alloys — never spawn in the world (pickMineral only draws from the
 // STRATA lists). They're produced at the Refinery, sell at a premium, and
 // compress several ore into one cargo slot. Priced by the live market like ore.
 export const ALLOYS = {
-  steel:      { name: "Steel Ingot",    color: "#c2cad6", value: 260,    crafted: true },
-  electrum:   { name: "Electrum",       color: "#ffe27a", value: 780,    crafted: true },
-  hardplate:  { name: "Hardplate",      color: "#bfe3ef", value: 2600,   crafted: true },
-  quantum:    { name: "Quantum Alloy",  color: "#8affd6", value: 14000,  crafted: true },
-  stellar:    { name: "Stellar Alloy",  color: "#bfe0ff", value: 170000, crafted: true },
-  voidsteel:  { name: "Void Steel",     color: "#aeb8c8", value: 40000,  crafted: true },
-  antimatter: { name: "Antimatter Cell",color: "#c9b0ff", value: 700000, crafted: true },
+  steel:     { name: "Steel Ingot",   color: "#c2cad6", value: 260,    crafted: true },
+  electrum:  { name: "Electrum",      color: "#ffe27a", value: 780,    crafted: true },
+  hardplate: { name: "Hardplate",     color: "#bfe3ef", value: 2600,   crafted: true },
+  quantum:   { name: "Quantum Alloy", color: "#8affd6", value: 14000,  crafted: true },
+  stellar:   { name: "Stellar Alloy", color: "#bfe0ff", value: 170000, crafted: true },
 };
 Object.assign(MINERALS, ALLOYS);
 
@@ -347,8 +326,6 @@ export const RECIPES = {
     { id: "hardplate", out: "hardplate", kind: "cargo", in: { platinum: 2, silverium: 2 } },
     { id: "quantum",   out: "quantum",   kind: "cargo", in: { einsteinium: 2, emerald: 1 } },
     { id: "stellar",   out: "stellar",   kind: "cargo", in: { diamond: 1, ruby: 1 } },
-    { id: "voidsteel", out: "voidsteel", kind: "cargo", in: { meteorite: 3, palladium: 1 } },
-    { id: "antimatter",out: "antimatter",kind: "cargo", in: { helium3: 2, iridium: 1 } },
   ],
   craft: [
     { id: "dynamite",   out: "dynamite",   kind: "consumable", name: "Dynamite",   in: { ironium: 2, bronzium: 1 } },
@@ -512,17 +489,6 @@ export const UPGRADES = {
       { name: "Survey Array", value: 16,       cost: 3000 },
       { name: "Deep Sonar",   value: 24,       cost: 9000 },
       { name: "Omni-Scanner", value: Infinity, cost: 26000 }, // no fog at all
-    ],
-  },
-  booster: {
-    label: "Vertical Booster",
-    desc: "Climb power & efficiency — the only way to rocket up to space (value = climb-speed multiplier)",
-    tiers: [
-      { name: "No Booster",    value: 1.0, fuel: 1.0,  cost: 0 },
-      { name: "Ascent Jets",   value: 1.7, fuel: 0.85, cost: 5000 },
-      { name: "Ramjet",        value: 2.5, fuel: 0.7,  cost: 18000 },
-      { name: "Aerospike",     value: 3.8, fuel: 0.55, cost: 55000 },
-      { name: "Orbital Drive", value: 5.5, fuel: 0.4,  cost: 160000 },
     ],
   },
 };

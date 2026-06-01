@@ -5,7 +5,7 @@ import {
   TILE, COLS, GROUND_ROW, SPAWN_COL, UPGRADES, UPGRADE_KEYS, CONSUMABLES,
   FUEL_PRICE, REPAIR_PRICE, MINERALS, RECIPES, BASE_UPGRADES, FUEL_SUBSIDY_RATE, DIFFICULTIES,
   upgradeTier, upgradeCost, upgradeIsMax,
-} from "./config.js?v=43";
+} from "./config.js?v=40";
 
 // Effective fuel price after any owned base subsidies.
 export function fuelPrice(state) {
