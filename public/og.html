@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OG card — Anorak Arcade</title>
+<style>
+  *{margin:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  body{
+    position:relative; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:#e7ecf5;
+    background:
+      radial-gradient(700px 460px at 10% 6%, rgba(255,106,61,.18), transparent 60%),
+      radial-gradient(760px 480px at 92% 4%, rgba(90,209,255,.16), transparent 60%),
+      radial-gradient(820px 560px at 78% 96%, rgba(185,140,255,.14), transparent 62%),
+      radial-gradient(820px 600px at 18% 98%, rgba(54,211,153,.12), transparent 62%),
+      radial-gradient(1400px 900px at 50% -20%, #16203a, #0a0e14 58%) #0a0e14;
+  }
+  /* faint dot grid + scanlines for texture */
+  .grid{position:absolute;inset:0;opacity:.5;
+    background-image:radial-gradient(rgba(255,255,255,.045) 1.4px, transparent 1.4px);
+    background-size:34px 34px}
+  .scan{position:absolute;inset:0;opacity:.35;mix-blend-mode:multiply;
+    background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 3px,rgba(0,0,0,.22) 3px 6px)}
+  .orb{position:absolute;border-radius:50%;filter:blur(60px)}
+  .o1{width:240px;height:240px;right:120px;top:70px;background:radial-gradient(circle,#5ad1ff,transparent 70%);opacity:.5}
+  .o2{width:170px;height:170px;right:90px;bottom:120px;background:radial-gradient(circle,#36d399,transparent 70%);opacity:.5}
+  .o3{width:150px;height:150px;right:240px;top:130px;background:radial-gradient(circle,#b98cff,transparent 70%);opacity:.45}
+
+  .wrap{position:absolute;inset:0;padding:74px 80px;display:flex;flex-direction:column;justify-content:space-between}
+
+  .top{display:flex;align-items:center;gap:18px}
+  .logo{width:46px;height:46px;border-radius:11px;background:#0a0e14;border:1px solid #2a3447;position:relative}
+  .logo::after{content:"";position:absolute;inset:11px;border-radius:5px;background:#ffb13d;transform:rotate(45deg);box-shadow:0 0 16px rgba(255,177,61,.6)}
+  .brand{font-size:24px;letter-spacing:.34em;font-weight:700;color:#cdd6e6}
+  .kick{margin-left:auto;display:flex;align-items:center;gap:11px;font-size:16px;letter-spacing:.26em;color:#7d8aa0;
+    border:1px solid #2a3447;border-radius:999px;padding:9px 20px;background:rgba(18,24,38,.5)}
+  .kick .dot{width:9px;height:9px;border-radius:50%;background:#36d399;box-shadow:0 0 12px #36d399}
+
+  .mid{margin-top:6px}
+  .title{font-size:118px;line-height:.92;font-weight:800;letter-spacing:-.01em}
+  .title .arc{background:linear-gradient(100deg,#ffb13d,#fff1d6 38%,#ff8a3d);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{margin-top:30px;font-size:30px;line-height:1.5;color:#c4cde0;max-width:980px}
+  .lede b{color:#fff}
+
+  .bottom{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .chip{display:inline-flex;align-items:center;gap:11px;font-size:20px;letter-spacing:.16em;font-weight:700;
+    background:rgba(18,24,38,.72);border:1px solid #2a3447;border-radius:999px;padding:11px 20px;color:#dbe3f1}
+  .chip i{width:13px;height:13px;border-radius:3px;display:inline-block;box-shadow:0 0 12px currentColor}
+  .url{margin-left:auto;font-size:22px;letter-spacing:.06em;color:#7d8aa0}
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+  <div class="scan"></div>
+
+  <div class="wrap">
+    <div class="top">
+      <span class="logo"></span>
+      <span class="brand">ANORAK ARCADE</span>
+    </div>
+
+    <div class="mid">
+      <div class="title">Anorak <span class="arc">Arcade</span></div>
+      <div class="lede">A <b>love letter to a bygone era</b>.</div>
+    </div>
+
+    <div class="bottom">
+      <span class="url">anorak-arcade.pages.dev</span>
+    </div>
+  </div>
+</body>
+</html>
