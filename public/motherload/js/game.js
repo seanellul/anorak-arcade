@@ -3,25 +3,25 @@
 // ============================================================
 import {
   TILE, COLS, ROWS, GROUND_ROW, VIEW_W, VIEW_H, WORLD_W, WORLD_H,
-  T, MINERALS, START_MONEY, FUEL_PRICE, stratumAt, STRATA, SPAWN_COL, SPACE_ALT,
+  T, MINERALS, START_MONEY, FUEL_PRICE, stratumAt, STRATA, SPAWN_COL, SPACE_ALT, ASTEROID_MIN_ROWS,
   POD_SKINS, SKIN_KEY, DIFFICULTIES, DIFFICULTY_KEYS,
   MUTATORS, MUTATOR_KEYS, resolveMutators,
   PERKS, PERK_BRANCH_KEYS, resolvePerks, perkPointsEarned,
   ENDINGS, RESTOCK_TARGET,
-} from "./config.js?v=40";
-import { World, tileColor } from "./world.js?v=40";
-import { Player } from "./player.js?v=40";
-import { Camera } from "./camera.js?v=40";
-import { Input } from "./input.js?v=40";
-import { UI } from "./ui.js?v=40";
-import { BUILDINGS, buildingAt, sellAll, buyFullFuel, autoRestock } from "./shops.js?v=40";
-import { MissionManager } from "./missions.js?v=40";
-import { AudioManager } from "./audio.js?v=40";
-import { NavManager } from "./nav.js?v=40";
-import { WeatherManager } from "./weather.js?v=40";
-import { MarketManager } from "./market.js?v=40";
-import { AchievementManager, ACHIEVEMENTS } from "./achievements.js?v=40";
-import { RadioManager } from "./radio.js?v=40";
+} from "./config.js?v=47";
+import { World, tileColor } from "./world.js?v=47";
+import { Player } from "./player.js?v=47";
+import { Camera } from "./camera.js?v=47";
+import { Input } from "./input.js?v=47";
+import { UI } from "./ui.js?v=47";
+import { BUILDINGS, buildingAt, sellAll, buyFullFuel, autoRestock } from "./shops.js?v=47";
+import { MissionManager } from "./missions.js?v=47";
+import { AudioManager } from "./audio.js?v=47";
+import { NavManager } from "./nav.js?v=47";
+import { WeatherManager } from "./weather.js?v=47";
+import { MarketManager } from "./market.js?v=47";
+import { AchievementManager, ACHIEVEMENTS } from "./achievements.js?v=47";
+import { RadioManager } from "./radio.js?v=47";
 
 const SAVE_KEY = "motherload_save_v1";
 
@@ -75,16 +75,34 @@ export class Game {
     window.addEventListener("keydown", (e) => {
       if (e.code === "KeyF") { e.preventDefault(); this.toggleFullscreen(); }
     });
+    // Click/tap a transmission to dismiss it early.
+    const loreEl = document.getElementById("lore");
+    if (loreEl) loreEl.addEventListener("click", () => this.skipTransmission());
+    // Friendly nudge when a controller shows up.
+    window.addEventListener("gamepadconnected", () => UI.toast("🎮 Controller connected", "good"));
 
     requestAnimationFrame((t) => this.loop(t));
   }
 
   bindButtons() {
-    document.getElementById("start-btn").addEventListener("click", () => {
+    const startMining = () => {
       this.audio.init();
       const seedStr = document.getElementById("seed-input").value.trim();
       this.newGame(seedFromInput(seedStr), this.selectedDifficulty);
+    };
+    document.getElementById("start-btn").addEventListener("click", () => {
+      this.audio.init();
+      // First-time players get the How-to-Play screen before their first dig.
+      let seen = false;
+      try { seen = !!localStorage.getItem("motherload_howto_v1"); } catch {}
+      if (!seen) { try { localStorage.setItem("motherload_howto_v1", "1"); } catch {} this.openHowTo(); return; }
+      startMining();
     });
+    document.getElementById("howto-btn").addEventListener("click", () => { this.audio.init(); this.openHowTo(); });
+    document.getElementById("howto-back").addEventListener("click", () => this.closeHowTo());
+    document.getElementById("howto-start").addEventListener("click", () => { this.closeHowTo(); startMining(); });
+    document.getElementById("about-btn").addEventListener("click", () => this.openAbout());
+    document.getElementById("about-back").addEventListener("click", () => this.closeAbout());
     document.getElementById("continue-btn").addEventListener("click", () => { this.audio.init(); this.loadGame(); });
     document.getElementById("restart-btn").addEventListener("click", () => { UI.hideGameOver(); this.newGame(); });
     document.getElementById("victory-btn").addEventListener("click", () => { UI.hideVictory(); this.openMutators(); });
@@ -177,6 +195,11 @@ export class Game {
     document.getElementById("records-screen").classList.remove("hidden");
   }
   closeRecords() { document.getElementById("records-screen").classList.add("hidden"); }
+
+  openHowTo() { document.getElementById("howto-screen").classList.remove("hidden"); }
+  closeHowTo() { document.getElementById("howto-screen").classList.add("hidden"); }
+  openAbout() { document.getElementById("about-screen").classList.remove("hidden"); }
+  closeAbout() { document.getElementById("about-screen").classList.add("hidden"); }
 
   // ---------------- settings / accessibility ----------------
   loadSettings() {
@@ -569,6 +592,15 @@ export class Game {
     setTimeout(() => { if (this.mode === "playing") this.radio.transmit("control"); }, 1600);
   }
 
+  // Dismiss the on-screen transmission/lore banner early and let the next
+  // queued radio line follow after a short beat. No-op if nothing is showing.
+  skipTransmission() {
+    if (!UI.isLoreVisible()) return false;
+    UI.hideLore();
+    if (this.radio) this.radio.timer = Math.min(this.radio.timer, 0.25);
+    return true;
+  }
+
   // Recompute live modifiers = (difficulty×mutator base) × perks. Called on
   // new game, load, and whenever a perk is purchased.
   applyModifiers() {
@@ -635,8 +667,36 @@ export class Game {
     this.audio.sfx("mission");
   }
 
+  // Outpost Launch Pad — fast-travel straight up to the asteroid belt.
+  // Only unlocks once the pilot has reached space under their own thrust.
+  launchToOrbit() {
+    const s = this.state;
+    if (!s || !s.reachedSpace) return;
+    const p = s.player, w = s.world;
+    // Arrive at the belt's lower edge — comfortably in space (low-g) and high
+    // enough to drift among the asteroids. Clear a docking pocket so we never
+    // materialise inside solid rock (which would crush the pod instantly).
+    const row = -(ASTEROID_MIN_ROWS + 8); // ~1016m, just inside the belt
+    const col = SPAWN_COL;
+    for (let r = row - 1; r <= row + 2; r++) {
+      for (let c = col - 1; c <= col + 1; c++) {
+        if (c < 0 || c >= COLS) continue;
+        if (w.getType(c, r) !== T.EMPTY) w.clearTile(c, r);
+      }
+    }
+    p.x = col * TILE + (TILE - p.w) / 2;
+    p.y = row * TILE;
+    p.vx = 0; p.vy = 0;
+    this.camera.follow(p, true);
+    UI.closeShop();
+    this.mode = "playing";
+    UI.toast("🚀 Launched to orbit — mind the drift!", "good");
+    this.audio.sfx("mission");
+  }
+
   onEndgameUnlocked() {
-    // Placeholder hook — the Motherlode endgame (M6) builds on this.
+    // Fires once the campaign is complete: the Heart of Natas (T.CORE) is now
+    // drillable at the very bottom — drill into it to trigger the ending choice.
     UI.toast("The Motherlode awaits at the very bottom...", "good");
   }
 
@@ -659,6 +719,8 @@ export class Game {
     const data = {
       seed: world.seed,
       cleared: Array.from(world.cleared),
+      skyCleared: Array.from(world.skyCleared),
+      reachedSpace: !!this.state.reachedSpace,
       money, stats,
       missions: this.state.missions ? this.state.missions.serialize() : null,
       codex: this.state.codex,
@@ -691,6 +753,7 @@ export class Game {
     const mut = resolveMutators(mutators);
     const world = new World(data.seed, { ore: mut.ore, lava: mut.lava, treasure: mut.treasure });
     world.applyCleared(data.cleared || []);
+    world.applySkyCleared(data.skyCleared || []);
     const player = new Player(world);
     this.wirePlayer(player);
     this.difficulty = DIFFICULTIES[data.difficulty] ? data.difficulty : "normal";
@@ -721,6 +784,7 @@ export class Game {
       mutators,
       perks: (data.perks || []),
       upgradesPurchased: data.upgradesPurchased || 0,
+      reachedSpace: !!data.reachedSpace,
       _baseSell: diff.sellMul * mut.sell,
       sellMul: diff.sellMul * mut.sell,
     };
@@ -931,6 +995,9 @@ export class Game {
     // Global hotkeys (work in any mode)
     if (this.input.justPressed("mute")) this.toggleMute();
 
+    // Skip the current transmission (Space) — see also the click handler.
+    if (this.input.justPressed("space")) this.skipTransmission();
+
     if (this.mode === "shop") {
       if (this.input.justPressed("escape") || this.input.justPressed("interact") ||
           (this.codexOpen && this.input.justPressed("codex"))) {
@@ -985,6 +1052,15 @@ export class Game {
     // Wind nudges the pod while it's at/near the surface; tapers off below.
     if (p.depthRow < 12 && !p.onGround) {
       p.vx += this.weather.windForce() * (1 - p.depthRow / 12) * dt;
+    }
+
+    // Reaching space the first time unlocks the Outpost launch pad.
+    if (!s.reachedSpace && p.altitudeMeters >= SPACE_ALT) {
+      s.reachedSpace = true;
+      UI.toast("🚀 SPACE REACHED — the Outpost can now launch you to the asteroid belt!", "good");
+      this.audio.sfx("win");
+      this.cinematic({ title: "ORBIT REACHED", sub: "the asteroid belt awaits", dur: 3.0, slowmo: 0.5, color: "#8affe6" });
+      this.achievements.unlock("astronaut");
     }
 
     // ----- Tile simulation: flowing liquids, cave-ins, rising gas -----
@@ -1296,6 +1372,9 @@ export class Game {
     // Sky / underground background gradient based on camera depth
     this.drawBackground(ctx, cam);
 
+    // Floating asteroids (above the world, in the sky/space band)
+    this.drawAsteroids(ctx, world, cam);
+
     // Visible tile range
     const c0 = Math.max(0, Math.floor(cam.x / TILE));
     const c1 = Math.min(COLS - 1, Math.floor((cam.x + VW) / TILE));
@@ -1559,6 +1638,45 @@ export class Game {
 
     // ---- weather haze over the whole sky (overcast / dust storm tint) ----
     if (this.weather) this.weather.drawSkyTint(ctx, VW, VH, horizon);
+  }
+
+  // Floating asteroids in the sky/space band (negative rows, sparse sky map).
+  // Beveled space rock with glinting embedded space-ore.
+  drawAsteroids(ctx, world, cam) {
+    if (cam.y > GROUND_ROW * TILE) return; // no sky in view → nothing up there
+    const VW = this.viewW, VH = this.viewH;
+    for (const [k, type] of world.skyType) {
+      const r = Math.floor(k / COLS), c = k - r * COLS;
+      const sx = c * TILE - cam.x, sy = r * TILE - cam.y;
+      if (sx < -TILE || sx > VW || sy < -TILE || sy > VH) continue;
+      // rock body + bevel
+      ctx.fillStyle = "#6c6f79";
+      ctx.fillRect(sx, sy, TILE, TILE);
+      ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(sx, sy, TILE, 3);
+      ctx.fillStyle = "rgba(0,0,0,0.30)"; ctx.fillRect(sx, sy + TILE - 4, TILE, 4);
+      const sd = (c * 73856093) ^ (r * 19349663);
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      ctx.fillRect(sx + 5 + (sd & 7), sy + 6 + ((sd >> 3) & 9), 3, 3);
+      ctx.fillRect(sx + 17 + ((sd >> 6) & 7), sy + 18 + ((sd >> 9) & 7), 2, 2);
+      // embedded ore gem
+      const mineral = world.skyMineral.get(k);
+      if (mineral) {
+        const m = MINERALS[mineral];
+        const cx = sx + TILE / 2, cy = sy + TILE / 2, rad = TILE * 0.26;
+        const pulse = 0.7 + 0.3 * Math.sin(this.accumBlink * 3 + c * 0.7 + r * 0.5);
+        ctx.globalAlpha = 0.2 * pulse; ctx.fillStyle = m.color;
+        ctx.beginPath(); ctx.arc(cx, cy, rad * 1.9, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1; ctx.fillStyle = m.color;
+        ctx.beginPath(); ctx.moveTo(cx, cy - rad); ctx.lineTo(cx + rad, cy); ctx.lineTo(cx, cy + rad); ctx.lineTo(cx - rad, cy); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillRect(cx - rad * 0.35, cy - rad * 0.4, 2, 2);
+        if (this.settings && this.settings.colorblind) {
+          ctx.font = "bold 11px 'Courier New', monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.strokeStyle = "rgba(0,0,0,0.9)"; ctx.lineWidth = 3; ctx.strokeText(m.name.slice(0, 2), cx, cy);
+          ctx.fillStyle = "#fff"; ctx.fillText(m.name.slice(0, 2), cx, cy);
+          ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+        }
+      }
+    }
   }
 
   // A band of puffy clouds at real altitudes — anchored in world space so the

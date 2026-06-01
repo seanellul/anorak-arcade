@@ -5,6 +5,7 @@
 
 // Overlays that can be navigated, in top-most-first priority order.
 const OVERLAY_IDS = [
+  "howto-screen", "about-screen",
   "garage-screen", "records-screen", "settings-screen", "skills-screen", "mutators-screen", "modal", "pause-screen",
   "ending-choice", "gameover-screen", "victory-screen", "start-screen",
 ];
@@ -31,12 +32,22 @@ export class NavManager {
       .filter((el) => !el.disabled && el.offsetParent !== null);
   }
 
+  // Where the highlight starts when a menu opens: the element marked
+  // data-nav-default (e.g. START MINING) rather than the first button,
+  // so opening a screen doesn't land the cursor on a difficulty toggle.
+  defaultIndex(c) {
+    if (!c) return 0;
+    const items = this.items(c);
+    const di = items.findIndex((el) => el.hasAttribute("data-nav-default"));
+    return di >= 0 ? di : 0;
+  }
+
   // Called every frame: keep the highlight in sync, poll the gamepad.
   update() {
     const c = this.activeContainer();
     if (c !== this.lastContainer) {
       if (this.lastContainer) this.clearHighlight(this.lastContainer);
-      this.index = 0;
+      this.index = this.defaultIndex(c);
       this.lastContainer = c;
     }
     if (c) this.highlight(c);

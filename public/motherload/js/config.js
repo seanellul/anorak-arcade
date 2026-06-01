@@ -20,21 +20,36 @@ export const PLAYER_H = 24;
 export const GRAVITY = 900;            // px/s^2
 export const THRUST_UP = 1750;         // px/s^2 (base, before engine upgrade)
 export const THRUST_SIDE = 760;        // px/s^2 (base) — gentle, scales with Engine
-export const MAX_FALL = 1100;          // terminal velocity downward — high so long falls keep accelerating
+// Terminal velocity is intentionally enormous: with GRAVITY=900 the pod keeps
+// accelerating for a ~350-tile (~700m) plunge before capping out, so short
+// mining drops stay slow while a dive from space gets genuinely deadly. (Vertical
+// collision is swept in player.js so this speed can't tunnel through floors.)
+export const MAX_FALL = 4500;          // terminal velocity downward (~350 tiles to reach at g=900)
 export const MAX_RISE = 460;
 export const MAX_HSPEED = 175;         // base horizontal cap (scales with Engine tier)
 export const DRAG_X = 7;               // horizontal damping when no input (per s)
-export const FALL_DAMAGE_THRESHOLD = 470; // impact speed before hull damage
-export const FALL_DAMAGE_SCALE = 0.32;    // hull dmg per (speed-threshold) unit
+// Fall damage is ENERGY-based: it scales with impact speed SQUARED, which makes
+// it ≈ linear in the distance fallen. Short drops (<~8 tiles) are free; damage
+// climbs ~4/tile, so reaching the lethal 1000+ range takes an incredibly long
+// plunge (~250+ tiles, i.e. a dive from space). Max ≈ 1385 at terminal —
+// survive that only with Hull upgrades / Impact Dampers / Featherfall.
+export const FALL_DAMAGE_THRESHOLD = 680;    // impact speed before any hull damage (~8-tile drop)
+export const FALL_DAMAGE_SCALE = 0.00007;    // hull dmg per (speed² − threshold²) unit
 
-// Sky / ascent — fly up off the surface into the atmosphere & space.
-export const SKY_CEILING_ROWS = 250;   // how many tiles the pod may climb above ground (~500m)
-export const SPACE_ALT = 300;          // metres of altitude where space begins
+// Sky / ascent — fly up off the surface, through the atmosphere, into space.
+// Reaching space is a major investment: a huge fuel tank AND Vertical Booster
+// upgrades. Space begins at SPACE_ALT (low-gravity drift + asteroid field).
+export const SKY_CEILING_ROWS = 1400;  // tiles the pod may climb above ground (~2800m)
+export const SPACE_ALT = 1000;         // metres of altitude where space (low-g + asteroids) begins
+export const ASTEROID_MIN_ROWS = 500;  // tiles above ground the asteroid field starts (~1000m)
+export const ASTEROID_MAX_ROWS = 1320; // tiles above ground it extends to (~2640m)
 export const SKY_LAYERS = [            // named bands for the altitude readout
   { name: "Lower Sky",    start: 0 },
-  { name: "Open Sky",     start: 70 },
-  { name: "Stratosphere", start: 170 },
-  { name: "Space",        start: 300 },
+  { name: "Open Sky",     start: 90 },
+  { name: "Stratosphere", start: 280 },
+  { name: "Mesosphere",   start: 600 },
+  { name: "Space",        start: 1000 },
+  { name: "Asteroid Belt", start: 1100 },
 ];
 export function skyLayerAt(altM) {
   let n = SKY_LAYERS[0].name;
@@ -63,8 +78,15 @@ export const PRESSURE_DAMAGE_SCALE = 0.9; // base crush dmg /s at pressure 1.0 (
 // Economy
 export const START_MONEY = 20;
 export const FUEL_PRICE = 1.0;     // $ per fuel unit at the station
-export const REPAIR_PRICE = 4.0;   // $ per hull point
+export const REPAIR_PRICE = 4.0;   // $ per hull point (baseline 100-HP hull)
 export const RESCUE_COST_RATIO = 0.5; // pay half your money to get rescued when stuck
+
+// Per-point repair price scales with hull capacity: premium plating is far
+// pricier to patch, so fully repairing a 1k+ HP hull is a serious money sink.
+// (e.g. 100-HP → $4/pt; 1000-HP → $40/pt; 2500-HP → $100/pt.)
+export function repairUnitPrice(maxHull) {
+  return REPAIR_PRICE * Math.max(1, maxHull / 100);
+}
 
 // ------------------------------------------------------------
 //  Difficulty modes — chosen at new-game time, stored on state.
@@ -299,15 +321,30 @@ export const MINERALS = {
   amazonite:   { name: "Amazonite",   color: "#b06bff", value: 500000, minDepth: 440, maxDepth: 540, weight: 1.2 },
 };
 
+// Space ores — found ONLY in the asteroid field high above the surface (never
+// underground; STRATA lists don't include them). A whole new high-value loop.
+export const SPACE_ORES = {
+  meteorite: { name: "Meteoric Iron", color: "#9fb0c0", value: 1500,   space: true },
+  palladium: { name: "Palladium",     color: "#e6ecf4", value: 7000,   space: true },
+  helium3:   { name: "Helium-3",      color: "#8affe6", value: 28000,  space: true },
+  iridium:   { name: "Iridium",       color: "#cdbfff", value: 120000, space: true },
+};
+Object.assign(MINERALS, SPACE_ORES);
+export const SPACE_ORE_KEYS = Object.keys(SPACE_ORES);
+// Weighted table for asteroid generation (rarer = deeper into the belt).
+export const ASTEROID_ORES = [["meteorite", 100], ["palladium", 46], ["helium3", 15], ["iridium", 4]];
+
 // Refined alloys — never spawn in the world (pickMineral only draws from the
 // STRATA lists). They're produced at the Refinery, sell at a premium, and
 // compress several ore into one cargo slot. Priced by the live market like ore.
 export const ALLOYS = {
-  steel:     { name: "Steel Ingot",   color: "#c2cad6", value: 260,    crafted: true },
-  electrum:  { name: "Electrum",      color: "#ffe27a", value: 780,    crafted: true },
-  hardplate: { name: "Hardplate",     color: "#bfe3ef", value: 2600,   crafted: true },
-  quantum:   { name: "Quantum Alloy", color: "#8affd6", value: 14000,  crafted: true },
-  stellar:   { name: "Stellar Alloy", color: "#bfe0ff", value: 170000, crafted: true },
+  steel:      { name: "Steel Ingot",    color: "#c2cad6", value: 260,    crafted: true },
+  electrum:   { name: "Electrum",       color: "#ffe27a", value: 780,    crafted: true },
+  hardplate:  { name: "Hardplate",      color: "#bfe3ef", value: 2600,   crafted: true },
+  quantum:    { name: "Quantum Alloy",  color: "#8affd6", value: 14000,  crafted: true },
+  stellar:    { name: "Stellar Alloy",  color: "#bfe0ff", value: 170000, crafted: true },
+  voidsteel:  { name: "Void Steel",     color: "#aeb8c8", value: 40000,  crafted: true },
+  antimatter: { name: "Antimatter Cell",color: "#c9b0ff", value: 700000, crafted: true },
 };
 Object.assign(MINERALS, ALLOYS);
 
@@ -326,6 +363,8 @@ export const RECIPES = {
     { id: "hardplate", out: "hardplate", kind: "cargo", in: { platinum: 2, silverium: 2 } },
     { id: "quantum",   out: "quantum",   kind: "cargo", in: { einsteinium: 2, emerald: 1 } },
     { id: "stellar",   out: "stellar",   kind: "cargo", in: { diamond: 1, ruby: 1 } },
+    { id: "voidsteel", out: "voidsteel", kind: "cargo", in: { meteorite: 3, palladium: 1 } },
+    { id: "antimatter",out: "antimatter",kind: "cargo", in: { helium3: 2, iridium: 1 } },
   ],
   craft: [
     { id: "dynamite",   out: "dynamite",   kind: "consumable", name: "Dynamite",   in: { ironium: 2, bronzium: 1 } },
@@ -489,6 +528,17 @@ export const UPGRADES = {
       { name: "Survey Array", value: 16,       cost: 3000 },
       { name: "Deep Sonar",   value: 24,       cost: 9000 },
       { name: "Omni-Scanner", value: Infinity, cost: 26000 }, // no fog at all
+    ],
+  },
+  booster: {
+    label: "Vertical Booster",
+    desc: "Climb power & efficiency — the only way to rocket up to space (value = climb-speed multiplier)",
+    tiers: [
+      { name: "No Booster",    value: 1.0, fuel: 1.0,  cost: 0 },
+      { name: "Ascent Jets",   value: 1.7, fuel: 0.85, cost: 5000 },
+      { name: "Ramjet",        value: 2.5, fuel: 0.7,  cost: 18000 },
+      { name: "Aerospike",     value: 3.8, fuel: 0.55, cost: 55000 },
+      { name: "Orbital Drive", value: 5.5, fuel: 0.4,  cost: 160000 },
     ],
   },
 };

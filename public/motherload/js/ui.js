@@ -1,10 +1,10 @@
 // ============================================================
 //  UI — DOM-based HUD, toasts, prompts, and shop modals
 // ============================================================
-import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION } from "./config.js?v=40";
-import * as Shop from "./shops.js?v=40";
-import { CAMPAIGN } from "./missions.js?v=40";
-import { ARTIFACTS, ENDINGS } from "./config.js?v=40";
+import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION } from "./config.js?v=47";
+import * as Shop from "./shops.js?v=47";
+import { CAMPAIGN } from "./missions.js?v=47";
+import { ARTIFACTS, ENDINGS } from "./config.js?v=47";
 
 const el = (id) => document.getElementById(id);
 
@@ -122,6 +122,12 @@ export const UI = {
     clearTimeout(this._loreT);
     this._loreT = setTimeout(() => this.refs.lore.classList.add("hidden"), 6000);
   },
+
+  // Is a transmission/lore banner currently showing?
+  isLoreVisible() { return !this.refs.lore.classList.contains("hidden"); },
+
+  // Dismiss the current transmission/lore banner early.
+  hideLore() { clearTimeout(this._loreT); this.refs.lore.classList.add("hidden"); },
 
   // ---------------- Prompt ----------------
   showPrompt(html) {
@@ -498,16 +504,32 @@ export const UI = {
         () => { this.game.elevatorTo(i); }, false, "GO"
       ));
     });
+
+    // Launch Pad — unlocks only after reaching space the hard way.
+    const lp = document.createElement("div");
+    lp.innerHTML = `<div class="sell-summary" style="margin-top:12px">— 🚀 Launch Pad —</div>`;
+    body.appendChild(lp);
+    if (!state.reachedSpace) {
+      const note = document.createElement("div");
+      note.innerHTML = `<div class="empty-note">Locked. Rocket up to space under your own thrust at least once to commission the launch pad.</div>`;
+      body.appendChild(note);
+    } else {
+      body.appendChild(this.shopRow(
+        "Asteroid Belt", "Blast straight up to the asteroid belt", "", true,
+        () => { this.game.launchToOrbit(); }, false, "LAUNCH"
+      ));
+    }
   },
 
   // ---- Repair ----
   renderRepair(state, body) {
     const p = state.player;
     const need = p.maxHull - p.hull;
-    const fullCost = Math.ceil(need * REPAIR_PRICE);
+    const unit = repairUnitPrice(p.maxHull);
+    const fullCost = Math.ceil(need * unit);
     body.innerHTML = `
       <div class="sell-summary">
-        Hull: <b>${Math.ceil(p.hull)} / ${p.maxHull}</b> &nbsp;·&nbsp; Price: $${REPAIR_PRICE}/point
+        Hull: <b>${Math.ceil(p.hull)} / ${p.maxHull}</b> &nbsp;·&nbsp; Price: $${unit.toLocaleString(undefined, { maximumFractionDigits: 2 })}/point
       </div>`;
     const row = this.shopRow(
       "Full Repair", need <= 0 ? "Hull already pristine" : `Restore ${Math.ceil(need)} hull`,

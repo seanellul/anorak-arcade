@@ -3,9 +3,9 @@
 // ============================================================
 import {
   TILE, COLS, GROUND_ROW, SPAWN_COL, UPGRADES, UPGRADE_KEYS, CONSUMABLES,
-  FUEL_PRICE, REPAIR_PRICE, MINERALS, RECIPES, BASE_UPGRADES, FUEL_SUBSIDY_RATE, DIFFICULTIES,
+  FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, MINERALS, RECIPES, BASE_UPGRADES, FUEL_SUBSIDY_RATE, DIFFICULTIES,
   upgradeTier, upgradeCost, upgradeIsMax,
-} from "./config.js?v=40";
+} from "./config.js?v=47";
 
 // Effective fuel price after any owned base subsidies.
 export function fuelPrice(state) {
@@ -72,16 +72,17 @@ export function repairHull(state, points) {
   const need = player.maxHull - player.hull;
   points = Math.min(points, need);
   if (points <= 0) return { ok: false, msg: "Hull already full" };
-  let cost = Math.ceil(points * REPAIR_PRICE);
+  const unit = repairUnitPrice(player.maxHull); // scales with hull capacity
+  let cost = Math.ceil(points * unit);
   if (state.money < cost) {
-    const affordable = Math.floor(state.money / REPAIR_PRICE);
+    const affordable = Math.floor(state.money / unit);
     if (affordable <= 0) return { ok: false, msg: "Not enough money" };
     points = affordable;
-    cost = Math.ceil(points * REPAIR_PRICE);
+    cost = Math.ceil(points * unit);
   }
   state.money -= cost;
   player.hull = Math.min(player.maxHull, player.hull + points);
-  return { ok: true, msg: `Repaired +${Math.round(points)} hull for $${cost}` };
+  return { ok: true, msg: `Repaired +${Math.round(points)} hull for $${cost.toLocaleString()}` };
 }
 
 export function repairFull(state) {

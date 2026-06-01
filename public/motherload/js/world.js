@@ -4,8 +4,9 @@
 import {
   TILE, COLS, ROWS, GROUND_ROW, T, MINERALS, MINERAL_KEYS, dirtShade,
   stratumAt, ARTIFACTS, TREASURE,
-} from "./config.js?v=40";
-import { BUILDINGS } from "./shops.js?v=40";
+  ASTEROID_MIN_ROWS, ASTEROID_MAX_ROWS, ASTEROID_ORES,
+} from "./config.js?v=47";
+import { BUILDINGS } from "./shops.js?v=47";
 
 // Small seeded RNG so worlds are reproducible per seed (helps testing/saves)
 function makeRng(seed) {
@@ -30,20 +31,31 @@ export class World {
     this.artifact = new Array(COLS * ROWS).fill(null); // artifact id per tile
     this.treasure = new Float32Array(COLS * ROWS);      // treasure $ value per tile (0 = none)
     this.cleared = new Set(); // tile indices dug out (for save/load)
+    // Sky / asteroid tiles live above the grid (negative rows), stored sparsely.
+    this.skyType = new Map();     // idx -> tile type
+    this.skyMineral = new Map();  // idx -> ore key
+    this.skyHardness = new Map(); // idx -> drill cost
+    this.skyCleared = new Set();  // idx of mined asteroid tiles (for save/load)
     this.generate();
+    this.generateAsteroids();
   }
 
   idx(c, r) { return r * COLS + c; }
   inBounds(c, r) { return c >= 0 && c < COLS && r >= 0 && r < ROWS; }
 
   getType(c, r) {
-    // Open sky above the world — fly up freely (no bedrock ceiling). Side walls
-    // and the floor stay solid bedrock.
-    if (r < 0 && c >= 0 && c < COLS) return T.EMPTY;
+    // Above the world (negative rows): asteroid tile if present, else open sky.
+    // Side walls and the floor stay solid bedrock.
+    if (r < 0) {
+      if (c < 0 || c >= COLS) return T.BEDROCK;
+      const k = r * COLS + c;
+      return this.skyType.has(k) ? this.skyType.get(k) : T.EMPTY;
+    }
     if (!this.inBounds(c, r)) return T.BEDROCK;
     return this.type[this.idx(c, r)];
   }
   getMineral(c, r) {
+    if (r < 0) return (c >= 0 && c < COLS) ? (this.skyMineral.get(r * COLS + c) ?? null) : null;
     if (!this.inBounds(c, r)) return null;
     return this.mineral[this.idx(c, r)];
   }
@@ -56,6 +68,7 @@ export class World {
     return this.treasure[this.idx(c, r)];
   }
   getHardness(c, r) {
+    if (r < 0) return this.skyHardness.get(r * COLS + c) ?? Infinity;
     if (!this.inBounds(c, r)) return Infinity;
     return this.hardness[this.idx(c, r)];
   }
@@ -80,6 +93,14 @@ export class World {
   }
 
   clearTile(c, r) {
+    if (r < 0) { // asteroid tile
+      if (c < 0 || c >= COLS) return;
+      const k = r * COLS + c;
+      if (!this.skyType.has(k)) return;
+      this.skyType.delete(k); this.skyMineral.delete(k); this.skyHardness.delete(k);
+      this.skyCleared.add(k);
+      return;
+    }
     if (!this.inBounds(c, r)) return;
     const i = this.idx(c, r);
     if (this.type[i] === T.EMPTY) return;
@@ -89,6 +110,14 @@ export class World {
     this.treasure[i] = 0;
     this.hardness[i] = 0;
     this.cleared.add(i);
+  }
+
+  // Re-apply mined asteroid tiles after regenerating from seed (save/load).
+  applySkyCleared(keys) {
+    for (const k of keys) {
+      this.skyType.delete(k); this.skyMineral.delete(k); this.skyHardness.delete(k);
+      this.skyCleared.add(k);
+    }
   }
 
   // Re-apply a saved list of cleared tile indices after regenerating from seed
@@ -396,6 +425,46 @@ export class World {
       if (r <= 0) return key;
     }
     return candidates[candidates.length - 1][0];
+  }
+
+  // Scatter mineable asteroid clusters through the sky band (negative rows).
+  // Deterministic per seed so save/load regenerates the same field.
+  generateAsteroids() {
+    const rng = makeRng((this.seed ^ 0x5a17ed) >>> 0);
+    const span = ASTEROID_MAX_ROWS - ASTEROID_MIN_ROWS;
+    const N = 150;
+    for (let a = 0; a < N; a++) {
+      const cc = 2 + Math.floor(rng() * (COLS - 4));
+      const rr = -(ASTEROID_MIN_ROWS + Math.floor(rng() * span)); // negative row
+      const rad = 2 + Math.floor(rng() * 4);                       // 2..5 tiles
+      const oreChance = 0.16 + rng() * 0.14;
+      const depthFrac = (-rr - ASTEROID_MIN_ROWS) / span;          // 0..1, higher = rarer ore
+      for (let dy = -rad; dy <= rad; dy++) {
+        for (let dx = -rad; dx <= rad; dx++) {
+          if (dx * dx + dy * dy > rad * rad + rng() * rad * 1.5) continue; // noisy circle
+          const c = cc + dx, r = rr + dy;
+          if (c < 1 || c >= COLS - 1) continue;
+          const k = r * COLS + c;
+          if (this.skyType.has(k)) continue;
+          this.skyType.set(k, T.ROCK);
+          this.skyHardness.set(k, 3 + rng() * 4);
+          if (rng() < oreChance) this.skyMineral.set(k, this._pickAsteroidOre(rng, depthFrac));
+        }
+      }
+    }
+  }
+
+  _pickAsteroidOre(rng, depthFrac) {
+    // Weight the rarer ores up the higher into the belt you are.
+    let total = 0;
+    const weights = ASTEROID_ORES.map(([key, w], i) => {
+      const adj = w * (1 + (i >= 2 ? depthFrac * 2.2 : -depthFrac * 0.4));
+      total += Math.max(0.5, adj);
+      return Math.max(0.5, adj);
+    });
+    let x = rng() * total;
+    for (let i = 0; i < ASTEROID_ORES.length; i++) { x -= weights[i]; if (x <= 0) return ASTEROID_ORES[i][0]; }
+    return ASTEROID_ORES[0][0];
   }
 
   // Drill level needed to break a rock tile (scales with depth/hardness)

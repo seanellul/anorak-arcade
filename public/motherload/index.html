@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0" />
   <title>Motherload</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23e8a13a'/></svg>" />
-  <link rel="stylesheet" href="css/style.css?v=40" />
+  <link rel="stylesheet" href="css/style.css?v=47" />
 </head>
 <body>
   <div id="game-root">
@@ -53,6 +53,7 @@
       <div class="lore-box">
         <div class="lore-head">◇ INCOMING TRANSMISSION ◇</div>
         <div class="lore-text" id="lore-text"></div>
+        <div class="lore-hint">▸ Space / click to skip</div>
       </div>
     </div>
 
@@ -92,20 +93,52 @@
           <button id="random-seed-btn" class="small-btn" title="Random seed">🎲</button>
         </div>
       </div>
-      <button id="start-btn" class="big-btn">START MINING</button>
+      <button id="start-btn" class="big-btn" data-nav-default>START MINING</button>
       <button id="continue-btn" class="big-btn secondary hidden">CONTINUE</button>
+      <button id="howto-btn" class="big-btn secondary">📖 HOW TO PLAY</button>
       <button id="garage-btn" class="big-btn secondary">🛠 GARAGE</button>
       <button id="records-btn" class="big-btn secondary">🏆 RECORDS</button>
       <button id="mutators-btn" class="big-btn secondary">☣ MUTATORS</button>
       <button id="settings-btn" class="big-btn secondary">⚙ SETTINGS</button>
+      <button id="about-btn" class="big-btn secondary">✍ DEVELOPER'S NOTE</button>
       <div class="controls-help">
         <h3>CONTROLS</h3>
-        <p><b>Arrow keys / WASD</b> — Fly &amp; thrust</p>
-        <p><b>Down</b> — Drill downward · <b>Left/Right into dirt</b> — Drill sideways</p>
-        <p><b>E / Enter</b> — Use building (at surface) · <b>ESC</b> — Close menu</p>
-        <p><b>C</b> — Codex · <b>M</b> — Tunnel map · <b>B</b> — Dynamite · <b>T</b> — Teleport · <b>F</b> — Fullscreen · <b>P</b> — Mute</p>
-        <p>Return to the surface buildings to <b>sell</b> minerals, <b>refuel</b>, <b>repair</b>, <b>upgrade</b>, and take <b>missions</b>.</p>
+        <p><b>Arrow keys / WASD</b> — Fly &amp; thrust · <b>Down</b> — Drill · <b>Left / Right into dirt</b> — Tunnel</p>
+        <p><b>E / Enter</b> Use building · <b>C</b> Codex · <b>M</b> Map · <b>B</b> Dynamite · <b>T</b> Teleport · <b>ESC</b> Pause</p>
+        <p>🎮 <b>Gamepad supported</b> — stick / d-pad to fly · <b>A</b> use · <b>X</b> dynamite · <b>Y</b> teleport · <b>Start</b> pause</p>
       </div>
+    </div>
+
+    <!-- How to Play (first-run tutorial + menu reference) -->
+    <div id="howto-screen" class="screen hidden">
+      <h1 class="title" style="font-size:44px">HOW TO PLAY</h1>
+      <p class="subtitle">Four steps. Then just keep digging.</p>
+      <div class="howto-steps">
+        <div class="howto-step"><span class="howto-num">1</span><div><b>DIG DOWN</b><br>Hold <b>↓</b> to drill into the ground. Press <b>←/→</b> into dirt to tunnel sideways.</div></div>
+        <div class="howto-step"><span class="howto-num">2</span><div><b>COLLECT ORE</b><br>Minerals load into your cargo automatically. The deeper you go, the richer they get.</div></div>
+        <div class="howto-step"><span class="howto-num">3</span><div><b>FLY HOME &amp; SELL</b><br>Thrust back <b>↑</b> to the surface base. Sell at the <span class="c-sell">Mineral Depot</span>, top up at the <span class="c-fuel">Fuel Station</span>, fix up at the <span class="c-rep">Repair Bay</span>.</div></div>
+        <div class="howto-step"><span class="howto-num">4</span><div><b>UPGRADE &amp; REPEAT</b><br>Spend your earnings on a bigger tank, stronger drill and more cargo — then dig deeper than ever.</div></div>
+      </div>
+      <p class="howto-warn">⚠ Keep an eye on <b class="c-fuel">FUEL</b> (you need enough to climb home) and <b class="c-rep">HULL</b> (lava, gas and long falls hurt). Out of fuel? Press <b>R</b> for a paid rescue.</p>
+      <div class="controls-help" style="margin-top:14px">
+        <p><b>Move/Fly</b> Arrows or WASD · <b>Drill</b> Down · <b>Use</b> E/Enter · <b>Dynamite</b> B · <b>Teleport up</b> T · <b>Pause</b> ESC</p>
+        <p>🎮 <b>Gamepad</b>: stick/d-pad fly · <b>A</b> use · <b>X</b> dynamite · <b>Y</b> teleport · <b>Start</b> pause</p>
+      </div>
+      <button id="howto-start" class="big-btn" data-nav-default>⛏ START DIGGING</button>
+      <button id="howto-back" class="big-btn secondary">BACK</button>
+    </div>
+
+    <!-- Developer's note -->
+    <div id="about-screen" class="screen hidden">
+      <h1 class="title" style="font-size:40px">A NOTE FROM THE DEV</h1>
+      <div class="about-text">
+        <p>This is our little <b>love letter to Motherload</b> — the 2004 Flash classic by XGen Studios that ate so many of our afternoons.</p>
+        <p>We rebuilt it from scratch in <b>just a few days</b>, as a challenge: no game engine, no downloaded assets, no build step. Every tile, every sound, every star in the sky is generated in code.</p>
+        <p>It's <b>free</b>, and it's a demo in the truest sense — a proof of what a few days of obsession can make. If you enjoy it, we'd love nothing more than to keep digging: more biomes, more story, more depth, more pod.</p>
+        <p><b>All feedback is genuinely welcome.</b> Tell us what felt great, what felt clunky, and what you'd want to see next.</p>
+        <p class="about-sign">— Thanks for playing. Now go strike the Motherlode. ⛏</p>
+      </div>
+      <button id="about-back" class="big-btn" data-nav-default>BACK</button>
     </div>
 
     <!-- Pause menu -->
@@ -194,7 +227,7 @@
     </div><!-- /#stage -->
   </div>
 
-  <script type="module" src="js/main.js?v=40"></script>
+  <script type="module" src="js/main.js?v=47"></script>
   <!-- Anorak Arcade integration (kept out of the game source) -->
   <script src="../stats.js"></script>
   <script src="arcade-track.js"></script>
