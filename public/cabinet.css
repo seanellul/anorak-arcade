@@ -1,0 +1,141 @@
+/* =====================================================================
+   Anorak Arcade — game "cabinet" chrome (shared, zero-dependency).
+   Opt-in: any page with <body data-game="…"> gets a sticky action bar,
+   an in-game per-game leaderboard drawer, a NEW-BEST toast, and a
+   centered, upscaled canvas on PC. Drives off --cab-acc (set by
+   cabinet.js to the game's accent) and the v2 palette below.
+   ===================================================================== */
+body[data-game]{
+  --cab-acc:#ffb13d;                 /* overridden per game by cabinet.js */
+  --cab-bg:#0a0e14; --cab-panel:#121826; --cab-ink:#e7ecf5;
+  --cab-dim:#7d8aa0; --cab-line:#1e2638; --cab-line2:#2a3447;
+}
+
+/* the games' original bare back link — the bar replaces it */
+body[data-game] a.back{ display:none !important; }
+
+/* ---- top action bar ---- */
+.cab-bar{
+  align-self:stretch; position:sticky; top:0; z-index:60;
+  display:flex; align-items:center; gap:14px;
+  padding:10px 16px; box-sizing:border-box;
+  background:rgba(8,11,17,.74); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--cab-line);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+.cab-bar .cab-home{
+  display:inline-flex; align-items:center; gap:8px;
+  color:var(--cab-dim); text-decoration:none; font-size:12px; letter-spacing:.16em;
+}
+.cab-bar .cab-home:hover{ color:var(--cab-ink); }
+.cab-bar .cab-home .dot{
+  width:9px; height:9px; border-radius:2px; background:var(--cab-acc);
+  box-shadow:0 0 10px var(--cab-acc); transform:rotate(45deg);
+}
+.cab-bar .cab-title{
+  font-size:12px; letter-spacing:.26em; font-weight:700; color:var(--cab-ink);
+}
+.cab-bar .cab-title b{ color:var(--cab-acc); }
+.cab-bar .cab-spacer{ flex:1; }
+.cab-btn{
+  display:inline-flex; align-items:center; gap:7px;
+  background:var(--cab-panel); border:1px solid var(--cab-line);
+  color:var(--cab-dim); font-family:inherit; font-size:11px; letter-spacing:.12em;
+  padding:7px 12px; border-radius:9px; cursor:pointer; line-height:1;
+}
+.cab-btn:hover{ color:var(--cab-ink); border-color:var(--cab-line2); }
+.cab-btn .ic{ font-size:14px; line-height:1; }
+.cab-btn.cab-scores{ color:var(--cab-acc); border-color:color-mix(in srgb,var(--cab-acc) 40%,var(--cab-line)); }
+.cab-btn.cab-scores .badge{
+  display:none; width:7px; height:7px; border-radius:50%;
+  background:var(--cab-acc); box-shadow:0 0 8px var(--cab-acc); margin-left:1px;
+}
+.cab-btn.cab-scores.flash .badge{ display:inline-block; animation:cab-pulse 1s infinite; }
+@keyframes cab-pulse{ 50%{ opacity:.35; } }
+
+/* center the play area so the upscaled canvas stays centered */
+body[data-game] #wrap{ display:flex; justify-content:center; }
+
+/* ---- leaderboard drawer (centered modal) ---- */
+.cab-scrim{
+  position:fixed; inset:0; z-index:120; display:none;
+  align-items:center; justify-content:center; padding:20px;
+  background:rgba(5,7,12,.78);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+.cab-scrim.open{ display:flex; }
+.cab-drawer{
+  width:440px; max-width:94vw; max-height:88vh; overflow:auto;
+  background:var(--cab-panel); border:1px solid var(--cab-line2);
+  border-radius:14px; padding:20px 20px 22px; color:var(--cab-ink);
+  box-shadow:0 24px 70px rgba(0,0,0,.55);
+}
+.cab-drawer .cab-h{
+  display:flex; align-items:baseline; gap:10px; margin:0 0 4px;
+  letter-spacing:.2em; font-size:13px; font-weight:700;
+}
+.cab-drawer .cab-h .g{ color:var(--cab-acc); }
+.cab-drawer .cab-h .x{
+  margin-left:auto; background:none; border:0; color:var(--cab-dim);
+  font-family:inherit; font-size:20px; line-height:1; cursor:pointer; padding:0 2px;
+}
+.cab-drawer .cab-h .x:hover{ color:var(--cab-ink); }
+.cab-drawer .cab-sub{ color:var(--cab-dim); font-size:11px; letter-spacing:.08em; margin:0 0 14px; }
+.cab-you{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  background:var(--cab-bg); border:1px solid var(--cab-line);
+  border-radius:10px; padding:9px 12px; margin-bottom:14px;
+}
+.cab-you .lbl{ color:var(--cab-dim); font-size:10px; letter-spacing:.16em; }
+.cab-you .nm{ font-weight:700; color:var(--cab-acc); letter-spacing:.05em; }
+.cab-you button{
+  margin-left:auto; background:none; border:1px solid var(--cab-line2);
+  color:var(--cab-dim); font-family:inherit; font-size:10px; letter-spacing:.1em;
+  padding:5px 10px; border-radius:7px; cursor:pointer;
+}
+.cab-you button:hover{ color:var(--cab-ink); border-color:var(--cab-ink); }
+
+table.cab-lb{ border-collapse:collapse; width:100%; font-size:13px; }
+table.cab-lb th{
+  color:var(--cab-dim); text-align:left; font-size:10px; letter-spacing:.18em;
+  padding:6px 8px; border-bottom:1px solid var(--cab-line);
+}
+table.cab-lb td{ padding:8px; border-bottom:1px solid #161d2b; }
+table.cab-lb .rank{ color:var(--cab-dim); width:38px; }
+table.cab-lb tr:nth-child(1) .rank{ color:#ffd23f; }
+table.cab-lb tr:nth-child(2) .rank{ color:#cfd8e6; }
+table.cab-lb tr:nth-child(3) .rank{ color:#e0975a; }
+table.cab-lb .nm{ font-weight:700; letter-spacing:.04em; }
+table.cab-lb .sc{ text-align:right; font-variant-numeric:tabular-nums; }
+table.cab-lb tr.me{ background:color-mix(in srgb,var(--cab-acc) 10%,transparent); }
+.cab-empty{ color:var(--cab-dim); padding:14px 2px; font-size:12.5px; }
+.cab-note{ color:var(--cab-dim); font-size:11px; line-height:1.6; margin:14px 0 0; }
+.cab-note a{ color:var(--cab-acc); }
+
+/* ---- NEW BEST toast ---- */
+.cab-toast{
+  position:fixed; left:50%; top:64px; transform:translate(-50%,-12px);
+  z-index:130; pointer-events:none; opacity:0;
+  background:var(--cab-acc); color:#1a0d06; font-weight:700;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.12em; font-size:12px; padding:9px 16px; border-radius:999px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+  transition:opacity .25s, transform .25s;
+}
+.cab-toast.show{ opacity:1; transform:translate(-50%,0); }
+
+/* ---- mobile: icons-only bar, fuller drawer ---- */
+@media(max-width:560px){
+  .cab-bar{ gap:8px; padding:8px 10px; }
+  .cab-bar .cab-title{ display:none; }
+  .cab-bar .cab-home span.lbl{ display:none; }            /* keep just the dot */
+  .cab-btn{ padding:7px 9px; }
+  .cab-btn .lbl{ display:none; }                           /* icon-only */
+  .cab-drawer{ width:100%; max-width:100vw; max-height:92vh; border-radius:14px; }
+  .cab-toast{ top:56px; }
+}
+
+@media(prefers-reduced-motion: reduce){
+  .cab-toast{ transition:none; }
+  .cab-btn.cab-scores.flash .badge{ animation:none; }
+}

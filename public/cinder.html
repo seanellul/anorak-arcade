@@ -87,8 +87,9 @@
     .ctrls button{padding:13px}
   }
 </style>
+<link rel="stylesheet" href="cabinet.css">
 </head>
-<body>
+<body data-game="CINDER">
 <a class="back" href="index.html">← arcade</a>
 <header>
   <div><h1>CIN<span class="v">DER</span></h1><div class="sub">CONTAINMENT · seal the fire</div></div>
@@ -126,6 +127,7 @@
   Seal fire into a closed pocket to capture it. Bigger captures escalate: <b style="color:#ffd23f">SPARK → BLAZE → INFERNO → FIRESTORM</b>. Chain captures quickly to build a <b>combo</b> multiplier. Walls refund when their pocket is captured.
 </div>
 <script src="stats.js"></script>
+<script src="cabinet.js"></script>
 <script>
 (()=>{
   const MOBILE = window.matchMedia('(max-width:560px)').matches;

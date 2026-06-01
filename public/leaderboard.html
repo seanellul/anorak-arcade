@@ -56,6 +56,13 @@
   .mp .bar i{display:block;height:100%;border-radius:5px}
   .mp .t{font-size:12px;color:var(--dim);text-align:right}
   .empty{color:var(--dim);padding:14px 0}
+  .boards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:8px 0}
+  .bcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden}
+  .bcard h3{margin:0 0 8px;font-size:15px;letter-spacing:.18em}
+  .bcard h3 a{color:inherit;text-decoration:none}
+  .bcard h3 a:hover{text-decoration:underline}
+  .bcard .glow{position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;opacity:.16;filter:blur(18px)}
+  .bcard .empty{padding:8px 0;font-size:12.5px}
 </style>
 </head>
 <body class="v2">
@@ -80,7 +87,7 @@
   <header class="hero">
     <span class="kicker"><span class="live"></span> GLOBAL · LIVE</span>
     <h1 class="bigtitle sm"><span class="anorak">LEADERBOARD</span><span class="arc">High Scores</span></h1>
-    <p class="lede2">Names are arcade-style — pick anything. Climb the board on every game, and watch the global clock tick up as the world plays.</p>
+    <p class="lede2">Every game's top players in one place, and the global clock ticking up as the world plays. Open any game to see and climb its full board, live.</p>
   </header>
 
   <div class="you reveal">
@@ -89,14 +96,13 @@
   </div>
   <div id="banner" class="banner" style="display:none"></div>
 
-  <h2 class="section-h v2">▶ HIGH SCORES</h2>
-  <div class="tabs" id="tabs"></div>
-  <div id="board" class="reveal"><div class="empty">Loading…</div></div>
-
   <h2 class="section-h v2">⏱ GLOBAL</h2>
   <div id="global" class="reveal"><div class="empty">Loading…</div></div>
 
-  <p class="note">Names are whatever you type — old-arcade style. Your personal playtime lives in your browser and the <b>RESET</b> on the home page only clears your local copy; the global record stays. Scores are submitted by the client, so treat the board as friendly, not Fort Knox.</p>
+  <h2 class="section-h v2">▶ HIGH SCORES · ALL GAMES</h2>
+  <div id="boards" class="reveal"><div class="empty">Loading…</div></div>
+
+  <p class="note">This page is the <b>global</b> view — every game at a glance. Each game window has its own full leaderboard you can open and climb mid-run. Names are whatever you type — old-arcade style. Your personal playtime lives in your browser and the <b>RESET</b> on the home page only clears your local copy; the global record stays. Scores are submitted by the client, so treat the board as friendly, not Fort Knox.</p>
 </div>
 <div class="footer">Anorak Arcade · <a href="index.html">arcade</a> · <a href="about.html">about</a> · <a href="research.html">research</a> · <a href="https://github.com/seanellul/anorak-arcade" target="_blank" rel="noopener">source ↗</a> · built by <a class="byline" href="https://seanellul.com" target="_blank" rel="noopener">seanellul ↗</a></div>
 <script src="site.js"></script>
@@ -104,42 +110,43 @@
 <script src="chrome.js"></script>
 <script>
 (()=>{
-  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','MOTHERLOAD'];
-  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',MOTHERLOAD:'#e8a13a'};
-  let current='CINDER';
+  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','MOTHERLOAD'];
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',MOTHERLOAD:'#e8a13a'};
 
   function renderYou(){ const n=GameStats.getName(); document.getElementById('youName').textContent=n||'anonymous'; }
   document.getElementById('setName').onclick=()=>GameStats.promptName(()=>{ renderYou(); load(); });
   renderYou();
 
-  // tabs
-  const tabsEl=document.getElementById('tabs');
-  tabsEl.innerHTML=GAMES.map(g=>'<button class="tab" data-g="'+g+'" style="--c:'+COLORS[g]+'">'+g+'</button>').join('');
-  function setTab(g){ current=g; [...tabsEl.children].forEach(b=>{ const on=b.dataset.g===g; b.classList.toggle('active',on); b.style.background=on?COLORS[g]:''; }); loadBoard(); }
-  [...tabsEl.children].forEach(b=>b.onclick=()=>setTab(b.dataset.g));
-
-  function row(rank, name, score, ms, me){
-    return '<tr class="'+(me?'me':'')+'"><td class="rank">'+rank+'</td><td class="nm">'+esc(name)+'</td>'+
-           '<td class="sc">'+Number(score).toLocaleString()+'</td><td class="tm">'+(ms!=null?GameStats.fmt(ms):'')+'</td></tr>';
-  }
   function esc(s){ return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+  function href(g){ return g==='MOTHERLOAD' ? 'motherload/index.html' : g.toLowerCase()+'.html'; }
+  function row(rank, name, score, me){
+    return '<tr class="'+(me?'me':'')+'"><td class="rank">'+rank+'</td><td class="nm">'+esc(name)+'</td>'+
+           '<td class="sc">'+Number(score).toLocaleString()+'</td></tr>';
+  }
+  function card(g, body){ const c=COLORS[g]||'#888';
+    return '<div class="bcard"><span class="glow" style="background:'+c+'"></span>'+
+           '<h3 style="color:'+c+'"><a href="'+href(g)+'">'+g+'</a></h3>'+body+'</div>';
+  }
+  function table(rowsHTML){ return '<table class="lb"><tr><th class="rank">#</th><th>NAME</th><th class="sc">SCORE</th></tr>'+rowsHTML+'</table>'; }
 
-  function loadBoard(){
-    const board=document.getElementById('board');
+  // ---- HIGH SCORES · ALL GAMES — one card per game (top 5 each) ----
+  function loadBoards(){
+    const el=document.getElementById('boards');
+    const me=(GameStats.getName()||'').toLowerCase();
     if(!GameStats.hasAPI){
-      const best=GameStats.localBest(current);
-      board.innerHTML='<table class="lb"><tr><th class="rank">#</th><th>NAME</th><th class="sc">SCORE</th><th class="tm">TIME</th></tr>'+
-        (best>0? row(1, GameStats.getName()||'you', best, null, true) : '<tr><td colspan="4" class="empty">No local score yet — go play '+current+'.</td></tr>')+'</table>';
+      el.innerHTML='<div class="boards-grid">'+GAMES.map(g=>{ const best=GameStats.localBest(g);
+        return card(g, best>0 ? table(row(1, GameStats.getName()||'you', best, true)) : '<div class="empty">No local score yet.</div>');
+      }).join('')+'</div>';
       return;
     }
-    board.innerHTML='<div class="empty">Loading…</div>';
-    GameStats.api('/api/leaderboard?game='+current+'&limit=20').then(d=>{
-      const me=(GameStats.getName()||'').toLowerCase();
-      const rows=(d.top||[]);
-      if(!rows.length){ board.innerHTML='<div class="empty">No scores yet — be the first on '+current+'.</div>'; return; }
-      board.innerHTML='<table class="lb"><tr><th class="rank">#</th><th>NAME</th><th class="sc">SCORE</th><th class="tm">TIME</th></tr>'+
-        rows.map((r,i)=>row(i+1, r.name, r.score, r.ms, r.name&&r.name.toLowerCase()===me)).join('')+'</table>';
-    }).catch(()=>{ board.innerHTML='<div class="empty">Couldn’t reach the leaderboard.</div>'; });
+    el.innerHTML='<div class="empty">Loading…</div>';
+    GameStats.api('/api/leaderboard').then(d=>{
+      const boards=d.boards||{};
+      el.innerHTML='<div class="boards-grid">'+GAMES.map(g=>{ const rows=boards[g]||[];
+        return card(g, rows.length ? table(rows.map((r,i)=>row(i+1, r.name, r.score, r.name&&r.name.toLowerCase()===me)).join(''))
+                                   : '<div class="empty">No scores yet — be the first.</div>');
+      }).join('')+'</div>';
+    }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach the leaderboards.</div>'; });
   }
 
   function loadGlobal(){
@@ -166,14 +173,13 @@
     }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach global stats.</div>'; });
   }
 
-  function load(){ loadBoard(); loadGlobal(); }
+  function load(){ loadBoards(); loadGlobal(); }
 
   if(!GameStats.hasAPI){
     const b=document.getElementById('banner'); b.style.display='block';
     b.innerHTML='Global leaderboards are <b>offline</b> until the API is deployed — showing your <b>local</b> bests for now. (Wire the Worker URL into <code>stats.js</code> to go live.)';
   }
-  setTab('CINDER');
-  loadGlobal();
+  load();
 })();
 </script>
 </body>

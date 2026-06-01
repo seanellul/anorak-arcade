@@ -79,8 +79,9 @@
     .ctrls button{padding:13px}
   }
 </style>
+<link rel="stylesheet" href="cabinet.css">
 </head>
-<body>
+<body data-game="SHIFT">
 <a class="back" href="index.html">← arcade</a>
 <header><div><h1>SHI<span class="v">FT</span></h1><div class="sub">SHIFTING FIELD · align the veins</div></div></header>
 <div class="hud">
@@ -110,6 +111,7 @@
 </div>
 <script src="juice.js"></script>
 <script src="stats.js"></script>
+<script src="cabinet.js"></script>
 <script>
 (()=>{
   const COLS=12, ROWS=15, CELL=34, W=COLS*CELL, H=ROWS*CELL;

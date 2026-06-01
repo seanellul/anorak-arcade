@@ -71,8 +71,9 @@
     .ctrls button{padding:13px}
   }
 </style>
+<link rel="stylesheet" href="cabinet.css">
 </head>
-<body>
+<body data-game="HOMEOSTAT">
 <a class="back" href="index.html">← arcade</a>
 <header><div><h1>HOMEO<span class="v">STAT</span></h1><div class="sub">EQUILIBRIUM · hold the flow band</div></div></header>
 <div class="hud">
@@ -96,6 +97,7 @@
 </div>
 <script src="juice.js"></script>
 <script src="stats.js"></script>
+<script src="cabinet.js"></script>
 <script>
 (()=>{
   const MOBILE = window.matchMedia('(max-width:560px)').matches;
