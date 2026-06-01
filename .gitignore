@@ -21,3 +21,6 @@ npm-debug.log*
 .wrangler/
 dist/
 .output/
+
+# secrets
+api/.admin-key.txt

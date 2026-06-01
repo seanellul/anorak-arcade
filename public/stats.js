@@ -3,7 +3,7 @@
 // If API is set (the deployed Worker URL), it also syncs to the global leaderboard.
 (function(){
   // ===== set this to your deployed Worker URL to enable global leaderboards =====
-  const API = '';   // e.g. 'https://anorak-arcade-api.<your-subdomain>.workers.dev'
+  const API = 'https://anorak-arcade-api.sean-ellul.workers.dev';   // deployed Worker (leaderboard API)
   // ==============================================================================
   const SKEY='aa.stats', CKEY='aa.clientId', NKEY='aa.name';
   const GAMES=['CINDER','STRATA','CONDUIT','HOMEOSTAT'];

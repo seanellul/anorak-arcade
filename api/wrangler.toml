@@ -7,7 +7,7 @@ compatibility_date = "2026-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "anorak-arcade"
-database_id = "REPLACE_WITH_DATABASE_ID"
+database_id = "3000f69e-fdd4-4a85-9568-29fb2e1288aa"
 
 # ADMIN_KEY (for /api/admin) is a secret, set via:
 #   wrangler secret put ADMIN_KEY
