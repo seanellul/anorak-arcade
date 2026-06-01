@@ -169,3 +169,11 @@ Difficulty for both was tuned against headless autoplayers, not guesswork: CLEAV
 player around 50 % chamber height with recoverable spikes (a clean board is the skill reward); FLUX's
 single-finger pole keeps the spill in a tense band that a careless player overflows. Both are designed
 so an idle player's default trajectory is **loss** (Pillar 1).
+
+> **Update — the petrification loss loop.** A first pass made CLEAVE (like NOVA/SURGE) too hard to
+> *lose*: a fully-clearable field plus action-efficient cuts let a skilled player hold the board near
+> empty forever. CLEAVE now has a **calcification ratchet** — shards left too long turn to uncuttable
+> grey **stone** (only knocked loose by shattering an adjacent vein), and the calcify timer shrinks as
+> you score. That adds the one thing every "un-losable" loop was missing: matter the core verb can't
+> erase, plus a non-resetting accelerator. The full diagnosis and the portable specs for NOVA and SURGE
+> are in `07-loss-mechanics.md`.

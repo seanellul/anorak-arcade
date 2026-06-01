@@ -42,6 +42,7 @@ body[data-game] a.back{ display:none !important; }
   background:var(--cab-panel); border:1px solid var(--cab-line);
   color:var(--cab-dim); font-family:inherit; font-size:11px; letter-spacing:.12em;
   padding:7px 12px; border-radius:9px; cursor:pointer; line-height:1;
+  text-decoration:none;            /* the GLOBAL button is an <a> */
 }
 .cab-btn:hover{ color:var(--cab-ink); border-color:var(--cab-line2); }
 .cab-btn .ic{ font-size:14px; line-height:1; }

@@ -99,7 +99,7 @@
   <div class="overlay" id="title">
     <h2 class="title">NO<span style="color:#ff5ec7">VA</span></h2>
     <p>Drop glowing motes into the basin. <b style="color:#eae6ff">Two equal motes that touch fuse</b> into the next tier — bigger, brighter, worth more.</p>
-    <p>Chain fusions for a <b style="color:#ffd23f">combo</b>. Climb the ladder all the way and a mote goes <b style="color:#b98cff">supernova</b> — a blast that clears the field. But let the stack crest the <b style="color:#ff4d6d">rim line</b> and it's over.</p>
+    <p>Chain fusions for a <b style="color:#ffd23f">combo</b>. Climb the ladder all the way and a mote goes <b style="color:#b98cff">supernova</b> — a blast that clears the field <i>and</i> the sediment. But a small mote left stranded too long <b style="color:#6b7184">fossilizes into immovable floor</b>, and if the stack crests the <b style="color:#ff4d6d">rim line</b> it's over.</p>
     <button id="startBtn">IGNITE ▶</button>
     <div class="statline"><span class="key">move</span> aim &nbsp; <span class="key">tap / click</span> drop &nbsp; <span class="key">P</span> pause</div>
   </div>
@@ -112,7 +112,7 @@
   <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
 </div>
 <div class="foot">
-  Equal motes fuse: <b style="color:#46a4d6">SPARK</b> → <b style="color:#7ee06b">EMBER</b> → <b style="color:#ffd23f">STAR</b> → … → <b style="color:#b98cff">NOVA</b>. Chain fusions fast for a multiplier. Reaching the top tier detonates a supernova that clears a wide blast and buys you room.
+  Equal motes fuse: <b style="color:#46a4d6">SPARK</b> → <b style="color:#7ee06b">EMBER</b> → <b style="color:#ffd23f">STAR</b> → … → <b style="color:#b98cff">NOVA</b>. Chain fusions fast for a multiplier. The <b style="color:#ff4d6d">rim closes in over time</b> and stranded small motes <b style="color:#6b7184">fossilize into dead floor</b> — the basin squeezes from both ends, so keep fusing upward. Only a supernova clears sediment and buys room.
 </div>
 <script src="juice.js"></script>
 <script src="stats.js"></script>
@@ -139,6 +139,16 @@
   const DROP_BAG=[0,0,0,0,1,1,1,2,2,3];
   const RIMY = MOBILE?96:92;        // danger line; drop zone is above it
   const SPAWNY = 44;
+  // sediment: a stranded small mote that sits idle too long fossilizes into immovable basin floor
+  // (the one-way ratchet — only a SUPERNOVA digs it back out). Idle window shrinks as you score.
+  const FOSSIL_START=MOBILE?6200:6600, FOSSIL_MIN=2900, FOSSIL_K=0.11, SED_R=MOBILE?15:16;
+  function fossilTime(){ return Math.max(FOSSIL_MIN, FOSSIL_START - score*FOSSIL_K); }
+  // the rim CREEPS DOWN over time — a monotonic squeeze (the Tetris-speed equivalent) so that, however
+  // well you fuse, your working space shrinks and the basin eventually tops out. This is what guarantees
+  // a loss curve in a field that otherwise self-empties.
+  const RIM_PER_SEC = MOBILE?2.0:2.0, RIM_MAX = MOBILE?300:280;
+  let rimY = RIMY, playT = 0;
+  const SED_COL='#474c5b', SED_HI='#6b7184', SED_LO='#222530';
 
   // precompute glow + body sprites per tier
   const sprite=[], glow=[];
@@ -171,12 +181,13 @@
   const STARS=[]; for(let i=0;i<60;i++) STARS.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.3+0.3,p:Math.random()*7,sp:0.5+Math.random()});
 
   function weightedDrop(){ return DROP_BAG[(Math.random()*DROP_BAG.length)|0]; }
-  function mkBall(x,y,t,vx,vy){ return {id:idCt.n++,x,y,vx:vx||0,vy:vy||0,t,r:TIERS[t].r,merged:false,pop:0,spin:Math.random()*7,born:1,birth:1,bphase:Math.random()*7}; }
+  function mkBall(x,y,t,vx,vy){ return {id:idCt.n++,x,y,vx:vx||0,vy:vy||0,t,r:TIERS[t].r,merged:false,pop:0,spin:Math.random()*7,born:1,birth:1,bphase:Math.random()*7,idle:0,sed:false}; }
 
   function reset(showTitle){
     balls=[]; score=0; dispScore=0; combo=0; comboT=0; peak=0;
     dropTier=weightedDrop(); nextTier=weightedDrop(); cur=null; dropCD=0; danger=0; novaFlash=0; settleQuiet=0;
     aimX=W/2; hoverGlow=0; timeScale=1; slowmoT=0; flashes=[]; streaks=[]; hbT=0; comboFlash=0; bannerPeak=-1; dropPulse=0;
+    rimY=RIMY; playT=0;
     spawnCurrent();
     document.getElementById('over').style.display='none';
     document.getElementById('paused').style.display='none';
@@ -207,6 +218,7 @@
   function physics(k){
     const n=balls.length;
     for(const b of balls){
+      if(b.sed){ b.vx=0; b.vy=0; continue; }   // fossilized — immovable
       b.vy += G*k; b.vx*=AIRD; b.vy*=AIRD;
       b.x += b.vx*k; b.y += b.vy*k;
       if(b.born>0) b.born-=0.06*k;
@@ -222,10 +234,11 @@
         for(let j=i+1;j<n;j++){ const b=balls[j]; if(!b) continue;
           let dx=b.x-a.x, dy=b.y-a.y; let d2=dx*dx+dy*dy; const rr=a.r+b.r;
           if(d2>=rr*rr || d2===0) continue;
+          if(a.sed && b.sed) continue;            // two fossils never push each other
           let d=Math.sqrt(d2)||0.01; const ov=(rr-d);
           const nx=dx/d, ny=dy/d;
-          // mass ~ area
-          const ma=a.r*a.r, mb=b.r*b.r, tot=ma+mb;
+          // mass ~ area (sediment is effectively immovable)
+          const ma=a.sed?1e9:a.r*a.r, mb=b.sed?1e9:b.r*b.r, tot=ma+mb;
           const pa=ov*(mb/tot), pb=ov*(ma/tot);
           a.x-=nx*pa; a.y-=ny*pa; b.x+=nx*pb; b.y+=ny*pb;
           // relative velocity along normal
@@ -239,11 +252,27 @@
   }
   function impact(b,mag){ const p=Math.min(0.34, mag*0.05); if(p>b.pop) b.pop=p; }
 
+  // ---- fossilization (the ratchet) ----
+  let sedCount=0;
+  function fossilize(dt){
+    const ft=fossilTime(); sedCount=0;
+    for(const b of balls){ if(b.sed){ sedCount++; continue; }
+      // a small (tier 0-1) mote that has come to rest and found no partner slowly calcifies
+      if(b.t<=1 && b.born<0.3 && (b.vx*b.vx+b.vy*b.vy)<0.30){ b.idle+=dt; if(b.idle>=ft) makeSediment(b); }
+      else b.idle=0;
+    }
+  }
+  function makeSediment(b){ b.sed=true; b.vx=0; b.vy=0; b.idle=0; b.r=Math.max(SED_R,b.r);
+    fx.burst(b.x,b.y, SED_HI, 6, {spread:1.4,up:0.1,decay:0.05,r:1.8,grav:0.18});
+    fx.ring(b.x,b.y,b.r*2.2, SED_COL, {lw:2,decay:0.08});
+    J.tone(110,0.16,'sine',0.045); J.tone(68,0.22,'sine',0.035,0.03); fx.shake(2);
+  }
+
   // ---- merging ----
   function doMerges(){
     let any=false;
-    for(let i=0;i<balls.length;i++){ const a=balls[i]; if(a.merged) continue;
-      for(let j=i+1;j<balls.length;j++){ const b=balls[j]; if(b.merged||b.t!==a.t) continue;
+    for(let i=0;i<balls.length;i++){ const a=balls[i]; if(a.merged||a.sed) continue;
+      for(let j=i+1;j<balls.length;j++){ const b=balls[j]; if(b.merged||b.sed||b.t!==a.t) continue;
         const dx=b.x-a.x, dy=b.y-a.y, rr=a.r+b.r+3;   // merge on contact (solver rests equal motes at ~r+r apart)
         if(dx*dx+dy*dy < rr*rr){ merge(a,b); any=true; break; }
       }
@@ -359,9 +388,9 @@
   // ---- danger / rim ----
   function updateDanger(dt){
     let over=false;
-    for(const b of balls){ b.warn=false; if(b.born>0.3) continue; if(b.y-b.r < RIMY && Math.abs(b.vy)<1.4){ over=true; b.warn=true; } }
-    if(over) danger=Math.min(1, danger + dt/2400);
-    else danger=Math.max(0, danger - dt/900);
+    for(const b of balls){ b.warn=false; if(b.born>0.3||b.sed) continue; if(b.y-b.r < rimY && Math.abs(b.vy)<1.4){ over=true; b.warn=true; } }
+    if(over) danger=Math.min(1, danger + dt/1150);   // strict rim: a crowded basin is immediately lethal (~1.2s)
+    else danger=Math.max(0, danger - dt/1500);        // and recovery is slower than the threat builds
     if(danger>=1) gameOver();
   }
 
@@ -373,8 +402,10 @@
     if(state==='play'){
       if(window.GameStats) GameStats.ping('NOVA', dtReal);
       if(dropCD>0){ dropCD-=dtReal; if(dropCD<=0 && !cur) spawnCurrent(); }
+      playT += dtReal; rimY = RIMY + Math.min(RIM_MAX, playT/1000*RIM_PER_SEC);   // the closing rim
       physics(Math.min(2.2,k));
       doMerges();
+      fossilize(dtReal);
       if(comboT>0){ comboT-=dt; if(comboT<=0) combo=0; }
       if(cur){ cur.x += (aimX-cur.x)*0.4; }
       if(dropPulse<1) dropPulse=Math.min(1,dropPulse+dtReal/260);
@@ -414,17 +445,19 @@
     const rd = danger, rpulse = rd>0.5?0.5+0.5*Math.sin(tt/120):0;
     const rr2=Math.round(150+rd*105), rg2=Math.round(120-rd*72), rb2=Math.round(200-rd*142);
     ctx.strokeStyle=`rgba(${rr2},${rg2},${rb2},${0.22+0.55*rd+rpulse*0.2})`;
-    ctx.lineWidth=2+rd*1.5; ctx.setLineDash([7,7]); ctx.beginPath(); ctx.moveTo(0,RIMY); ctx.lineTo(W,RIMY); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineWidth=2+rd*1.5; ctx.setLineDash([7,7]); ctx.beginPath(); ctx.moveTo(0,rimY); ctx.lineTo(W,rimY); ctx.stroke(); ctx.setLineDash([]);
+    // shaded "lost" zone above the descending rim, so the squeeze is legible
+    if(rimY>RIMY+2){ ctx.fillStyle='rgba(255,60,80,0.05)'; ctx.fillRect(0,0,W,rimY); ctx.strokeStyle='rgba(255,80,100,0.10)'; for(let yy=RIMY;yy<rimY;yy+=10){ ctx.beginPath(); ctx.moveTo(0,yy); ctx.lineTo(W,yy); ctx.stroke(); } }
 
-    // additive glow pass
+    // additive glow pass (fossils are dead — no glow)
     ctx.globalCompositeOperation='lighter';
-    for(const b of balls){ const gs=glow[b.t]; const gw=gs.width*(0.5)* (1+b.pop*0.5); ctx.globalAlpha=0.5; ctx.drawImage(gs, b.x-gw, b.y-gw, gw*2, gw*2); }
+    for(const b of balls){ if(b.sed) continue; const gs=glow[b.t]; const gw=gs.width*(0.5)* (1+b.pop*0.5); ctx.globalAlpha=0.5; ctx.drawImage(gs, b.x-gw, b.y-gw, gw*2, gw*2); }
     // current mote glow
     if(cur){ const gs=glow[cur.t]; const gw=gs.width*0.5; ctx.globalAlpha=0.4+0.2*hoverGlow; ctx.drawImage(gs, cur.x-gw, SPAWNY-gw, gw*2, gw*2); }
     ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
 
-    // bodies with squash
-    for(const b of balls){ drawBall(b.x,b.y,b.t,b.pop,b.birth,b.bphase,1); }
+    // bodies with squash (sediment draws as dead grey rock)
+    for(const b of balls){ if(b.sed) drawSed(b); else drawBall(b.x,b.y,b.t,b.pop,b.birth,b.bphase,1); }
 
     // warning rings on over-rim masses
     ctx.globalCompositeOperation='lighter';
@@ -458,6 +491,14 @@
     if(novaFlash>0){ ctx.fillStyle=`rgba(255,255,255,${novaFlash*0.55})`; ctx.fillRect(0,0,W,H); }
   }
 
+  function drawSed(b){ const r=b.r;
+    ctx.save(); ctx.translate(b.x,b.y);
+    const g=ctx.createRadialGradient(-r*0.3,-r*0.35,r*0.1,0,0,r); g.addColorStop(0,SED_HI); g.addColorStop(0.5,SED_COL); g.addColorStop(1,SED_LO);
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=1.2; ctx.beginPath();
+    ctx.moveTo(-r*0.5,-r*0.2); ctx.lineTo(0,r*0.1); ctx.lineTo(r*0.5,-r*0.1); ctx.moveTo(0,r*0.1); ctx.lineTo(-r*0.15,r*0.6); ctx.stroke();
+    ctx.restore();
+  }
   function drawBall(x,y,t,pop,birth,bphase,scale){
     const s=sprite[t];
     const grow = birth>0 ? 1-birth : 1;                    // 0 → 1 as it settles in
@@ -476,8 +517,9 @@
   function darken(c,f){ const [r,g,b]=hex(c); return `rgb(${Math.round(r*(1-f))},${Math.round(g*(1-f))},${Math.round(b*(1-f))})`; }
 
   // debug hook (inert in normal play)
-  window.__nova={ TIERS, NOVA_TIER, get balls(){return balls;}, mkBall, add(b){balls.push(b);}, doMerges, physics, getScore:()=>score, getState:()=>state, setState:v=>state=v,
-    force(t,x,y){ balls.push(mkBall(x==null?W/2:x, y==null?H-40:y, t)); }, getPeak:()=>peak };
+  window.__nova={ TIERS, NOVA_TIER, get balls(){return balls;}, mkBall, add(b){balls.push(b);}, doMerges, physics, fossilize, makeSediment, getScore:()=>score, getState:()=>state, setState:v=>state=v,
+    force(t,x,y){ const b=mkBall(x==null?W/2:x, y==null?H-40:y, t); balls.push(b); return b; }, getPeak:()=>peak, getSed:()=>sedCount, getDanger:()=>danger,
+    drop, setAim:x=>{ aimX=clampX(x, cur?cur.t:0); }, getCur:()=>cur, getRim:()=>rimY };
 
   reset(true); last=performance.now(); requestAnimationFrame(loop);
 })();

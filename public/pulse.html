@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="Motes spiral into a reactor core — tap ON THE BEAT to fire a shockwave that scours them. A study in order-by-timing: rhythm as the skill, tempo as the difficulty.">
+<meta name="theme-color" content="#0a0608">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Anorak Arcade">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Anorak Arcade">
+<meta property="og:title" content="PULSE — time">
+<meta property="og:description" content="Motes spiral into the core. Tap on the beat to fire a shockwave that obliterates them — nail the rhythm to ride a groove. The tempo only ever climbs.">
+<meta property="og:image" content="https://anorak-arcade.pages.dev/og-pulse.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PULSE — time">
+<meta name="twitter:description" content="Tap on the beat to scour a reactor core clean. A love letter to a bygone era — original browser prototypes.">
+
+<title>PULSE — time</title>
+<style>
+  :root{ --bg:#0a0608; --panel:#160d11; --ink:#ffe9ef; --dim:#a6808c; --acc:#ff2e4d; --hot:#ff7a5e; --cool:#36c8ff; --good:#36d399; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  html,body{overscroll-behavior:none}
+  body{margin:0;background:radial-gradient(1100px 760px at 50% -10%,#2a0d18,#0a0608 60%);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  header{width:100%;max-width:500px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.34em;margin:0;font-weight:700}h1 .v{color:var(--acc)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:500px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #2a1820;border-radius:8px;padding:8px 10px;position:relative;overflow:hidden}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}
+  .stat .val{font-size:21px;font-weight:700;margin-top:2px;transition:transform .08s}
+  .stat .val.bump{transform:scale(1.22)}
+  .bars{width:100%;max-width:500px;padding:0 8px;display:flex;flex-direction:column;gap:6px}
+  .bar{height:13px;background:#120a0d;border:1px solid #2a1820;border-radius:7px;overflow:hidden;position:relative}
+  .bar>i{display:block;height:100%;width:100%;transition:width .12s linear}
+  .bar .lab{position:absolute;left:8px;top:0;font-size:9px;letter-spacing:.2em;line-height:13px;color:#ffd;mix-blend-mode:difference;pointer-events:none}
+  .bar.danger{animation:pulseb .42s infinite}
+  @keyframes pulseb{50%{box-shadow:0 0 14px rgba(255,77,109,.85)}}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#060305;border:1px solid #2a1820;border-radius:12px;display:block;max-width:100%;height:auto;cursor:pointer;touch-action:none}
+  .foot{max-width:500px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#23141a;border:1px solid #3a2430;border-radius:5px;padding:1px 7px;font-size:11px}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(10,6,8,.93);border-radius:12px;text-align:center;padding:24px}
+  .overlay h2{margin:0 0 4px;letter-spacing:.18em;font-size:26px}
+  .overlay h2.bad{color:var(--bad)} .overlay h2.title{color:var(--acc)}
+  .overlay p{color:var(--dim);margin:6px 0;max-width:430px;line-height:1.6;font-size:13px}
+  .overlay .big{font-size:40px;font-weight:700;color:var(--acc);margin:8px 0}
+  button{background:linear-gradient(180deg,#ff8aa0,#ff2e4d);color:#1a0509;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:13px 30px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:14px;box-shadow:0 6px 22px rgba(255,46,77,.42)}
+  button:hover{filter:brightness(1.08)}
+  .statline{color:var(--dim);font-size:12px;margin-top:10px;letter-spacing:.06em}
+  .statline b{color:var(--ink)}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}a.back:hover{color:var(--ink)}
+  @media(max-width:560px){
+    body{justify-content:flex-start}
+    a.back{position:static;display:block;margin:7px 0 0 10px;font-size:11px}
+    header{padding:2px 10px 0}
+    header h1{font-size:14px}
+    header .sub{display:none}
+    .hud{gap:6px;padding:4px 8px}
+    .hud .stat{background:none;border:0;padding:2px 5px;overflow:visible}
+    .hud .stat .k{font-size:8px;letter-spacing:.08em}
+    .hud .stat .val{font-size:16px;margin-top:0}
+    .bars{gap:3px}
+    .bar{height:8px;margin:2px 8px}
+    .bar .lab{font-size:7px;line-height:8px}
+    #wrap{margin:5px 0}
+    .foot{display:none}
+  }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← arcade</a>
+<header>
+  <div><h1>PUL<span class="v">SE</span></h1><div class="sub">TIME · tap on the beat</div></div>
+</header>
+<div class="hud">
+  <div class="stat"><div class="k">SCORE</div><div class="val" id="score">0</div></div>
+  <div class="stat"><div class="k">GROOVE</div><div class="val" id="groove">—</div></div>
+  <div class="stat"><div class="k">BEST</div><div class="val" id="best" style="color:var(--acc)">·</div></div>
+  <div class="stat"><div class="k">TEMPO</div><div class="val" id="tempo" style="font-size:15px;color:var(--dim)">—</div></div>
+</div>
+<div class="bars">
+  <div class="bar" id="overWrap"><i id="overload" style="background:linear-gradient(90deg,#36d399,#ffc24d,#ff2e4d)"></i><span class="lab">CORE INTEGRITY</span></div>
+  <div class="bar" id="grooveBar" style="height:5px"><i id="grooveFill" style="background:linear-gradient(90deg,#ff2e4d,#ffc24d)"></i></div>
+</div>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="title">
+    <h2 class="title">PUL<span style="color:#36c8ff">SE</span></h2>
+    <p>Motes spiral into the reactor core. The core <b style="color:#e9f2ff">throbs on a beat</b> — a ring closes in on each pulse.</p>
+    <p><b style="color:#ff2e4d">Tap on the beat</b> to fire a shockwave that scours every mote it sweeps. Nail the rhythm to ride a <b style="color:#ffc24d">groove</b> — bigger waves, bigger pay. A mote that reaches the core <b style="color:#878da0">fuses into slag</b> that swells it, and the tempo <b style="color:#ff4d6d">only ever climbs</b>.</p>
+    <button id="startBtn">PULSE ▶</button>
+    <div class="statline"><span class="key">tap / space</span> fire on the beat &nbsp; <span class="key">P</span> pause</div>
+  </div>
+  <div class="overlay" id="over" style="display:none">
+    <h2 class="bad">MELTDOWN</h2>
+    <div class="big" id="finalScore">0</div>
+    <div class="statline" id="finalStats"></div>
+    <button id="again">RE-PULSE ⏎</button>
+  </div>
+  <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
+</div>
+<div class="foot">
+  Tap <b>anywhere</b> to fire a shockwave from the core — but only <b style="color:#ff2e4d">on the beat</b>. A perfect on-beat tap fires a screen-wide wave that obliterates every mote it crosses; off-beat fires a weak fizzle. Consecutive on-beat hits build a <b style="color:#ffc24d">groove</b> multiplier. Let the motes bunch into a dense shell before you fire for a huge multi-clear — but a mote that reaches the core <b style="color:#878da0">fuses into permanent slag</b>, swelling it. Only a high-groove perfect wave chips slag back off. The tempo ramps forever.
+</div>
+<script src="juice.js"></script>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const MOBILE = window.matchMedia('(max-width:560px)').matches;
+  const W = MOBILE?358:460, H = MOBILE?460:460;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  const J=window.Juice; const fx=J.layer();
+  const cx0=W/2, cy0=H/2;
+  const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const VIB = m=>{ if(!RM && navigator.vibrate){ try{ navigator.vibrate(m); }catch(e){} } };
+
+  // ---- palette (mote charges) ----
+  const COL=[
+    {c:'#ff2e4d', hi:'#ffd0d8'},   // crimson
+    {c:'#ffc24d', hi:'#fff0cf'},   // amber
+    {c:'#36c8ff', hi:'#cdeeff'},   // azure
+    {c:'#b48cff', hi:'#e7dcff'},   // violet
+  ];
+  const NCOL=COL.length;
+  const MAXR = Math.min(W,H)*0.46;        // spawn rim radius
+  const BASE_CORE = Math.min(W,H)*0.072;
+  const SCAR_GROW = BASE_CORE*0.15;
+  const SCAR_MAX = 8;                       // breaches that end the run
+  const W_PERFECT=0.085, W_GOOD=0.19;       // beat windows (phase units)
+
+  // tempo / speed accelerators — ramp with ELAPSED PLAY TIME (unavoidable, like Tetris gravity)
+  // plus a smaller score term, so the better you do the faster it tightens. Both monotonic, neither resets.
+  function beatPeriod(){ return Math.max(350, 760 - tElapsed*0.0060 - score*0.008); }   // ms (≈79→171 BPM)
+  function crossTime(){ return Math.max(2400, 5400 - tElapsed*0.050 - score*0.25); }    // ms rim->core
+  function spawnInt(){ return Math.max(285, (MOBILE?660:640) - tElapsed*0.0095 - score*0.028); }   // ms
+
+  // ---- state ----
+  let motes, score, dispScore, streak, bestStreak, scars, state, last;
+  let t, tElapsed, beatT, spawnT, waves, coreR, corePunch, flash, slow, freeze, shakeBoost, danger, overloadFlash;
+  let lastFire, firedThisBeat, hint, fieldPulse=0, humT=0, beatCount=0, missFlash=0;
+  let idn=0;
+
+  function reset(showTitle){
+    motes=[]; score=0; dispScore=0; streak=0; bestStreak=0; scars=0;
+    t=0; tElapsed=0; beatT=0; spawnT=0; waves=[]; coreR=BASE_CORE; corePunch=0; flash=0; slow=0; freeze=0; shakeBoost=0; danger=0; overloadFlash=0;
+    lastFire=-1e9; firedThisBeat=false; beatCount=0; missFlash=0; fieldPulse=0; humT=0;
+    hint=(()=>{ try{ return !localStorage.getItem('pulse_seen'); }catch(e){ return true; } })();
+    // seed a starting shell so the first beats have targets
+    for(let i=0;i<(MOBILE?7:9);i++) spawn(true);
+    document.getElementById('over').style.display='none';
+    document.getElementById('paused').style.display='none';
+    document.getElementById('title').style.display=showTitle?'flex':'none';
+    state=showTitle?'title':'play';
+    updateHUD();
+  }
+  function start(){ J.unlock(); reset(false); }
+
+  function spawn(seed){
+    const ang=Math.random()*Math.PI*2;
+    const dist=seed? (coreR+40+Math.random()*(MAXR-coreR-50)) : MAXR;
+    motes.push({ id:idn++, ang, dist, color:(Math.random()*NCOL)|0, drift:(Math.random()-0.5)*0.0008, born:1, dead:false, warn:0 });
+  }
+  const mx=m=>cx0+Math.cos(m.ang)*m.dist, my=m=>cy0+Math.sin(m.ang)*m.dist;
+
+  // ---- the fire (tap) ----
+  function beatPhase(){ const p=(beatT%beatPeriod())/beatPeriod(); return p; }
+  function beatDist(){ const p=beatPhase(); return Math.min(p,1-p); }   // distance to nearest beat
+  function fire(){
+    if(state!=='play') return;
+    const per=beatPeriod();
+    if(t-lastFire < per*0.5){ J.tone(180,0.04,'square',0.02); return; }  // rhythmic gate: ~one shot per beat
+    lastFire=t;
+    if(hint){ hint=false; try{ localStorage.setItem('pulse_seen','1'); }catch(e){} }
+    const d=beatDist();
+    let grade, maxR, power;
+    if(d<W_PERFECT){ grade=2; maxR=MAXR*1.08; power=1; }
+    else if(d<W_GOOD){ grade=1; maxR=MAXR*0.55; power=0.6; }
+    else { grade=0; maxR=coreR+ Math.min(W,H)*0.012; power=0.28; }   // a miss clears almost nothing — mistiming is punished
+    // streak
+    if(grade>=1){ streak++; bestStreak=Math.max(bestStreak,streak); }
+    else { if(streak>=3) missSfx(); streak=0; missFlash=1; }
+    const mult=1+Math.min(24,streak)*0.12;
+    const co = grade===2?{c:'#ffffff',hi:'#ffffff'} : (grade===1?COL[0]:{c:'#8a7f86',hi:'#cdbfc7'});
+    waves.push({ r:coreR, prevR:coreR, maxR, speed:(MAXR*1.25)/ (RM?0.18:0.30), grade, mult, t:0, caught:0, gain:0, color: grade===2?'#ffd0e0':(grade===1?'#ffd23f':'#9aa'), hi:'#fff', chime:0, scarChip:false });
+    // core punch + audio + haptic graded by timing
+    corePunch=Math.max(corePunch, grade===2?1:(grade===1?0.6:0.3));
+    fireSfx(grade, streak);
+    if(grade===2){ shakeBoost=Math.max(shakeBoost,4+Math.min(8,streak*0.4)); VIB(streak>=8?[14,20,14]:12); flash=Math.max(flash,0.18); }
+    else if(grade===1){ shakeBoost=Math.max(shakeBoost,2); VIB(8); }
+    else VIB(4);
+    // scar chip-off: a perfect, in-the-groove wave heals the core
+    if(grade===2 && streak>=6 && scars>0){ waves[waves.length-1].scarChip=true; }
+    bump('groove');
+    updateHUD();
+  }
+
+  function popMote(m, wave){
+    m.dead=true; const x=mx(m), y=my(m), co=COL[m.color];
+    wave.caught++;
+    const gain=Math.round(10*wave.mult*(1+0.12*(wave.caught-1)));
+    wave.gain+=gain; score+=gain;
+    // shards
+    for(let s=0;s<(RM?2:4);s++){ const a=Math.random()*Math.PI*2, sp=1.5+Math.random()*3;
+      shards.push({ x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, rot:Math.random()*7, vr:(Math.random()-.5)*0.5, life:1, decay:0.022+Math.random()*0.014, size:5+Math.random()*4, col:co.c, hi:co.hi }); }
+    fx.burst(x,y,co.hi,3,{spread:2,up:0,decay:0.06,r:1.4,grav:0.02});
+    fx.ring(x,y,14,co.c,{lw:2,decay:0.09});
+    // pitch ladders up with how many this wave has caught — the "scour" arpeggio
+    J.tone(360*Math.pow(1.09, Math.min(16,wave.caught)) * (wave.grade===2?1.0:0.85), 0.12, 'triangle', 0.045);
+  }
+  const shards=[];
+
+  function breach(m){
+    m.dead=true; scars=Math.min(SCAR_MAX,scars+1); coreR=BASE_CORE+scars*SCAR_GROW;
+    const x=mx(m),y=my(m);
+    fx.burst(cx0,cy0, '#ff4d6d', 12, {spread:3,up:0,decay:0.045,r:2.6,grav:0});
+    fx.ring(cx0,cy0, coreR+26, '#ff4d6d', {lw:4});
+    overloadFlash=1; corePunch=Math.max(corePunch,0.5); shakeBoost=Math.max(shakeBoost,5+scars);
+    breachSfx(); VIB([24,30,24]);
+    streak=0;
+    if(scars>=SCAR_MAX) gameOver();
+    updateHUD();
+  }
+  function chipScar(wave){
+    if(scars<=0) return; scars--; coreR=BASE_CORE+scars*SCAR_GROW;
+    fx.ring(cx0,cy0, coreR+40, '#36d399', {lw:3});
+    fx.burst(cx0,cy0,'#7dffb0',10,{spread:3,up:0,decay:0.05,r:2,grav:0});
+    J.tone(520,0.12,'sine',0.05); J.tone(780,0.16,'triangle',0.05,0.05); J.tone(1040,0.2,'sine',0.04,0.1);
+    fx.float(cx0,cy0-coreR-20,'SLAG CLEARED','#7dffb0',{size:16,vy:-0.4,decay:0.012});
+    updateHUD();
+  }
+
+  // ---- audio ----
+  function beatTick(strong){ if(strong){ J.tone(180,0.05,'sine',0.05); J.tone(120,0.09,'sine',0.04,0.005); } else { J.tone(150,0.035,'sine',0.03); } }
+  function fireSfx(grade,streak){
+    if(grade===2){ const base=300*Math.pow(1.02,Math.min(24,streak)); J.tone(base,0.1,'sawtooth',0.05); J.tone(base*1.5,0.14,'triangle',0.05,0.02); J.tone(70,0.3,'sine',0.1,0.01); }
+    else if(grade===1){ J.tone(300,0.09,'triangle',0.045); J.tone(420,0.1,'sine',0.04,0.03); }
+    else { J.tone(150,0.12,'square',0.035); }
+  }
+  function missSfx(){ J.tone(220,0.16,'sawtooth',0.05); J.tone(160,0.2,'sawtooth',0.04,0.03); } // groove broken — discordant
+  function breachSfx(){ J.tone(110,0.3,'sawtooth',0.1); J.tone(60,0.5,'sine',0.09,0.04); }
+  function deadSfx(){ J.tone(150,0.5,'sawtooth',0.12); J.tone(72,0.9,'sine',0.1,0.05); J.chord(280,5,{step:0.84,dur:0.45,gain:0.04,spacing:0.05,type:'sine'}); }
+  function grooveSfx(n){ J.tone(520*Math.pow(1.03,n),0.14,'sine',0.05); J.tone(780*Math.pow(1.03,n),0.12,'triangle',0.04,0.04); }
+
+  function bump(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'),110); }
+
+  // ---- input ----
+  function fireFromEvent(){ fire(); }
+  cv.addEventListener('mousedown',e=>{ e.preventDefault(); fireFromEvent(); });
+  cv.addEventListener('touchstart',e=>{ e.preventDefault(); fireFromEvent(); },{passive:false});
+  window.addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
+    if(k===' '||k==='spacebar'){ e.preventDefault(); if(state==='play') fire(); }
+    if(k==='enter'&&state==='dead') start();
+    else if(k==='p'&&(state==='play'||state==='paused')){ state=state==='play'?'paused':'play'; document.getElementById('paused').style.display=state==='paused'?'flex':'none'; if(state==='play') last=performance.now(); }
+  });
+  document.getElementById('startBtn').onclick=start;
+  document.getElementById('again').onclick=start;
+  window.addEventListener('blur',()=>{ if(state==='play'){ state='paused'; document.getElementById('paused').style.display='flex'; } });
+
+  // ---- HUD ----
+  function updateHUD(){
+    document.getElementById('score').textContent=Math.round(dispScore);
+    const ge=document.getElementById('groove'); ge.textContent= streak>1?('×'+streak):'—'; ge.style.color= streak>=6?'#ff2e4d':(streak>=3?'#ffc24d':'var(--ink)');
+    document.getElementById('best').textContent= bestStreak>0?('×'+bestStreak):'·';
+    document.getElementById('tempo').textContent= Math.round(60000/beatPeriod())+' BPM';
+    const integ=1-scars/SCAR_MAX;
+    document.getElementById('overload').style.width=Math.max(0,integ*100)+'%';
+    document.getElementById('overWrap').classList.toggle('danger', scars>=SCAR_MAX-2);
+    document.getElementById('grooveFill').style.width=(streak>0?Math.min(100,streak/24*100):0)+'%';
+  }
+
+  function gameOver(){ if(state==='dead') return; state='dead'; deadSfx(); shakeBoost=20; flash=0.6;
+    if(window.GameStats) GameStats.submitScore('PULSE', score);
+    document.getElementById('finalScore').textContent=Math.round(score);
+    document.getElementById('finalStats').innerHTML='best groove: <b>×'+bestStreak+'</b> &nbsp;·&nbsp; peak tempo <b>'+Math.round(60000/beatPeriod())+'</b> BPM';
+    document.getElementById('over').style.display='flex'; }
+
+  // ---- loop ----
+  function loop(now){ let dt=Math.min(48, now-last); last=now;
+    let timeScale=1;
+    if(freeze>0){ freeze-=dt; timeScale=0.05; }
+    else if(slow>0){ timeScale=0.4+0.6*(1-slow); }
+    const edt=dt*timeScale, k=edt/16.7;
+    if(state==='play'){
+      if(window.GameStats) GameStats.ping('PULSE', dt);
+      t+=edt; tElapsed+=edt; const per=beatPeriod();
+      // beat handling
+      const prevBeat=Math.floor(beatT/per); beatT+=edt; const curBeat=Math.floor(beatT/per);
+      if(curBeat>prevBeat){ firedThisBeat=false; beatCount++; corePunch=Math.max(corePunch,0.35); beatTick(beatCount%4===0); fieldPulse=1; }
+      // spawn
+      spawnT+=edt; const si=spawnInt(); while(spawnT>=si){ spawnT-=si; spawn(false); }
+      // mote motion (inward)
+      const sp=(MAXR-coreR)/crossTime(); // px per ms
+      for(const m of motes){ if(m.dead) continue; m.dist-=sp*edt; m.ang+=m.drift*edt; if(m.born>0) m.born-=0.06*k;
+        m.warn = m.dist < coreR+ Math.min(W,H)*0.10 ? Math.min(1,m.warn+0.05*k) : 0;
+        if(m.dist<=coreR){ breach(m); } }
+      // overload danger meter (for vignette/heartbeat) tracks scars + imminent breaches
+      let imminent=0; for(const m of motes){ if(!m.dead && m.dist<coreR+Math.min(W,H)*0.12) imminent++; }
+      const target=Math.min(1, scars/SCAR_MAX*0.8 + Math.min(0.4,imminent*0.06));
+      danger+=(target-danger)*0.1*k;
+      if(danger>0.7){ humT-=dt; if(humT<=0){ humT=300; J.tone(54,0.22,'sine',0.05); } }
+    }
+    // waves expand + collide
+    for(let i=waves.length-1;i>=0;i--){ const wv=waves[i]; wv.prevR=wv.r; wv.r+=wv.speed*edt; wv.t+=dt;
+      if(state==='play'||true){ for(const m of motes){ if(m.dead) continue; if(m.dist<=wv.r && m.dist<=wv.maxR){ popMote(m,wv); } } }
+      if(wv.r>=wv.maxR){
+        if(wv.caught>0){ const cxp=cx0, cyp=cy0;
+          fx.float(cx0, cy0-coreR-24, '+'+wv.gain+(wv.caught>1?'  ×'+wv.caught:''), wv.grade===2?'#ffd0e0':'#ffd23f', {size: wv.caught>=6?28:20, sub: wv.grade===2?('PERFECT ×'+wv.mult.toFixed(1)):null});
+          if(wv.grade===2 && wv.caught>=4){ freeze=Math.max(freeze,30+wv.caught*4); slow=Math.min(1,slow+0.5); flash=Math.max(flash,Math.min(0.6,0.2+wv.caught*0.03)); }
+          if(streak>0 && streak%5===0) grooveSfx(streak/5);
+          bump('score');
+          if(wv.scarChip) chipScar(wv);
+        }
+        waves.splice(i,1);
+      }
+    }
+    motes=motes.filter(m=>!m.dead);
+    if(motes.length>80) motes.splice(0, motes.length-80);
+    // animations
+    dispScore+=(score-dispScore)*0.2; if(Math.abs(score-dispScore)<1) dispScore=score;
+    for(let i=shards.length-1;i>=0;i--){ const s=shards[i]; s.x+=s.vx*k; s.y+=s.vy*k; s.vx*=Math.pow(0.96,k); s.vy*=Math.pow(0.96,k); s.rot+=s.vr*k; s.life-=s.decay*k; if(s.life<=0) shards.splice(i,1); }
+    if(shards.length>320) shards.splice(0,shards.length-320);
+    if(corePunch>0){ corePunch*=Math.pow(0.86,k); if(corePunch<0.01)corePunch=0; }
+    if(fieldPulse>0){ fieldPulse*=Math.pow(0.90,k); if(fieldPulse<0.01)fieldPulse=0; }
+    if(flash>0) flash=Math.max(0,flash-dt/360);
+    if(missFlash>0) missFlash=Math.max(0,missFlash-dt/300);
+    if(overloadFlash>0) overloadFlash=Math.max(0,overloadFlash-dt/400);
+    if(slow>0) slow=Math.max(0,slow-dt/520);
+    if(shakeBoost>0){ fx.shake(RM?0:shakeBoost); shakeBoost*=Math.pow(0.6,k); if(shakeBoost<0.3)shakeBoost=0; }
+    fx.update(edt);
+    draw();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- draw ----
+  function draw(){
+    ctx.save();
+    const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
+    ctx.clearRect(-40,-40,W+80,H+80);
+
+    // reactor backdrop: faint concentric rings + radial spokes, breathing on the beat
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    const bp=fieldPulse;
+    for(let i=1;i<=5;i++){ const rr2=coreR + (MAXR-coreR)*(i/5); ctx.globalAlpha=0.05+bp*0.04; ctx.strokeStyle=i%2?'#ff2e4d':'#36c8ff'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(cx0,cy0,rr2,0,7); ctx.stroke(); }
+    ctx.restore();
+
+    // the metronome guide ring — contracts to "closed" on the beat (the timing telegraph)
+    if(state==='play'||state==='paused'){
+      const ph=beatPhase(); const closed=Math.sin(ph*Math.PI); // 0 at beat, 1 at mid
+      const mr=coreR*1.35 + (MAXR*0.92-coreR*1.35)*closed;
+      const near=1-Math.min(1,beatDist()/W_GOOD);              // brightens near the beat
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      ctx.globalAlpha=0.25+near*0.5; ctx.strokeStyle= near>0.6?'#ffffff':'#ff6a85'; ctx.lineWidth=2+near*2.5; ctx.shadowColor='#ff2e4d'; ctx.shadowBlur=near*16;
+      ctx.beginPath(); ctx.arc(cx0,cy0,mr,0,7); ctx.stroke();
+      // a target ring at the hit radius so you can see where "closed" lands
+      ctx.globalAlpha=0.20; ctx.lineWidth=1; ctx.setLineDash([3,6]); ctx.beginPath(); ctx.arc(cx0,cy0,coreR*1.35,0,7); ctx.stroke(); ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // mote trails + motes
+    for(const m of motes){ const x=mx(m), y=my(m), co=COL[m.color];
+      // inward trail
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const tr=14; const tx=cx0+Math.cos(m.ang)*(m.dist+tr), ty=cy0+Math.sin(m.ang)*(m.dist+tr);
+      const grd=ctx.createLinearGradient(tx,ty,x,y); grd.addColorStop(0,'rgba(0,0,0,0)'); grd.addColorStop(1,co.c);
+      ctx.strokeStyle=grd; ctx.lineWidth=3; ctx.globalAlpha=0.5; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(x,y); ctx.stroke();
+      ctx.restore();
+      // warn pulse near core
+      if(m.warn>0){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=m.warn*(0.4+0.4*Math.sin(performance.now()/70)); ctx.strokeStyle='#ff4d6d'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x,y,9,0,7); ctx.stroke(); ctx.restore(); }
+      const sc=1+(m.born||0)*0.5;
+      ctx.fillStyle=co.c; ctx.shadowColor=co.c; ctx.shadowBlur=10; ctx.beginPath(); ctx.arc(x,y,5.5*sc,0,7); ctx.fill(); ctx.shadowBlur=0;
+      ctx.fillStyle=co.hi; ctx.beginPath(); ctx.arc(x-1.4,y-1.4,2.2*sc,0,7); ctx.fill();
+    }
+
+    // shockwaves
+    for(const wv of waves){ ctx.save(); ctx.globalCompositeOperation='lighter';
+      const lifeT=Math.min(1,wv.r/wv.maxR); const a=(1-lifeT)*0.9+0.1;
+      ctx.globalAlpha=a*(wv.grade===2?0.9:0.55); ctx.strokeStyle=wv.color; ctx.lineWidth=(wv.grade===2?7:4)*(1-lifeT)+1.5; ctx.shadowColor=wv.color; ctx.shadowBlur=wv.grade===2?20:8;
+      ctx.beginPath(); ctx.arc(cx0,cy0,wv.r,0,7); ctx.stroke();
+      if(wv.grade===2){ ctx.globalAlpha=a; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.shadowBlur=0; ctx.beginPath(); ctx.arc(cx0,cy0,wv.r,0,7); ctx.stroke(); }
+      ctx.restore();
+    }
+
+    // the core
+    const punch=1+corePunch*0.34;
+    const groove = streak>=6?1:(streak>=3?0.5:0);
+    ctx.save();
+    // core glow
+    ctx.globalCompositeOperation='lighter';
+    const gr=ctx.createRadialGradient(cx0,cy0,0,cx0,cy0,coreR*2.4*punch);
+    const gcol = scars>=SCAR_MAX-2?'rgba(255,60,80,':'rgba(255,46,77,';
+    gr.addColorStop(0,gcol+(0.5+groove*0.3)+')'); gr.addColorStop(1,'rgba(255,46,77,0)');
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(cx0,cy0,coreR*2.4*punch,0,7); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    // core body
+    const cgrd=ctx.createRadialGradient(cx0-coreR*0.3,cy0-coreR*0.3,coreR*0.2,cx0,cy0,coreR*punch);
+    cgrd.addColorStop(0,'#fff'); cgrd.addColorStop(0.4, groove>0?'#ff7a8f':'#ff2e4d'); cgrd.addColorStop(1,'#7a0f1f');
+    ctx.fillStyle=cgrd; ctx.beginPath(); ctx.arc(cx0,cy0,coreR*punch,0,7); ctx.fill();
+    // slag scars crusting the core
+    for(let i=0;i<scars;i++){ const a=i/SCAR_MAX*Math.PI*2+0.6; const rr2=coreR*punch*0.82; const sxx=cx0+Math.cos(a)*rr2, syy=cy0+Math.sin(a)*rr2;
+      ctx.fillStyle='#3a3e4c'; ctx.beginPath(); ctx.arc(sxx,syy,coreR*0.26,0,7); ctx.fill();
+      ctx.fillStyle='#23262f'; ctx.beginPath(); ctx.arc(sxx+1,syy+1,coreR*0.16,0,7); ctx.fill(); }
+    ctx.restore();
+
+    // shards
+    if(shards.length){ ctx.globalCompositeOperation='lighter';
+      for(const s of shards){ ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(s.rot); ctx.globalAlpha=Math.max(0,Math.min(1,s.life));
+        ctx.fillStyle=s.col; ctx.beginPath(); ctx.moveTo(0,-s.size); ctx.lineTo(s.size*0.7,s.size*0.5); ctx.lineTo(-s.size*0.7,s.size*0.5); ctx.closePath(); ctx.fill();
+        ctx.restore(); }
+      ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
+    }
+
+    // first-time hint: a pulsing "TAP ON THE BEAT" synced to the metronome
+    if(hint && (state==='play') ){ const near=1-Math.min(1,beatDist()/W_GOOD);
+      ctx.save(); ctx.textAlign='center'; ctx.globalAlpha=0.5+near*0.5; ctx.fillStyle= near>0.6?'#fff':'#ff8aa0'; ctx.font='bold 14px ui-monospace,monospace';
+      ctx.fillText('TAP ON THE BEAT', cx0, cy0+MAXR*0.78);
+      if(near>0.6){ ctx.fillStyle='#fff'; ctx.font='bold 12px ui-monospace,monospace'; ctx.fillText('▲ NOW', cx0, cy0+MAXR*0.78+18); }
+      ctx.restore(); ctx.globalAlpha=1;
+    }
+
+    fx.render(ctx);
+    ctx.restore();
+
+    // groove tint + miss flash + overload vignette + flash
+    if(groove>0){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.fillStyle='rgba(255,46,77,'+(groove*0.05)+')'; ctx.fillRect(0,0,W,H); ctx.restore(); }
+    if(danger>0.3){ const a=(danger-0.3)/0.7; J.vignette(ctx,W,H,a*0.6+overloadFlash*0.3,'rgba(255,40,70,A)'); }
+    if(missFlash>0){ ctx.fillStyle='rgba(120,120,140,'+(missFlash*0.18)+')'; ctx.fillRect(0,0,W,H); }
+    if(flash>0){ ctx.fillStyle='rgba(255,210,225,'+(flash*0.5)+')'; ctx.fillRect(0,0,W,H); }
+  }
+
+  // ---- debug hook ----
+  window.__pulse={ COL, MAXR, SCAR_MAX, get motes(){return motes;}, get scars(){return scars;}, get coreR(){return coreR;},
+    getScore:()=>score, getState:()=>state, setState:v=>state=v, getStreak:()=>streak, getDanger:()=>danger,
+    beatPhase, beatDist, beatPeriod, fire,
+    // fire exactly on the beat (perfect) for headless testing — snaps beatT to a beat boundary first
+    firePerfect(){ const per=beatPeriod(); beatT=Math.round(beatT/per)*per; lastFire=-1e9; fire(); },
+    fireAtPhase(ph){ const per=beatPeriod(); beatT=Math.floor(beatT/per)*per + ph*per; lastFire=-1e9; fire(); },
+    motesInRange(r){ let n=0; for(const m of motes) if(!m.dead&&m.dist<=r) n++; return n; },
+    spawn, breachAll(){ for(const m of motes){ if(!m.dead){ m.dist=coreR; } } } };
+
+  reset(true); last=performance.now(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

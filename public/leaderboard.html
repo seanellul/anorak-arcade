@@ -110,8 +110,8 @@
 <script src="chrome.js"></script>
 <script>
 (()=>{
-  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','MOTHERLOAD'];
-  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',MOTHERLOAD:'#e8a13a'};
+  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','MOTHERLOAD'];
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a'};
 
   function renderYou(){ const n=GameStats.getName(); document.getElementById('youName').textContent=n||'anonymous'; }
   document.getElementById('setName').onclick=()=>GameStats.promptName(()=>{ renderYou(); load(); });

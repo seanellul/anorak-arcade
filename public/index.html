@@ -164,7 +164,7 @@ a.card.v2.feature .body p{max-width:560px}
       <a class="btn ghost" href="#prototypes">EXPLORE PROTOTYPES</a>
     </div>
     <div class="metarow">
-      <div class="m"><b>9</b><span>GAMES</span></div>
+      <div class="m"><b>11</b><span>GAMES</span></div>
       <div class="m"><b>0</b><span>DEPENDENCIES</span></div>
       <div class="m"><b>100%</b><span>HTML5 CANVAS</span></div>
       <div class="m"><b>∞</b><span>RETRIES</span></div>
@@ -262,6 +262,24 @@ a.card.v2.feature .body p{max-width:560px}
         <div class="pill">route a live stream · perpetual pressure</div>
       </div>
     </a>
+    <a class="card v2 reveal" href="weave.html" style="--c:#d6f84a">
+      <span class="demo"><canvas data-demo="weave"></canvas><span class="verb">CONNECTION</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>WEAVE</h2>
+        <div class="tag">connection · trace &amp; discharge</div>
+        <p>Charged nodes rain into a pile. Trace one stroke through touching nodes of the same charge to wire a circuit, then let go — a current rips down the wire you drew. Longer snakes pay far more.</p>
+        <div class="pill">order-by-connection · the authored chain</div>
+      </div>
+    </a>
+    <a class="card v2 reveal" href="pulse.html" style="--c:#ff2e4d">
+      <span class="demo"><canvas data-demo="pulse"></canvas><span class="verb">TIMING</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>PULSE</h2>
+        <div class="tag">timing · tap on the beat</div>
+        <p>Motes spiral into a reactor core. Tap <i>on the beat</i> to fire a shockwave that scours them — nail the rhythm to ride a groove. The tempo only ever climbs.</p>
+        <div class="pill">order-by-timing · rhythm as the skill</div>
+      </div>
+    </a>
   </div>
 
   <section class="playtime reveal">
@@ -289,8 +307,8 @@ a.card.v2.feature .body p{max-width:560px}
    playtime panel (unchanged from prod)
    ===================================================================== */
 (()=>{
-  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',MOTHERLOAD:'#e8a13a'};
-  const ORDER=['MOTHERLOAD','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX'];
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a'};
+  const ORDER=['MOTHERLOAD','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE'];
   function render(){
     if(!window.GameStats) return;
     const all=GameStats.all(); const map={}; all.forEach(a=>map[a.game]=a);
@@ -321,7 +339,7 @@ a.card.v2.feature .body p{max-width:560px}
   /* rotating tagline */
   const rotor=document.getElementById('rotor');
   if(rotor && !reduce){
-    const words=['containment','a shifting field','rhythmic routing','equilibrium','descent'];
+    const words=['containment','a shifting field','rhythmic routing','equilibrium','connection','the beat','descent'];
     let i=0;
     setInterval(()=>{ i=(i+1)%words.length; rotor.style.opacity=0;
       setTimeout(()=>{ rotor.textContent=words[i]; rotor.style.transition='opacity .4s'; rotor.style.opacity=1; },300);
@@ -690,7 +708,92 @@ a.card.v2.feature .body p{max-width:560px}
   function hx(c){ return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]; }
   function mix(a,b,f){ const A=hx(a),B=hx(b); return 'rgb('+Math.round(A[0]+(B[0]-A[0])*f)+','+Math.round(A[1]+(B[1]-A[1])*f)+','+Math.round(A[2]+(B[2]-A[2])*f)+')'; }
 
-  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,motherload};
+  /* ---------- WEAVE: nodes pile up, a wire threads same-charge cells and discharges ---------- */
+  function weave(g){
+    const {ctx}=g; const COL=['#36c8ff','#ff5e9c','#b48cff','#ffc24d'];
+    let cols,rows,cell,nodes,t=0,wire=null,wireT=0,phase='idle',idle=0;
+    function dims(){ cell=Math.ceil(g.w/7); cols=Math.max(5,Math.round(g.w/cell)); rows=Math.max(4,Math.round(g.h/cell)); }
+    function reset(){ dims(); nodes=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ if(Math.random()<0.78) nodes.push({c,r,col:Math.random()*4|0,pop:0}); }
+      wire=null; phase='idle'; idle=0; }
+    reset();
+    function nodeAt(c,r){ return nodes.find(n=>n.c===c&&n.r===r); }
+    function findWire(){ // greedy same-colour 8-dir snake
+      const adj=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+      const shuffled=nodes.slice().sort(()=>Math.random()-.5);
+      for(const s of shuffled){ const seen=new Set([s]); const seq=[s]; let cur=s;
+        while(true){ let nx=null; for(const [dc,dr] of adj){ const n=nodeAt(cur.c+dc,cur.r+dr); if(n&&!seen.has(n)&&n.col===s.col){ nx=n; break; } } if(!nx) break; seen.add(nx); seq.push(nx); cur=nx; }
+        if(seq.length>=3) return seq; }
+      return null;
+    }
+    const px=c=>(g.w-cols*cell)/2+c*cell+cell/2, py=r=>r*cell+cell/2;
+    return {step(dt){ t+=dt;
+      if(phase==='idle'){ idle+=dt; if(idle>700){ idle=0; wire=findWire(); if(wire){ phase='trace'; wireT=0; } else reset(); } }
+      else if(phase==='trace'){ wireT+=dt; if(wireT> wire.length*120+300){ phase='zip'; wireT=0; } }
+      else { wireT+=dt; if(wireT>420){ for(const n of wire){ const i=nodes.indexOf(n); if(i>=0) nodes.splice(i,1); } // respawn a few
+          for(let k=0;k<wire.length;k++){ const c=Math.random()*cols|0,r=Math.random()*rows|0; if(!nodeAt(c,r)) nodes.push({c,r,col:Math.random()*4|0,pop:0.4}); }
+          phase='idle'; wire=null; } }
+      ctx.clearRect(0,0,g.w,g.h);
+      // nodes
+      for(const n of nodes){ const x=px(n.c),y=py(n.r); const co=COL[n.col]; if(n.pop>0)n.pop*=Math.pow(0.9,dt/16);
+        ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.5; const gr=ctx.createRadialGradient(x,y,0,x,y,cell*0.5); gr.addColorStop(0,co); gr.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(x,y,cell*0.5,0,7); ctx.fill();
+        ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; ctx.fillStyle=co; ctx.beginPath(); ctx.arc(x,y,cell*0.3*(1+n.pop),0,7); ctx.fill(); ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(x-cell*0.1,y-cell*0.1,cell*0.1,0,7); ctx.fill(); }
+      // wire
+      if(wire){ const co=COL[wire[0].col]; const prog= phase==='trace'? Math.min(wire.length, wireT/120+1) : wire.length;
+        ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineCap='round'; ctx.lineJoin='round';
+        ctx.strokeStyle=co; ctx.lineWidth=cell*0.22; ctx.shadowColor=co; ctx.shadowBlur=12; ctx.globalAlpha=0.6;
+        ctx.beginPath(); ctx.moveTo(px(wire[0].c),py(wire[0].r)); for(let i=1;i<prog;i++) ctx.lineTo(px(wire[i].c),py(wire[i].r)); ctx.stroke();
+        ctx.globalAlpha=1; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.shadowBlur=0; ctx.stroke();
+        if(phase==='zip'){ const f=wireT/420*(wire.length-1); const i0=Math.floor(f),i1=Math.min(wire.length-1,i0+1),tt=f-i0; const hx=px(wire[i0].c)+(px(wire[i1].c)-px(wire[i0].c))*tt, hy=py(wire[i0].r)+(py(wire[i1].r)-py(wire[i0].r))*tt;
+          ctx.fillStyle='#fff'; ctx.shadowColor=co; ctx.shadowBlur=18; ctx.beginPath(); ctx.arc(hx,hy,5,0,7); ctx.fill(); }
+        ctx.restore();
+      }
+      ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
+    }, onResize:reset};
+  }
+
+  /* ---------- PULSE: motes spiral into a core, a shockwave scours them on the beat ---------- */
+  function pulse(g){
+    const {ctx}=g; const COL=['#ff2e4d','#ffc24d','#36c8ff','#b48cff'];
+    let motes,t=0,beat=0,coreR,maxR,waves,spawnT=0;
+    function reset(){ coreR=Math.min(g.w,g.h)*0.09; maxR=Math.min(g.w,g.h)*0.46; motes=[]; waves=[]; beat=0;
+      for(let i=0;i<6;i++) spawn(true); }
+    function spawn(seed){ motes.push({ang:Math.random()*7,dist:seed?coreR+20+Math.random()*(maxR-coreR-20):maxR,col:Math.random()*4|0}); }
+    reset();
+    const cx0=g.w/2, cy0=g.h/2;
+    return {step(dt){ t+=dt; beat+=dt; spawnT+=dt;
+      const period=820;
+      if(beat>=period){ beat-=period; waves.push({r:coreR,t:0}); }       // auto "perfect" beat
+      if(spawnT>700){ spawnT=0; spawn(false); }
+      const sp=(maxR-coreR)/5200;
+      for(const m of motes){ m.dist-=sp*dt; }
+      // waves
+      for(let i=waves.length-1;i>=0;i--){ const w=waves[i]; w.r+= (maxR*1.1)/300*dt; w.t+=dt;
+        for(let j=motes.length-1;j>=0;j--){ if(motes[j].dist<=w.r){ motes.splice(j,1); } }
+        if(w.r>maxR*1.1) waves.splice(i,1); }
+      for(let i=motes.length-1;i>=0;i--){ if(motes[i].dist<=coreR){ motes.splice(i,1); } }
+      ctx.clearRect(0,0,g.w,g.h);
+      ctx.globalCompositeOperation='lighter';
+      // backdrop rings
+      for(let i=1;i<=4;i++){ ctx.globalAlpha=0.05; ctx.strokeStyle=i%2?'#ff2e4d':'#36c8ff'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(cx0,cy0,coreR+(maxR-coreR)*i/4,0,7); ctx.stroke(); }
+      // metronome ring
+      const ph=beat/period, closed=Math.sin(ph*Math.PI); const mr=coreR*1.3+(maxR*0.9-coreR*1.3)*closed; const near=1-Math.min(1,Math.min(ph,1-ph)/0.2);
+      ctx.globalAlpha=0.2+near*0.5; ctx.strokeStyle=near>0.6?'#fff':'#ff6a85'; ctx.lineWidth=2+near*2; ctx.beginPath(); ctx.arc(cx0,cy0,mr,0,7); ctx.stroke();
+      // motes + trails
+      for(const m of motes){ const x=cx0+Math.cos(m.ang)*m.dist, y=cy0+Math.sin(m.ang)*m.dist; const co=COL[m.col];
+        const tx=cx0+Math.cos(m.ang)*(m.dist+12), ty=cy0+Math.sin(m.ang)*(m.dist+12);
+        ctx.globalAlpha=0.5; ctx.strokeStyle=co; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(x,y); ctx.stroke();
+        ctx.globalAlpha=1; ctx.fillStyle=co; ctx.shadowColor=co; ctx.shadowBlur=8; ctx.beginPath(); ctx.arc(x,y,4,0,7); ctx.fill(); ctx.shadowBlur=0; }
+      // waves
+      for(const w of waves){ const f=w.r/(maxR*1.1); ctx.globalAlpha=(1-f)*0.9; ctx.strokeStyle='#ffd0e0'; ctx.lineWidth=5*(1-f)+1; ctx.shadowColor='#ff2e4d'; ctx.shadowBlur=14; ctx.beginPath(); ctx.arc(cx0,cy0,w.r,0,7); ctx.stroke(); ctx.shadowBlur=0; }
+      // core
+      ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
+      const punch=1+(closed<0.2?(0.2-closed):0)*1.2;
+      const cg=ctx.createRadialGradient(cx0-coreR*0.3,cy0-coreR*0.3,coreR*0.2,cx0,cy0,coreR*punch); cg.addColorStop(0,'#fff'); cg.addColorStop(0.4,'#ff2e4d'); cg.addColorStop(1,'#7a0f1f');
+      ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(cx0,cy0,coreR*punch,0,7); ctx.fill();
+    }, onResize:reset};
+  }
+
+  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,weave,pulse,motherload};
 
   /* boot every demo canvas; share one rAF; pause off-screen */
   document.querySelectorAll('canvas[data-demo]').forEach(cv=>{

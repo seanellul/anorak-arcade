@@ -97,7 +97,7 @@
   <div class="overlay" id="title">
     <h2 class="title">CLE<span style="color:#ff5e9c">AVE</span></h2>
     <p>A crystal grows from below, one colored shard at a time. <b style="color:#e9f2ff">Swipe a line</b> to cleave straight through it.</p>
-    <p>Any piece your cut isolates that is <b style="color:#5be1ff">all one color</b> shatters for score — bigger pure lobes pay <b style="color:#ffc24d">far</b> more. But let the crystal crest the <b style="color:#ff4d6d">ceiling</b> and it's over.</p>
+    <p>Any pure-color vein your cut crosses shatters for score — bigger veins pay <b style="color:#ffc24d">far</b> more. But a shard left too long <b style="color:#878da0">calcifies into stone</b> you can't cut; stone only crumbles when you shatter a vein beside it. Keep cutting, or it buries you to the <b style="color:#ff4d6d">ceiling</b>.</p>
     <button id="startBtn">CLEAVE ▶</button>
     <div class="statline"><span class="key">swipe / drag</span> cut &nbsp; <span class="key">P</span> pause</div>
   </div>
@@ -110,7 +110,7 @@
   <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
 </div>
 <div class="foot">
-  Swipe to cut the crystal in a straight line. A severed piece that is <b style="color:#5be1ff">pure</b> (one color, 4+ cells) <b>shatters</b> for score — and one clean diagonal can lop off several pure lobes at once for a combo. Grow a region big before you cleave it: the gamble pays, but the chamber is always filling.
+  Swipe to cut the crystal in a straight line. A <b style="color:#5be1ff">pure</b> vein (one color, 4+ cells) your cut crosses <b>shatters</b> for score — one clean diagonal can take several at once for a combo. Shards left too long <b style="color:#878da0">calcify into uncuttable stone</b> (it only crumbles when an adjacent vein shatters), so you must keep the crystal turning over. Grow a vein big before you cleave it — the gamble pays, but greed calcifies.
 </div>
 <script src="juice.js"></script>
 <script src="stats.js"></script>
@@ -150,11 +150,38 @@
     g.strokeStyle='rgba(255,255,255,0.20)'; g.lineWidth=1; rrs(g,x+0.5,y+0.5,w-1,h-1,r); g.stroke();
     return s;
   }
+  // dead grey "stone" sprite (calcified, uncuttable)
+  const STONE={c:'#5b6175', lo:'#23262f', hi:'#878da0'};
+  const stoneSprite=(()=>{ const s=document.createElement('canvas'); s.width=s.height=CELL; const g=s.getContext('2d');
+    const m=2,r=3,x=m,y=m,w=CELL-m*2,h=CELL-m*2;
+    const grd=g.createLinearGradient(x,y,x,y+h); grd.addColorStop(0,STONE.hi); grd.addColorStop(0.2,STONE.c); grd.addColorStop(1,STONE.lo);
+    g.fillStyle=grd; rr(g,x,y,w,h,r); g.fill();
+    // cracks
+    g.strokeStyle='rgba(10,12,18,0.6)'; g.lineWidth=1.2; g.beginPath();
+    g.moveTo(x+w*0.3,y); g.lineTo(x+w*0.42,y+h*0.5); g.lineTo(x+w*0.2,y+h);
+    g.moveTo(x+w*0.42,y+h*0.5); g.lineTo(x+w,y+h*0.62);
+    g.moveTo(x+w*0.7,y); g.lineTo(x+w*0.62,y+h*0.34); g.stroke();
+    g.strokeStyle='rgba(255,255,255,0.10)'; g.lineWidth=1; rrs(g,x+0.5,y+0.5,w-1,h-1,r); g.stroke();
+    return s; })();
+  // dead-er "bedrock" sprite — stone that has hardened permanently (immune to knock-loose)
+  const BEDROCK={c:'#3a3e4c', lo:'#15171d', hi:'#5a6072'};
+  const bedrockSprite=(()=>{ const s=document.createElement('canvas'); s.width=s.height=CELL; const g=s.getContext('2d');
+    const m=2,r=2,x=m,y=m,w=CELL-m*2,h=CELL-m*2;
+    const grd=g.createLinearGradient(x,y,x,y+h); grd.addColorStop(0,BEDROCK.hi); grd.addColorStop(0.25,BEDROCK.c); grd.addColorStop(1,BEDROCK.lo);
+    g.fillStyle=grd; rr(g,x,y,w,h,r); g.fill();
+    g.strokeStyle='rgba(0,0,0,0.7)'; g.lineWidth=1.4; g.beginPath();
+    g.moveTo(x+w*0.22,y); g.lineTo(x+w*0.34,y+h*0.46); g.lineTo(x+w*0.16,y+h); g.moveTo(x+w*0.34,y+h*0.46); g.lineTo(x+w,y+h*0.52);
+    g.moveTo(x+w*0.66,y); g.lineTo(x+w*0.58,y+h*0.4); g.lineTo(x+w*0.8,y+h); g.stroke();
+    return s; })();
+  // petrification: a cell calcifies if it isn't harvested within this window (shrinks as you score → acceleration);
+  // stone that survives BEDROCK_T more ms hardens into permanent bedrock that knock-loose can't remove.
+  const PET_START=MOBILE?8500:9000, PET_MIN=3200, PET_K=0.16, BEDROCK_T=4200;
+  function petrifyTime(){ return Math.max(PET_MIN, PET_START - score*PET_K); }
 
   // ---- state ----
   let cells, grid, score, dispScore, combo, comboShow, comboT, pureBest, state, last;
   let dropColor, dropQ, growT, growInt, danger, slow, flash, cutAnim, shakeBoost;
-  let blade, shards, ghost, colPulse, trail, freeze, humT, hint, shimmer=0;
+  let blade, shards, ghost, colPulse, trail, freeze, humT, hint, shimmer=0, curPetT=PET_START, stoneCount=0;
   let idn=0;
   const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const VIB = m=>{ if(!RM && navigator.vibrate){ try{ navigator.vibrate(m); }catch(e){} } };
@@ -181,6 +208,7 @@
     cells=[]; rebuild(); score=0; dispScore=0; combo=0; comboShow=0; comboT=0; pureBest=0;
     danger=0; slow=0; flash=0; cutAnim=null; shakeBoost=0;
     blade=null; shards=[]; ghost=null; colPulse=new Float32Array(COLS); trail=[]; freeze=0; humT=0;
+    curPetT=PET_START; stoneCount=0;
     hint = (()=>{ try{ return !localStorage.getItem('cleave_seen'); }catch(e){ return true; } })();
     growT=0; growInt=MOBILE?330:320; dropQ=null; newDeposit();
     // seed a starter heap so the first swipe has something to bite
@@ -205,7 +233,7 @@
     const best=targetCol();
     const r=topR(best)-1;
     if(r<CEIL_ROW-1){ if(!seed){ gameOver(); } return; }   // overrun
-    cells.push({ id:idn++, c:best, r, color:dropQ.color, oy: seed?0:CELL*2.2, pop: seed?0:0.12, born:1 });
+    cells.push({ id:idn++, c:best, r, color:dropQ.color, oy: seed?0:CELL*2.2, pop: seed?0:0.12, born:1, age: seed?Math.random()*PET_START*0.45:0, stone:false });
     rebuild();
     if(!seed){ colPulse[best]=1; J.tone(540+Math.random()*60,0.03,'sine',0.018); }
     dropQ.n--; if(dropQ.n<=0){ dropQ=null; newDeposit(); }
@@ -227,20 +255,20 @@
     const uni=(a,b)=>{ a=find(a); b=find(b); if(a!==b) par[a]=b; };
     const sideOf=new Int8Array(n);
     for(let i=0;i<n;i++){ const cl=cells[i]; sideOf[i]= lf.side(cx(cl.c),cy(cl.r))>=0?1:0; }
-    // union same-color orthogonal neighbours → veins
-    for(let i=0;i<n;i++){ const cl=cells[i];
+    // union same-color orthogonal neighbours → veins (stone is dead: never part of a vein)
+    for(let i=0;i<n;i++){ const cl=cells[i]; if(cl.stone) continue;
       const rgt=cellAt(cl.c+1,cl.r), dwn=cellAt(cl.c,cl.r+1);
-      if(rgt>=0 && cells[rgt].color===cl.color) uni(i,rgt);
-      if(dwn>=0 && cells[dwn].color===cl.color) uni(i,dwn);
+      if(rgt>=0 && !cells[rgt].stone && cells[rgt].color===cl.color) uni(i,rgt);
+      if(dwn>=0 && !cells[dwn].stone && cells[dwn].color===cl.color) uni(i,dwn);
     }
     const map=new Map();
-    for(let i=0;i<n;i++){ const root=find(i); let g=map.get(root); if(!g){ g={cells:[],color:cells[i].color,size:0,hit:false}; map.set(root,g); }
+    for(let i=0;i<n;i++){ if(cells[i].stone) continue; const root=find(i); let g=map.get(root); if(!g){ g={cells:[],color:cells[i].color,size:0,hit:false}; map.set(root,g); }
       g.cells.push(i); g.size++; }
     // mark hit: a same-color bond whose endpoints land on opposite sides of the line
-    for(let i=0;i<n;i++){ const cl=cells[i];
+    for(let i=0;i<n;i++){ const cl=cells[i]; if(cl.stone) continue;
       const rgt=cellAt(cl.c+1,cl.r), dwn=cellAt(cl.c,cl.r+1);
-      if(rgt>=0 && cells[rgt].color===cl.color && sideOf[rgt]!==sideOf[i]) map.get(find(i)).hit=true;
-      if(dwn>=0 && cells[dwn].color===cl.color && sideOf[dwn]!==sideOf[i]) map.get(find(i)).hit=true;
+      if(rgt>=0 && !cells[rgt].stone && cells[rgt].color===cl.color && sideOf[rgt]!==sideOf[i]) map.get(find(i)).hit=true;
+      if(dwn>=0 && !cells[dwn].stone && cells[dwn].color===cl.color && sideOf[dwn]!==sideOf[i]) map.get(find(i)).hit=true;
     }
     return { blobs:[...map.values()], lf };
   }
@@ -276,9 +304,14 @@
     pureBest=Math.max(pureBest,biggest);
     combo=comps; comboShow=comps; comboT=900;
     if(comps>1){ comboFloat(comps); comboSfx(comps); }
-    // remove harvested cells
+    // remove harvested cells — and knock loose any stone touching a shattered cell
     const dead=new Set(); for(const g of harvest) for(const ci of g.cells) dead.add(ci);
-    cells=cells.filter((_,i)=>!dead.has(i));
+    const crumble=new Set();
+    for(const ci of dead){ const cl=cells[ci]; for(const [dc,dr] of [[1,0],[-1,0],[0,1],[0,-1]]){ const ni=cellAt(cl.c+dc,cl.r+dr); if(ni>=0 && cells[ni].stone && !cells[ni].bedrock) crumble.add(ni); } }
+    if(crumble.size){ for(const ci of crumble){ const cl=cells[ci]; const x=cx(cl.c), y=cy(cl.r)-(cl.oy||0);
+        fx.burst(x,y,STONE.c, 6, {spread:2.2, up:0.2, decay:0.05, r:2.4, grav:0.22}); fx.burst(x,y,STONE.hi,3,{spread:1.6,up:0,decay:0.06,r:1.6,grav:0.2}); }
+      crumbleSfx(crumble.size); }
+    cells=cells.filter((_,i)=>!dead.has(i) && !crumble.has(i));
     rebuild(); settle();
     // big-shatter spectacle: hit-stop freeze + slow-mo + flash scale with the payoff
     if(biggest>=6){ freeze=Math.max(freeze, 45+biggest*6); slow=Math.min(1,slow+0.55); flash=Math.max(flash, Math.min(0.7,0.3+biggest*0.03)); }
@@ -305,6 +338,14 @@
     shatterSfx(g.size, order);
   }
   function comboFloat(n){ fx.float(W/2, H*0.34, n+'× COMBO', '#bdefff', {size:26, vy:-0.35, decay:0.012, sub:'multi-cleave'}); }
+
+  // a cell calcifies — dead grey stone, only removable by shattering an adjacent vein
+  function petrify(cl){
+    cl.stone=true; cl.stoneAge=0; cl.pop=Math.max(cl.pop||0,0.22);
+    const x=cx(cl.c), y=cy(cl.r)-(cl.oy||0);
+    fx.burst(x,y, STONE.hi, 5, {spread:1.6, up:0.1, decay:0.06, r:1.8, grav:0.18});
+    petrifySfx();
+  }
 
   // gravity: compact each column to the floor (cells fall, animate oy)
   function settle(){
@@ -333,6 +374,8 @@
   function comboSfx(n){ const base=520; for(let i=0;i<Math.min(6,n+2);i++) J.tone(base*Math.pow(1.22,i),0.14,'sine',0.045,0.04+i*0.04); }
   function thudSfx(h){ J.tone(120+h*4,0.10,'sine',0.05); J.tone(70,0.12,'triangle',0.035,0.01); }
   function deadSfx(){ J.tone(150,0.5,'sawtooth',0.12); J.tone(72,0.9,'sine',0.1,0.05); J.chord(300,5,{step:0.84,dur:0.4,gain:0.04,spacing:0.05,type:'sine'}); }
+  function petrifySfx(){ J.tone(150,0.12,'sawtooth',0.035); J.tone(95,0.16,'sine',0.04,0.02); } // dull grind
+  function crumbleSfx(n){ J.tone(260,0.1,'square',0.04); for(let i=0;i<Math.min(4,n);i++) J.tone(180+Math.random()*120,0.12,'triangle',0.035,i*0.03); } // rubble clatter
 
   function seamSparks(A,B,lf){
     // sample points along the visible chamber span of the line
@@ -392,7 +435,7 @@
   function gameOver(){ if(state==='dead') return; state='dead'; deadSfx(); shakeBoost=18; flash=0.6;
     if(window.GameStats) GameStats.submitScore('CLEAVE', score);
     document.getElementById('finalScore').textContent=Math.round(score);
-    document.getElementById('finalStats').innerHTML='biggest pure shatter: <b>'+pureBest+'</b> cells &nbsp;·&nbsp; <b>'+cells.length+'</b> shards in the chamber';
+    document.getElementById('finalStats').innerHTML='biggest pure shatter: <b>'+pureBest+'</b> cells &nbsp;·&nbsp; calcified to <b>'+stoneCount+'</b> stone';
     document.getElementById('over').style.display='flex'; }
 
   // ---- loop ----
@@ -408,6 +451,12 @@
       growInt = Math.max(MOBILE?125:120, (MOBILE?330:320) - score*0.04);
       const gn = 1 + (score>2200?1:0);   // double-feed once the pace is established
       while(growT>=growInt){ growT-=growInt; for(let q=0;q<gn;q++) growStep(false); }
+      // petrification: cells calcify if not harvested within the (shrinking) window; old stone hardens to bedrock
+      curPetT = petrifyTime(); stoneCount=0;
+      for(const cl of cells){
+        if(!cl.stone){ cl.age += edt; if(cl.age >= curPetT) petrify(cl); }
+        else { cl.stoneAge=(cl.stoneAge||0)+edt; if(!cl.bedrock && cl.stoneAge>=BEDROCK_T){ cl.bedrock=true; cl.pop=Math.max(cl.pop||0,0.14); J.tone(70,0.14,'sine',0.04); } stoneCount++; }
+      }
       // danger
       const mh=maxHeight(); const target=mh/(ROWS-CEIL_ROW);
       danger += (target-danger)*0.12*k;
@@ -464,29 +513,37 @@
       ctx.fillRect(-5,-5,10,10); ctx.restore(); }
 
     let ca=cutAnim;
-    // additive glow under cells
+    // additive glow under cells (stone is dead — no glow)
     ctx.globalCompositeOperation='lighter';
-    for(const cl of cells){ const x=cx(cl.c), y=cy(cl.r)-cl.oy; ctx.globalAlpha=0.12; ctx.fillStyle=COL[cl.color].c;
+    for(const cl of cells){ if(cl.stone) continue; const x=cx(cl.c), y=cy(cl.r)-cl.oy; ctx.globalAlpha=0.12; ctx.fillStyle=COL[cl.color].c;
       ctx.beginPath(); ctx.arc(x,y,CELL*0.5,0,7); ctx.fill(); }
     ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
 
-    // cells + vein boundary rims + idle shimmer
+    // cells + vein boundary rims + idle shimmer + petrify telegraph
     for(const cl of cells){
       let x=cx(cl.c), y=cy(cl.r)-cl.oy;
       if(ca){ const s=ca.lf.side(cx(cl.c),cy(cl.r)); const sgn=s>=0?1:-1; const mag=9*ca.t*Math.exp(-Math.abs(s)/(CELL*2.4)); x+=ca.lf.nx*sgn*mag; y+=ca.lf.ny*sgn*mag; }
       const sc=1+(cl.pop||0)+(cl.born||0)*0.12;
       ctx.save(); ctx.translate(x,y); ctx.scale(sc,sc);
-      ctx.drawImage(gem[cl.color], -CELL/2, -CELL/2);
-      // shimmer sweep — a soft diagonal highlight travelling across the field
-      const ph=(shimmer + (cl.c+cl.r)*0.12)%1;
-      if(ph<0.12){ ctx.globalAlpha=(0.12-ph)/0.12*0.5; ctx.globalCompositeOperation='lighter'; ctx.fillStyle='#ffffff'; rr(ctx,-CELL/2+3,-CELL/2+3,CELL-6,CELL-6,4); ctx.fill(); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; }
+      ctx.drawImage(cl.stone?(cl.bedrock?bedrockSprite:stoneSprite):gem[cl.color], -CELL/2, -CELL/2);
+      if(!cl.stone){
+        // shimmer sweep — a soft diagonal highlight travelling across the field
+        const ph=(shimmer + (cl.c+cl.r)*0.12)%1;
+        if(ph<0.12){ ctx.globalAlpha=(0.12-ph)/0.12*0.5; ctx.globalCompositeOperation='lighter'; ctx.fillStyle='#ffffff'; rr(ctx,-CELL/2+3,-CELL/2+3,CELL-6,CELL-6,4); ctx.fill(); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; }
+        // calcify telegraph — cracks + grey wash creep in over the last ~35% of the cell's life
+        const af=cl.age/(curPetT||1);
+        if(af>0.62){ const g2=(af-0.62)/0.38; ctx.globalAlpha=g2*0.6; ctx.fillStyle='#2a2e3a'; rr(ctx,-CELL/2+2,-CELL/2+2,CELL-4,CELL-4,4); ctx.fill();
+          ctx.globalAlpha=g2*0.8; ctx.strokeStyle='rgba(10,12,18,0.8)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-CELL*0.2,-CELL/2+2); ctx.lineTo(0,2); ctx.lineTo(-CELL*0.28,CELL/2-2); ctx.moveTo(0,2); ctx.lineTo(CELL*0.3,-CELL*0.1); ctx.stroke(); ctx.globalAlpha=1; }
+      }
       ctx.restore();
-      // boundary rims (where the neighbour is a different colour / empty) — makes veins pop
-      const hw=CELL/2-1.5, ex=x, ey=y; ctx.strokeStyle=COL[cl.color].hi; ctx.lineWidth=2; ctx.globalAlpha=0.5; ctx.beginPath();
-      if(cellAt(cl.c,cl.r-1)<0 || cells[cellAt(cl.c,cl.r-1)]?.color!==cl.color){ ctx.moveTo(ex-hw,ey-hw); ctx.lineTo(ex+hw,ey-hw); }
-      if(cellAt(cl.c,cl.r+1)<0 || cells[cellAt(cl.c,cl.r+1)]?.color!==cl.color){ ctx.moveTo(ex-hw,ey+hw); ctx.lineTo(ex+hw,ey+hw); }
-      if(cellAt(cl.c-1,cl.r)<0 || cells[cellAt(cl.c-1,cl.r)]?.color!==cl.color){ ctx.moveTo(ex-hw,ey-hw); ctx.lineTo(ex-hw,ey+hw); }
-      if(cellAt(cl.c+1,cl.r)<0 || cells[cellAt(cl.c+1,cl.r)]?.color!==cl.color){ ctx.moveTo(ex+hw,ey-hw); ctx.lineTo(ex+hw,ey+hw); }
+      // boundary rims (where the neighbour differs / empty) — makes veins pop; stone gets a dull grey rim
+      const hw=CELL/2-1.5, ex=x, ey=y; const rimC = cl.stone?STONE.hi:COL[cl.color].hi;
+      const diff=(c,r)=>{ const ni=cellAt(c,r); if(ni<0) return true; const o=cells[ni]; return o.stone!==cl.stone || (!cl.stone && o.color!==cl.color); };
+      ctx.strokeStyle=rimC; ctx.lineWidth=2; ctx.globalAlpha=cl.stone?0.35:0.5; ctx.beginPath();
+      if(diff(cl.c,cl.r-1)){ ctx.moveTo(ex-hw,ey-hw); ctx.lineTo(ex+hw,ey-hw); }
+      if(diff(cl.c,cl.r+1)){ ctx.moveTo(ex-hw,ey+hw); ctx.lineTo(ex+hw,ey+hw); }
+      if(diff(cl.c-1,cl.r)){ ctx.moveTo(ex-hw,ey-hw); ctx.lineTo(ex-hw,ey+hw); }
+      if(diff(cl.c+1,cl.r)){ ctx.moveTo(ex+hw,ey-hw); ctx.lineTo(ex+hw,ey+hw); }
       ctx.stroke(); ctx.globalAlpha=1;
     }
 
@@ -563,9 +620,10 @@
   function ease(t){ return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2; }
 
   // debug hook (inert in normal play)
-  window.__cleave={ COL,K,COLS,ROWS, get cells(){return cells;}, cellAt, evalCut, commitCut, growStep, settle, rebuild,
-    getScore:()=>score, getState:()=>state, setState:v=>state=v, getDanger:()=>danger, maxHeight,
-    force(c,r,color){ cells.push({id:idn++,c,r,color,oy:0,pop:0,born:0}); rebuild(); }, clear(){ cells=[]; rebuild(); } };
+  window.__cleave={ COL,K,COLS,ROWS, get cells(){return cells;}, cellAt, evalCut, commitCut, growStep, settle, rebuild, petrify,
+    getScore:()=>score, getState:()=>state, setState:v=>state=v, getDanger:()=>danger, maxHeight, petrifyTime,
+    getStone:()=>stoneCount, countStone(){ let n=0; for(const c of cells) if(c.stone) n++; return n; },
+    force(c,r,color,stone){ cells.push({id:idn++,c,r,color,oy:0,pop:0,born:0,age:0,stone:!!stone}); rebuild(); }, clear(){ cells=[]; rebuild(); } };
 
   reset(true); last=performance.now(); requestAnimationFrame(loop);
 })();

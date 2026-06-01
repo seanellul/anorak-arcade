@@ -1,16 +1,18 @@
-# Anorak Arcade — research → 8 playable prototypes
+# Anorak Arcade — research → 10 playable prototypes
 
 A deep study of *why Tetris works* — history, mechanics, neuroscience, and game theory — distilled
-into **8 design pillars**, then rebuilt as **8 playable prototypes** that capture the same
-psychology with **eight different core verbs** and **no falling tetrominoes or line clears**.
+into **8 design pillars**, then rebuilt as **10 playable prototypes** that capture the same
+psychology with **ten different core verbs** and **no falling tetrominoes or line clears**.
 
 Wave 1 (CINDER · SHIFT · CONDUIT · HOMEOSTAT) edits a *static* field with *continuous* action.
 **Wave 2** breaks both assumptions: **NOVA** lives in real physics (drop & merge), and **SURGE** is a
-*loaded-spring* loop (set the field up, then unleash one gambled chain). **Wave 3** fills the last empty
-matrix cells: **CLEAVE** imposes order by *division* (swipe to slice a crystal into pure shards) and
-**FLUX** routes a *live* analog stream (drop magnetic poles to bend particles home). All four are built
-mobile-first and as maximum-juice showcases — see `public/research/04-prototype-wave-2.md`,
-`05-prototype-wave-3.md` and `06-juice-log.md`.
+*loaded-spring* loop (set the field up, then unleash one gambled chain). **Wave 3**: **CLEAVE** imposes
+order by *division* (swipe to slice a crystal into pure shards) and **FLUX** routes a *live* analog
+stream (drop magnetic poles to bend particles home). **Wave 4** fills the last two cells: **WEAVE**
+imposes order by *connection* (trace the chain yourself, then discharge it) and **PULSE** by *timing*
+(tap on the beat; tempo is the accelerator). All are built mobile-first and as maximum-juice showcases —
+see `public/research/04-prototype-wave-2.md`, `05-prototype-wave-3.md`, `06-juice-log.md`,
+`08-prototype-wave-4.md` and `09-juice-log-wave-4.md`.
 
 ## Repo layout
 
@@ -102,7 +104,7 @@ npx wrangler pages deploy public --project-name anorak-arcade
 Or connect the GitHub repo in the Cloudflare dashboard (Pages → Connect to Git → output dir `public`)
 for auto-deploy on every push.
 
-## The four prototypes (`public/`)
+## The ten prototypes (`public/`)
 
 | Game | Verb | One line | Leans hardest on |
 |------|------|----------|------------------|
@@ -114,6 +116,8 @@ for auto-deploy on every push.
 | **SURGE** `surge.html` | **trigger** | Load the field with drifting charged orbs, then unleash one chain | tension→resolution (loaded spring) · perpetual pressure |
 | **CLEAVE** `cleave.html` | **cut** | Slice a growing crystal so its pure-color veins shatter off | order-by-division · risk/reward release |
 | **FLUX** `flux.html` | **bend** | Drop magnetic poles to curve a live particle stream into matching collectors | route a live stream · perpetual pressure |
+| **WEAVE** `weave.html` | **link** | Trace one stroke through same-charge nodes, release to discharge a travelling current | order-by-connection · the authored chain |
+| **PULSE** `pulse.html` | **time** | Tap *on the beat* to fire a shockwave that scours motes from the core | order-by-timing · rhythm as the skill |
 
 Each shares the Tetris loop — **open loops faster than they close, under one self-scaling pressure,
 with transparent state and skill-contingent release** — but tests a different relationship to

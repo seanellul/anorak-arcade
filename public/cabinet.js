@@ -23,7 +23,8 @@
     '<a class="cab-home" href="index.html"><span class="dot"></span><span class="lbl">ARCADE</span></a>' +
     '<span class="cab-title">' + esc(GAME) + '</span>' +
     '<span class="cab-spacer"></span>' +
-    '<button class="cab-btn cab-scores" type="button" title="Leaderboard"><span class="ic">🏆</span><span class="lbl">SCORES</span><span class="badge"></span></button>' +
+    '<button class="cab-btn cab-scores" type="button" title="This game’s leaderboard"><span class="ic">🏆</span><span class="lbl">SCORES</span><span class="badge"></span></button>' +
+    '<a class="cab-btn cab-global" href="leaderboard.html" title="Global leaderboard — all games"><span class="ic">🌐</span><span class="lbl">GLOBAL</span></a>' +
     '<button class="cab-btn cab-sound" type="button" title="Sound"><span class="ic">🔊</span></button>' +
     '<button class="cab-btn cab-full" type="button" title="Fullscreen"><span class="ic">⛶</span></button>';
   document.body.insertBefore(bar, document.body.firstChild);

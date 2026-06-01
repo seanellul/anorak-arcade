@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="Charged nodes rain into a pile — drag one stroke through same-charge cells to wire a circuit, release to discharge a travelling current. A study in order-by-connection and authored chains.">
+<meta name="theme-color" content="#06090d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Anorak Arcade">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Anorak Arcade">
+<meta property="og:title" content="WEAVE — link">
+<meta property="og:description" content="Charged nodes pile up. Trace one stroke through same-charge cells to wire a circuit, then discharge it in a travelling current. The longer the snake, the bigger the surge.">
+<meta property="og:image" content="https://anorak-arcade.pages.dev/og-weave.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="WEAVE — link">
+<meta name="twitter:description" content="Trace a circuit through a rising pile of charges and discharge it. A love letter to a bygone era — original browser prototypes.">
+
+<title>WEAVE — link</title>
+<style>
+  :root{ --bg:#06090d; --panel:#0c1118; --ink:#e9f2ff; --dim:#7e8aa6; --c1:#36c8ff; --c2:#ff5e9c; --c3:#b48cff; --c4:#ffc24d; --acc:#d6f84a; --good:#36d399; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  html,body{overscroll-behavior:none}
+  body{margin:0;background:radial-gradient(1100px 760px at 50% -10%,#16240f,#06090d 60%);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  header{width:100%;max-width:540px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.34em;margin:0;font-weight:700}h1 .v{color:var(--acc)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:540px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #1a2230;border-radius:8px;padding:8px 10px;position:relative;overflow:hidden}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}
+  .stat .val{font-size:21px;font-weight:700;margin-top:2px;transition:transform .08s}
+  .stat .val.bump{transform:scale(1.22)}
+  #nextWrap{display:flex;align-items:center;gap:8px;margin-top:3px}
+  #nextDot{width:18px;height:18px;border-radius:50%;box-shadow:0 0 10px currentColor}
+  .bars{width:100%;max-width:540px;padding:0 8px;display:flex;flex-direction:column;gap:6px}
+  .bar{height:13px;background:#070b12;border:1px solid #1a2230;border-radius:7px;overflow:hidden;position:relative}
+  .bar>i{display:block;height:100%;width:0;transition:width .1s linear}
+  .bar .lab{position:absolute;left:8px;top:0;font-size:9px;letter-spacing:.2em;line-height:13px;color:#cdd6e6;mix-blend-mode:difference;pointer-events:none}
+  .bar.danger{animation:pulseb .42s infinite}
+  @keyframes pulseb{50%{box-shadow:0 0 14px rgba(255,77,109,.85)}}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#04070c;border:1px solid #1a2230;border-radius:12px;display:block;max-width:100%;height:auto;cursor:crosshair;touch-action:none}
+  .foot{max-width:540px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#141c2e;border:1px solid #233048;border-radius:5px;padding:1px 7px;font-size:11px}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,9,13,.93);border-radius:12px;text-align:center;padding:24px}
+  .overlay h2{margin:0 0 4px;letter-spacing:.18em;font-size:26px}
+  .overlay h2.bad{color:var(--bad)} .overlay h2.title{color:var(--acc)}
+  .overlay p{color:var(--dim);margin:6px 0;max-width:440px;line-height:1.6;font-size:13px}
+  .overlay .big{font-size:40px;font-weight:700;color:var(--acc);margin:8px 0}
+  button{background:linear-gradient(180deg,#eaffb0,#bfe83a);color:#16210a;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:13px 30px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:14px;box-shadow:0 6px 22px rgba(191,232,58,.34)}
+  button:hover{filter:brightness(1.07)}
+  .statline{color:var(--dim);font-size:12px;margin-top:10px;letter-spacing:.06em}
+  .statline b{color:var(--ink)}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}a.back:hover{color:var(--ink)}
+  @media(max-width:560px){
+    body{justify-content:flex-start}
+    a.back{position:static;display:block;margin:7px 0 0 10px;font-size:11px}
+    header{padding:2px 10px 0}
+    header h1{font-size:14px}
+    header .sub{display:none}
+    .hud{gap:6px;padding:4px 8px}
+    .hud .stat{background:none;border:0;padding:2px 5px;overflow:visible}
+    .hud .stat .k{font-size:8px;letter-spacing:.08em}
+    .hud .stat .val{font-size:16px;margin-top:0}
+    .bars{gap:3px}
+    .bar{height:8px;margin:2px 8px}
+    .bar .lab{font-size:7px;line-height:8px}
+    #wrap{margin:5px 0}
+    .foot{display:none}
+  }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← arcade</a>
+<header>
+  <div><h1>WE<span class="v">AVE</span></h1><div class="sub">LINK · trace &amp; discharge</div></div>
+</header>
+<div class="hud">
+  <div class="stat"><div class="k">SCORE</div><div class="val" id="score">0</div></div>
+  <div class="stat"><div class="k">LINK</div><div class="val" id="link">—</div></div>
+  <div class="stat"><div class="k">BEST</div><div class="val" id="best" style="color:var(--acc)">·</div></div>
+  <div class="stat"><div class="k">NEXT</div><div id="nextWrap"><span id="nextDot" style="color:#36c8ff;background:#36c8ff"></span><span class="val" id="nextName" style="font-size:13px;color:var(--dim)">—</span></div></div>
+</div>
+<div class="bars">
+  <div class="bar" id="pressWrap"><i id="pressure" style="background:linear-gradient(90deg,#36c8ff,#ffc24d,#ff4d6d)"></i><span class="lab">PILE HEIGHT</span></div>
+  <div class="bar" id="comboBar" style="height:5px"><i id="comboFill" style="background:linear-gradient(90deg,#d6f84a,#36c8ff)"></i></div>
+</div>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="title">
+    <h2 class="title">WE<span style="color:#36c8ff">AVE</span></h2>
+    <p>Charged nodes rain into a pile. <b style="color:#e9f2ff">Drag one stroke</b> through touching nodes of the <b>same charge</b> to wire a circuit — diagonals count.</p>
+    <p>Release to <b style="color:#d6f84a">discharge</b>: a current rips down the wire you drew and every node on it detonates. A longer snake pays <b style="color:#ffc24d">far</b> more. But a node left too long <b style="color:#878da0">oxidises into dead rust</b> that breaks your paths — it only crumbles when you discharge a wire beside it. Keep the circuit turning over, or the pile buries you to the <b style="color:#ff4d6d">ceiling</b>.</p>
+    <button id="startBtn">WEAVE ▶</button>
+    <div class="statline"><span class="key">drag / trace</span> link &nbsp; <span class="key">P</span> pause</div>
+  </div>
+  <div class="overlay" id="over" style="display:none">
+    <h2 class="bad">OVERLOAD</h2>
+    <div class="big" id="finalScore">0</div>
+    <div class="statline" id="finalStats"></div>
+    <button id="again">RE-WEAVE ⏎</button>
+  </div>
+  <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
+</div>
+<div class="foot">
+  Trace a continuous stroke through touching nodes of one charge (orthogonal <i>or</i> diagonal). A wire of <b style="color:#d6f84a">3+</b> nodes <b>discharges</b> when you let go — a current zips the path and pops every node, scoring <b>super-linearly</b> with length, so a long authored snake pays enormously. Nodes left too long <b style="color:#878da0">oxidise into uncuttable rust</b> (it only crumbles when an adjacent wire discharges), so keep weaving. Nurse a colour into a big blob for a monster trace — but greed rusts.
+</div>
+<script src="juice.js"></script>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const MOBILE = window.matchMedia('(max-width:560px)').matches;
+  const CELL = MOBILE?34:38;
+  const COLS = MOBILE?10:12, ROWS = MOBILE?14:13;
+  const W = COLS*CELL, H = ROWS*CELL;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  const J=window.Juice; const fx=J.layer();
+
+  // ---- palette (the four charges) ----
+  const COL=[
+    {c:'#36c8ff', lo:'#0b4d73', hi:'#cdeeff', name:'AZURE'},
+    {c:'#ff5e9c', lo:'#7a1f44', hi:'#ffd2e4', name:'ROSE'},
+    {c:'#b48cff', lo:'#3c2a73', hi:'#e7dcff', name:'VIOLET'},
+    {c:'#ffc24d', lo:'#7a5410', hi:'#ffeec2', name:'AMBER'},
+  ];
+  const NCOL=COL.length;
+  const K=3;                 // min nodes in a wire to discharge
+  const CEIL_ROW=1;          // a filled cell at this row (or above) = overload
+
+  // precompute node sprites (a glowing via) per charge
+  const gem=[];
+  for(let i=0;i<NCOL;i++){ gem[i]=makeNode(COL[i]); }
+  function makeNode(co){
+    const s=document.createElement('canvas'); s.width=s.height=CELL; const g=s.getContext('2d');
+    const cxp=CELL/2, R=CELL*0.40;
+    const grd=g.createRadialGradient(cxp-R*0.3,cxp-R*0.35,R*0.1,cxp,cxp,R);
+    grd.addColorStop(0,co.hi); grd.addColorStop(0.4,co.c); grd.addColorStop(1,co.lo);
+    g.fillStyle=grd; g.beginPath(); g.arc(cxp,cxp,R,0,7); g.fill();
+    g.globalAlpha=0.85; g.strokeStyle=co.hi; g.lineWidth=1.4; g.beginPath(); g.arc(cxp,cxp,R,0,7); g.stroke();
+    g.globalAlpha=0.55; g.fillStyle='#fff'; g.beginPath(); g.arc(cxp-R*0.32,cxp-R*0.36,R*0.26,0,7); g.fill();
+    g.globalAlpha=1;
+    return s;
+  }
+  // dead grey "rust" sprite (oxidised, unlinkable)
+  const RUST={c:'#5b6175', lo:'#23262f', hi:'#878da0'};
+  const rustSprite=(()=>{ const s=document.createElement('canvas'); s.width=s.height=CELL; const g=s.getContext('2d');
+    const cxp=CELL/2, R=CELL*0.40;
+    const grd=g.createRadialGradient(cxp-R*0.3,cxp-R*0.3,R*0.1,cxp,cxp,R); grd.addColorStop(0,RUST.hi); grd.addColorStop(0.45,RUST.c); grd.addColorStop(1,RUST.lo);
+    g.fillStyle=grd; g.beginPath(); g.arc(cxp,cxp,R,0,7); g.fill();
+    g.strokeStyle='rgba(10,12,18,0.55)'; g.lineWidth=1.2; g.beginPath();
+    g.moveTo(cxp-R*0.5,cxp-R*0.2); g.lineTo(cxp+R*0.1,cxp+R*0.1); g.lineTo(cxp-R*0.2,cxp+R*0.55);
+    g.moveTo(cxp+R*0.1,cxp+R*0.1); g.lineTo(cxp+R*0.55,cxp-R*0.1); g.stroke();
+    g.globalAlpha=0.6; g.strokeStyle=RUST.hi; g.lineWidth=1; g.beginPath(); g.arc(cxp,cxp,R,0,7); g.stroke();
+    return s; })();
+
+  // oxidation: a node rusts if not linked within this window (shrinks as you score → acceleration)
+  const RUST_START=MOBILE?10500:11000, RUST_MIN=4200, RUST_K=0.085;
+  function rustTime(){ return Math.max(RUST_MIN, RUST_START - score*RUST_K); }
+
+  // ---- state ----
+  let cells, grid, score, dispScore, lastLen, bestLen, state, last;
+  let dropColor, dropQ, growT, danger, slow, flash, shakeBoost;
+  let path, pathColor, shards, zipQ, zipT, zipDur, zips, trail, freeze, humT, hint, shimmer=0, curRustT=RUST_START, rustCount=0, comboT=0;
+  let idn=0;
+  const RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const VIB = m=>{ if(!RM && navigator.vibrate){ try{ navigator.vibrate(m); }catch(e){} } };
+
+  function idx(c,r){ return r*COLS+c; }
+  function rebuild(){ grid=new Int16Array(COLS*ROWS); for(let i=0;i<cells.length;i++){ const cl=cells[i]; if(cl.r>=0&&cl.r<ROWS) grid[idx(cl.c,cl.r)]=i+1; } }
+  function cellAt(c,r){ if(c<0||r<0||c>=COLS||r>=ROWS) return -1; const v=grid[idx(c,r)]; return v?v-1:-1; }
+  function topR(c){ for(let r=0;r<ROWS;r++){ if(grid[idx(c,r)]) return r; } return ROWS; }
+  function maxHeight(){ let m=0; for(let c=0;c<COLS;c++){ const h=ROWS-topR(c); if(h>m)m=h; } return m; }
+  const cx=c=>c*CELL+CELL/2, cy=r=>r*CELL+CELL/2;
+
+  function bag(){ return (Math.random()*NCOL)|0; }
+  function newDeposit(){
+    // pick the lowest column to rain into, and a charge; grow a short run of one charge
+    let lo=1e9, col=(COLS/2)|0;
+    for(let c=0;c<COLS;c++){ const h=ROWS-topR(c) + Math.random()*1.4; if(h<lo){ lo=h; col=c; } }
+    dropColor=bag();
+    dropQ={ color:dropColor, col, n: 2+((Math.random()*3)|0) };
+  }
+  function nextColor(){ return dropQ?dropQ.color:dropColor; }
+  function targetCol(){
+    if(!dropQ) return (COLS/2)|0;
+    const c0=dropQ.col; let best=-1,bestTop=-1;
+    for(let dc=-1;dc<=1;dc++){ const c=c0+dc; if(c<0||c>=COLS) continue; const t=topR(c); if(t>bestTop){ bestTop=t; best=c; } }
+    return best<0?c0:best;
+  }
+
+  function reset(showTitle){
+    cells=[]; rebuild(); score=0; dispScore=0; lastLen=0; bestLen=0;
+    danger=0; slow=0; flash=0; shakeBoost=0;
+    path=[]; pathColor=-1; shards=[]; zipQ=[]; zipT=0; zipDur=0; zips=[]; trail=[]; freeze=0; humT=0; comboT=0;
+    curRustT=RUST_START; rustCount=0;
+    hint=(()=>{ try{ return !localStorage.getItem('weave_seen'); }catch(e){ return true; } })();
+    growT=0; dropQ=null; newDeposit();
+    for(let s=0;s<Math.round(COLS*3.6);s++) growStep(true);
+    document.getElementById('over').style.display='none';
+    document.getElementById('paused').style.display='none';
+    document.getElementById('title').style.display=showTitle?'flex':'none';
+    state=showTitle?'title':'play';
+    updateHUD();
+  }
+  function start(){ J.unlock(); reset(false); }
+
+  // ---- growth (rain) ----
+  function growStep(seed){
+    if(!dropQ) newDeposit();
+    const best=targetCol();
+    const r=topR(best)-1;
+    if(r<CEIL_ROW-1){ if(!seed){ gameOver(); } return; }
+    cells.push({ id:idn++, c:best, r, color:dropQ.color, oy: seed?0:CELL*2.2, pop: seed?0:0.14, born:1,
+      age: seed?Math.random()*RUST_START*0.4:0, rust:false });
+    rebuild();
+    if(!seed){ colPulse[best]=1; J.tone(520+Math.random()*60,0.03,'sine',0.016); }
+    dropQ.n--; if(dropQ.n<=0){ dropQ=null; newDeposit(); }
+  }
+  const colPulse=new Float32Array(COLS);
+
+  // ---- gravity ----
+  function settle(){
+    let maxDrop=0;
+    for(let c=0;c<COLS;c++){
+      const col=[]; for(let i=0;i<cells.length;i++){ if(cells[i].c===c) col.push(i); }
+      col.sort((a,b)=>cells[a].r-cells[b].r);
+      let nr=ROWS-1;
+      for(let k=col.length-1;k>=0;k--){ const cl=cells[col[k]]; if(cl.r!==nr){ const d=nr-cl.r; maxDrop=Math.max(maxDrop,d); cl.oy=(cl.oy||0)+d*CELL; cl.r=nr; cl.pop=Math.max(cl.pop||0,0.1); } nr--; }
+    }
+    rebuild();
+    if(maxDrop>0){ setTimeout(()=>{ if(state==='play'){ thudSfx(maxDrop); shakeBoost=Math.max(shakeBoost,1.4+maxDrop*0.4); } }, 70+maxDrop*20); }
+  }
+
+  // ---- path tracing ----
+  const ADJ=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+  function adjacent(a,b){ const A=cells[a],B=cells[b]; return Math.abs(A.c-B.c)<=1 && Math.abs(A.r-B.r)<=1 && !(A.c===B.c&&A.r===B.r); }
+  function gainFor(len){ return Math.round(len*len*4 + (len>=5?(len-4)*(len-4)*9:0)); } // super-linear, big snakes pay
+  function cellUnder(p){
+    const c=Math.floor(p.x/CELL), r=Math.floor(p.y/CELL);
+    return cellAt(c,r);
+  }
+  function tryExtend(ci){
+    if(ci<0) return;
+    const cl=cells[ci]; if(cl.rust) return;
+    if(!path.length){ // start a new wire
+      path=[ci]; pathColor=cl.color; linkPulse(ci, path.length); return;
+    }
+    if(cl.color!==pathColor) return;
+    const tail=path[path.length-1];
+    // backtrack: finger returned to the previous node
+    if(path.length>=2 && ci===path[path.length-2]){ path.pop(); J.tone(360,0.03,'sine',0.02); return; }
+    if(path.indexOf(ci)>=0) return;          // no revisits
+    if(!adjacent(tail,ci)) return;           // must touch the tail
+    path.push(ci); linkPulse(ci, path.length);
+  }
+  function linkPulse(ci, len){
+    const cl=cells[ci]; cl.pop=Math.max(cl.pop||0, 0.30);
+    const co=COL[pathColor];
+    const x=cx(cl.c), y=cy(cl.r)-(cl.oy||0);
+    fx.burst(x,y,co.hi,3,{spread:1.6,up:0.3,decay:0.06,r:1.4,grav:0.02});
+    // pitch ladder climbs per node — you HEAR the wire grow
+    J.tone(300*Math.pow(1.055,len),0.05,'triangle',0.04);
+    VIB(4);
+    updateHUD();
+  }
+  function cancelPath(){ path=[]; pathColor=-1; updateHUD(); }
+
+  function discharge(){
+    if(path.length<K){ if(path.length){ J.tone(220,0.08,'sawtooth',0.03); } cancelPath(); return; }
+    if(hint){ hint=false; try{ localStorage.setItem('weave_seen','1'); }catch(e){} }
+    const len=path.length, co=COL[pathColor];
+    _zipColor=pathColor;                       // stash for the deferred zip bursts (pathColor resets below)
+    const gain=gainFor(len); score+=gain;
+    lastLen=len; bestLen=Math.max(bestLen,len); comboT=1000;
+    // cache the ordered world path for the current-zip, then remove nodes from logic
+    const pts=path.map(ci=>{ const cl=cells[ci]; return {x:cx(cl.c), y:cy(cl.r)-(cl.oy||0), color:pathColor}; });
+    // schedule sequential detonations (tail -> head): the current racing the wire
+    zipDur=Math.max(180, Math.min(620, len*34));
+    const per=zipDur/len;
+    zipT=0; zipQ=[];
+    for(let i=0;i<pts.length;i++){ zipQ.push({x:pts[i].x,y:pts[i].y,at:i*per,idx:i,len}); }
+    zips.push({pts, t:0, dur:zipDur, color:co.c, hi:co.hi});
+    // knock loose rust orthogonally adjacent to any wired node
+    const dead=new Set(path);
+    const crumble=new Set();
+    for(const ci of path){ const cl=cells[ci]; for(const [dc,dr] of [[1,0],[-1,0],[0,1],[0,-1]]){ const ni=cellAt(cl.c+dc,cl.r+dr); if(ni>=0 && cells[ni].rust) crumble.add(ni); } }
+    if(crumble.size){ for(const ci of crumble){ const cl=cells[ci]; const x=cx(cl.c), y=cy(cl.r)-(cl.oy||0);
+        fx.burst(x,y,RUST.c,6,{spread:2.2,up:0.2,decay:0.05,r:2.4,grav:0.22}); fx.burst(x,y,RUST.hi,3,{spread:1.6,up:0,decay:0.06,r:1.6,grav:0.2}); }
+      crumbleSfx(crumble.size); }
+    cells=cells.filter((_,i)=>!dead.has(i) && !crumble.has(i));
+    rebuild();
+    // settle once the zip has finished reading
+    setTimeout(()=>{ if(state==='play'||state==='paused'){ settle(); } }, zipDur+30);
+    // payoff feedback
+    const mid=pts[(pts.length/2)|0];
+    fx.float(mid.x, mid.y, '+'+gain, co.c, {size: len>=8?30:23, sub:co.name+' ×'+len});
+    fx.ring(pts[pts.length-1].x, pts[pts.length-1].y, 18+len*5, co.c, {lw:3});
+    dischargeSfx(len);
+    if(len>=7){ freeze=Math.max(freeze, 40+len*5); slow=Math.min(1,slow+0.5); flash=Math.max(flash,Math.min(0.7,0.28+len*0.03)); }
+    shakeBoost=Math.max(shakeBoost, 3+len*0.6);
+    VIB(len>=10?[18,26,20,26]:(len>=6?[12,18,12]:10));
+    bump('score'); bump('link'); if(len>=bestLen) bump('best');
+    cancelPath();
+  }
+
+  // ---- audio ----
+  function dischargeSfx(len){
+    // a rising arpeggio that climbs with the wire length — the "current-zip"
+    const n=Math.min(10, 3+(len/2|0)); const base=300;
+    for(let i=0;i<n;i++) J.tone(base*Math.pow(1.13,i),0.16,'triangle',0.05, i*0.026);
+    J.tone(1700,0.05,'sine',0.02);                                   // bright tick at the head
+    if(len>=7){ J.tone(80,0.5,'sine',0.13,0.04); J.tone(120,0.4,'sawtooth',0.05,0.06); } // circuit-complete boom
+  }
+  function thudSfx(h){ J.tone(118+h*4,0.10,'sine',0.05); J.tone(70,0.12,'triangle',0.035,0.01); }
+  function deadSfx(){ J.tone(150,0.5,'sawtooth',0.12); J.tone(72,0.9,'sine',0.1,0.05); J.chord(300,5,{step:0.84,dur:0.4,gain:0.04,spacing:0.05,type:'sine'}); }
+  function rustSfx(){ J.tone(150,0.12,'sawtooth',0.035); J.tone(95,0.16,'sine',0.04,0.02); }
+  function crumbleSfx(n){ J.tone(260,0.1,'square',0.04); for(let i=0;i<Math.min(4,n);i++) J.tone(180+Math.random()*120,0.12,'triangle',0.035,i*0.03); }
+
+  function bump(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'),110); }
+  function oxidise(cl){ cl.rust=true; cl.pop=Math.max(cl.pop||0,0.22);
+    const x=cx(cl.c), y=cy(cl.r)-(cl.oy||0); fx.burst(x,y,RUST.hi,5,{spread:1.6,up:0.1,decay:0.06,r:1.8,grav:0.18}); rustSfx();
+    // if this node was part of the in-progress wire, drop it (rust can't be linked)
+    const pi=path.indexOf(cells.indexOf(cl)); if(pi>=0) cancelPath();
+  }
+
+  // ---- input (trace) ----
+  let down=false;
+  function P(e){ const r=cv.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return { x:(t.clientX-r.left)*(W/r.width), y:(t.clientY-r.top)*(H/r.height) }; }
+  function startDrag(p){ if(state!=='play') return; down=true; path=[]; pathColor=-1; tryExtend(cellUnder(p)); trail.push({x:p.x,y:p.y,life:1}); }
+  function moveDrag(p){ if(!down) return; tryExtend(cellUnder(p)); trail.push({x:p.x,y:p.y,life:1}); if(trail.length>24) trail.shift(); }
+  function endDrag(){ if(!down) return; down=false; discharge(); }
+  cv.addEventListener('mousedown',e=>{ startDrag(P(e)); });
+  window.addEventListener('mousemove',e=>{ if(down) moveDrag(P(e)); });
+  window.addEventListener('mouseup',endDrag);
+  cv.addEventListener('touchstart',e=>{ e.preventDefault(); startDrag(P(e)); },{passive:false});
+  cv.addEventListener('touchmove',e=>{ e.preventDefault(); moveDrag(P(e)); },{passive:false});
+  window.addEventListener('touchend',e=>{ endDrag(); },{passive:false});
+  window.addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
+    if(k==='enter'&&state==='dead') start();
+    else if(k==='p'&&(state==='play'||state==='paused')){ state=state==='play'?'paused':'play'; document.getElementById('paused').style.display=state==='paused'?'flex':'none'; if(state==='play') last=performance.now(); }
+  });
+  document.getElementById('startBtn').onclick=start;
+  document.getElementById('again').onclick=start;
+  window.addEventListener('blur',()=>{ if(state==='play'){ state='paused'; document.getElementById('paused').style.display='flex'; } });
+
+  // ---- HUD ----
+  function updateHUD(){
+    document.getElementById('score').textContent=Math.round(dispScore);
+    const liveLen = down&&path.length?path.length : lastLen;
+    const linkEl=document.getElementById('link');
+    linkEl.textContent= (down&&path.length)?('×'+path.length) : (lastLen?('×'+lastLen):'—');
+    linkEl.style.color = (down&&path.length>=K)?COL[pathColor].c : (down&&path.length?'var(--bad)':'var(--ink)');
+    document.getElementById('best').textContent= bestLen>0?('×'+bestLen):'·';
+    const nc=nextColor(); const nd=document.getElementById('nextDot'); nd.style.color=COL[nc].c; nd.style.background=COL[nc].c;
+    document.getElementById('nextName').textContent=COL[nc].name;
+    document.getElementById('pressure').style.width=Math.min(100,danger*100)+'%';
+    document.getElementById('pressWrap').classList.toggle('danger', danger>0.62);
+    document.getElementById('comboFill').style.width=(comboT>0?(comboT/1000*100):0)+'%';
+  }
+
+  function gameOver(){ if(state==='dead') return; state='dead'; deadSfx(); shakeBoost=18; flash=0.6;
+    if(window.GameStats) GameStats.submitScore('WEAVE', score);
+    document.getElementById('finalScore').textContent=Math.round(score);
+    document.getElementById('finalStats').innerHTML='longest wire: <b>×'+bestLen+'</b> &nbsp;·&nbsp; oxidised to <b>'+rustCount+'</b> rust';
+    document.getElementById('over').style.display='flex'; }
+
+  // ---- loop ----
+  function loop(now){ let dt=Math.min(48, now-last); last=now;
+    let timeScale=1;
+    if(freeze>0){ freeze-=dt; timeScale=0.05; }
+    else if(slow>0){ timeScale=0.35+0.65*(1-slow); }
+    const edt=dt*timeScale, k=edt/16.7;
+    shimmer+=dt*0.0011;
+    if(state==='play'){
+      if(window.GameStats) GameStats.ping('WEAVE', dt);
+      growT+=edt;
+      const growInt=Math.max(MOBILE?150:140,(MOBILE?360:340)-score*0.03);
+      const gn=1+(score>2600?1:0);
+      while(growT>=growInt){ growT-=growInt; for(let q=0;q<gn;q++) growStep(false); }
+      // oxidation
+      curRustT=rustTime(); rustCount=0;
+      for(const cl of cells){
+        if(!cl.rust){ cl.age+=edt; if(cl.age>=curRustT) oxidise(cl); }
+        else rustCount++;
+      }
+      // danger
+      const mh=maxHeight(); const target=mh/(ROWS-CEIL_ROW);
+      danger+=(target-danger)*0.12*k;
+      if(mh>=ROWS-CEIL_ROW) gameOver();
+      if(danger>0.72){ humT-=dt; if(humT<=0){ humT=320; J.tone(58,0.22,'sine',0.05); J.tone(88,0.18,'triangle',0.02,0.02); } }
+    }
+    // animations
+    dispScore+=(score-dispScore)*0.2; if(Math.abs(score-dispScore)<1) dispScore=score;
+    for(const cl of cells){ if(cl.oy>0){ cl.oy*=Math.pow(0.78,k); if(cl.oy<0.4)cl.oy=0; } if(cl.pop>0){ cl.pop*=Math.pow(0.85,k); if(cl.pop<0.004)cl.pop=0; } if(cl.born>0) cl.born-=0.05*k; }
+    for(let c=0;c<COLS;c++){ if(colPulse[c]>0){ colPulse[c]*=Math.pow(0.86,k); if(colPulse[c]<0.02)colPulse[c]=0; } }
+    // the current-zip: sequential node detonations along the wire
+    if(zipQ.length){ zipT+=dt; for(let i=zipQ.length-1;i>=0;i--){ const z=zipQ[i]; if(zipT>=z.at){ zipQ.splice(i,1);
+      const co=COL[pathColorAt(z)]; spawnNodeBurst(z.x,z.y,co,z.idx,z.len); } } }
+    for(let i=zips.length-1;i>=0;i--){ const z=zips[i]; z.t+=dt; if(z.t>=z.dur+160) zips.splice(i,1); }
+    // shards
+    for(let i=shards.length-1;i>=0;i--){ const s=shards[i]; s.x+=s.vx*k; s.y+=s.vy*k; s.vy+=0.34*k; s.vx*=Math.pow(0.99,k); s.rot+=s.vr*k; s.life-=s.decay*k; if(s.life<=0||s.y>H+30) shards.splice(i,1); }
+    if(shards.length>340) shards.splice(0, shards.length-340);
+    for(let i=trail.length-1;i>=0;i--){ trail[i].life-=dt/240; if(trail[i].life<=0) trail.splice(i,1); }
+    if(comboT>0){ comboT-=dt; if(comboT<=0) lastLen=0; }
+    if(slow>0) slow=Math.max(0,slow-dt/520);
+    if(flash>0) flash=Math.max(0,flash-dt/360);
+    if(shakeBoost>0){ fx.shake(RM?0:shakeBoost); shakeBoost*=Math.pow(0.6,k); if(shakeBoost<0.3)shakeBoost=0; }
+    fx.update(edt);
+    draw();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+  // the wire colour is fixed at discharge; stash it on the zip burst
+  let _zipColor=0; function pathColorAt(z){ return _zipColor; }
+  function spawnNodeBurst(x,y,co,idx,len){
+    for(let s=0;s<(RM?2:4);s++){ const a=Math.random()*Math.PI*2, sp=1.4+Math.random()*3;
+      shards.push({ x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-1.1, rot:Math.random()*7, vr:(Math.random()-.5)*0.5,
+        life:1, decay:0.02+Math.random()*0.014, size:CELL*(0.16+Math.random()*0.14), col:co.c, hi:co.hi }); }
+    fx.burst(x,y,co.hi,3,{spread:2.2,up:0.4,decay:0.05,r:1.4,grav:0.18});
+    fx.ring(x,y,10+CELL*0.5,co.c,{lw:2,decay:0.08});
+    // pitch ladders up the wire
+    J.tone(320*Math.pow(1.12,idx)*( idx>=len-1?1.4:1 ), 0.14, 'triangle', 0.045);
+  }
+
+  // ---- draw ----
+  function draw(){
+    ctx.save();
+    const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
+    ctx.clearRect(-30,-30,W+60,H+60);
+
+    // circuit-board backdrop: faint trace grid
+    ctx.strokeStyle='rgba(214,248,74,0.035)'; ctx.lineWidth=1;
+    for(let c=1;c<COLS;c++){ ctx.beginPath(); ctx.moveTo(c*CELL,0); ctx.lineTo(c*CELL,H); ctx.stroke(); }
+    for(let r=1;r<ROWS;r++){ ctx.beginPath(); ctx.moveTo(0,r*CELL); ctx.lineTo(W,r*CELL); ctx.stroke(); }
+
+    // column receive-pulse
+    for(let c=0;c<COLS;c++){ if(colPulse[c]>0.02){ ctx.fillStyle='rgba(214,248,74,'+(colPulse[c]*0.08)+')'; ctx.fillRect(c*CELL,0,CELL,H); } }
+
+    // ceiling danger line
+    const cyl=CEIL_ROW*CELL; const cp=danger>0.5?(0.5+0.5*Math.sin(performance.now()/(220-danger*150))):0;
+    ctx.strokeStyle=`rgba(255,${Math.round(110-danger*90)},${Math.round(120-danger*100)},${0.22+0.5*danger+cp*0.2})`;
+    ctx.lineWidth=2; ctx.setLineDash([8,8]); ctx.beginPath(); ctx.moveTo(0,cyl); ctx.lineTo(W,cyl); ctx.stroke(); ctx.setLineDash([]);
+
+    // incoming-node ghost telegraph
+    if(state==='play' && dropQ){ const gc=targetCol(); const gx=cx(gc), bob=Math.sin(performance.now()/200)*3; const co=COL[dropQ.color];
+      ctx.save(); ctx.globalAlpha=0.5; ctx.strokeStyle=co.c; ctx.setLineDash([3,6]); ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(gx,6); ctx.lineTo(gx, cy(topR(gc)-1)); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha=0.55; ctx.fillStyle=co.c; ctx.shadowColor=co.c; ctx.shadowBlur=8;
+      ctx.beginPath(); ctx.arc(gx,12+bob,5,0,7); ctx.fill(); ctx.restore(); ctx.shadowBlur=0; }
+
+    // additive glow under nodes
+    ctx.globalCompositeOperation='lighter';
+    for(const cl of cells){ if(cl.rust) continue; const x=cx(cl.c), y=cy(cl.r)-cl.oy; ctx.globalAlpha=0.10; ctx.fillStyle=COL[cl.color].c;
+      ctx.beginPath(); ctx.arc(x,y,CELL*0.5,0,7); ctx.fill(); }
+    ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+
+    // "linkable from tail" hint glow — same-charge neighbours of the path tail
+    if(down && path.length){ const tail=cells[path[path.length-1]]; if(tail){ for(const [dc,dr] of ADJ){ const ni=cellAt(tail.c+dc,tail.r+dr);
+        if(ni>=0 && !cells[ni].rust && cells[ni].color===pathColor && path.indexOf(ni)<0){ const cl=cells[ni]; const x=cx(cl.c),y=cy(cl.r)-cl.oy;
+          ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.30+0.20*Math.sin(performance.now()/120); ctx.fillStyle=COL[pathColor].hi;
+          ctx.beginPath(); ctx.arc(x,y,CELL*0.46,0,7); ctx.fill(); ctx.restore(); } } } }
+
+    // nodes + rims + oxidation telegraph
+    for(const cl of cells){
+      let x=cx(cl.c), y=cy(cl.r)-cl.oy;
+      const inPath = !cl.rust && pathColor===cl.color && path.indexOf(cells.indexOf(cl))>=0;
+      const sc=1+(cl.pop||0)+(cl.born||0)*0.12+(inPath?0.06:0);
+      ctx.save(); ctx.translate(x,y); ctx.scale(sc,sc);
+      ctx.drawImage(cl.rust?rustSprite:gem[cl.color], -CELL/2, -CELL/2);
+      if(!cl.rust){
+        const ph=(shimmer+(cl.c+cl.r)*0.12)%1;
+        if(ph<0.12){ ctx.globalAlpha=(0.12-ph)/0.12*0.45; ctx.globalCompositeOperation='lighter'; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,0,CELL*0.36,0,7); ctx.fill(); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; }
+        const af=cl.age/(curRustT||1);
+        if(af>0.65){ const g2=(af-0.65)/0.35; ctx.globalAlpha=g2*0.6; ctx.fillStyle='#2a2e3a'; ctx.beginPath(); ctx.arc(0,0,CELL*0.40,0,7); ctx.fill();
+          ctx.globalAlpha=g2*0.85; ctx.strokeStyle='rgba(10,12,18,0.8)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-CELL*0.24,-CELL*0.1); ctx.lineTo(CELL*0.05,CELL*0.05); ctx.lineTo(-CELL*0.12,CELL*0.26); ctx.stroke(); ctx.globalAlpha=1; }
+      }
+      if(inPath){ ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.5+0.3*Math.sin(performance.now()/90); ctx.strokeStyle=COL[pathColor].hi; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(0,0,CELL*0.46,0,7); ctx.stroke(); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1; }
+      ctx.restore();
+    }
+
+    // the live wire being traced
+    if(down && path.length){ drawWire(path, COL[pathColor], true); }
+    // discharge zips (current racing the wire)
+    for(const z of zips){ drawZip(z); }
+
+    // gem shards
+    if(shards.length){ ctx.globalCompositeOperation='lighter';
+      for(const s of shards){ ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(s.rot); ctx.globalAlpha=Math.max(0,Math.min(1,s.life));
+        ctx.fillStyle=s.col; ctx.beginPath(); ctx.moveTo(0,-s.size); ctx.lineTo(s.size*0.8,s.size*0.6); ctx.lineTo(-s.size*0.8,s.size*0.6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle=s.hi; ctx.globalAlpha*=0.6; ctx.fillRect(-s.size*0.18,-s.size*0.5,s.size*0.36,s.size*0.5); ctx.restore(); }
+      ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1;
+    }
+
+    // first-time trace hint
+    if(hint && state==='play' && !down){ drawHint(); }
+
+    // finger trail
+    if(trail.length>1){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineCap='round'; ctx.strokeStyle=pathColor>=0?COL[pathColor].hi:'#d6f84a';
+      for(let i=1;i<trail.length;i++){ const a=trail[i],b2=trail[i-1]; ctx.globalAlpha=a.life*0.4; ctx.lineWidth=2+3*a.life; ctx.beginPath(); ctx.moveTo(b2.x,b2.y); ctx.lineTo(a.x,a.y); ctx.stroke(); }
+      ctx.restore(); ctx.globalAlpha=1; }
+
+    fx.render(ctx);
+    ctx.restore();
+
+    if(danger>0.3){ const a=(danger-0.3)/0.7; J.vignette(ctx,W,H,a*0.6,'rgba(255,40,70,A)'); }
+    if(flash>0){ ctx.fillStyle=`rgba(220,250,150,${flash*0.45})`; ctx.fillRect(0,0,W,H); }
+
+    // live predicted score at the finger
+    if(down && path.length>=K){ const co=COL[pathColor]; const tail=trail[trail.length-1];
+      if(tail){ const tx=Math.max(30,Math.min(W-30,tail.x)), ty=Math.max(20,tail.y-24);
+        ctx.save(); ctx.textAlign='center'; ctx.font='bold 17px ui-monospace,monospace'; ctx.fillStyle='#f4ffd6'; ctx.shadowColor=co.c; ctx.shadowBlur=10;
+        ctx.fillText('+'+gainFor(path.length)+'  ×'+path.length, tx, ty); ctx.restore(); } }
+  }
+
+  function wireNodes(p){ return p.map(ci=>{ const cl=cells[ci]; return {x:cx(cl.c), y:cy(cl.r)-(cl.oy||0)}; }); }
+  function drawWire(p, co, live){
+    if(p.length<1) return; const ns=wireNodes(p);
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineCap='round'; ctx.lineJoin='round';
+    const ok=p.length>=K;
+    // outer glow
+    ctx.strokeStyle=ok?co.c:'rgba(160,170,190,0.5)'; ctx.lineWidth=ok?7:4; ctx.shadowColor=co.c; ctx.shadowBlur=ok?16:4; ctx.globalAlpha=0.5;
+    ctx.beginPath(); ctx.moveTo(ns[0].x,ns[0].y); for(let i=1;i<ns.length;i++) ctx.lineTo(ns[i].x,ns[i].y); ctx.stroke();
+    // bright core
+    ctx.globalAlpha=ok?0.95:0.6; ctx.strokeStyle=ok?co.hi:'rgba(200,210,230,0.7)'; ctx.lineWidth=ok?2.5:1.5; ctx.shadowBlur=0;
+    ctx.beginPath(); ctx.moveTo(ns[0].x,ns[0].y); for(let i=1;i<ns.length;i++) ctx.lineTo(ns[i].x,ns[i].y); ctx.stroke();
+    // a flowing dash drifting toward the head (anticipation of the discharge)
+    if(ok){ ctx.globalAlpha=0.9; ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.setLineDash([2,12]); ctx.lineDashOffset=-(performance.now()/40)%14;
+      ctx.beginPath(); ctx.moveTo(ns[0].x,ns[0].y); for(let i=1;i<ns.length;i++) ctx.lineTo(ns[i].x,ns[i].y); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.restore(); ctx.globalAlpha=1;
+  }
+  function drawZip(z){
+    const ns=z.pts; if(ns.length<1) return;
+    const f=Math.min(1,z.t/z.dur);
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineCap='round'; ctx.lineJoin='round';
+    // the spent wire glows and fades
+    const fade=Math.max(0,1-(z.t-z.dur)/160);
+    ctx.globalAlpha=0.6*fade; ctx.strokeStyle=z.color; ctx.lineWidth=6*fade+1; ctx.shadowColor=z.color; ctx.shadowBlur=14*fade;
+    ctx.beginPath(); ctx.moveTo(ns[0].x,ns[0].y); for(let i=1;i<ns.length;i++) ctx.lineTo(ns[i].x,ns[i].y); ctx.stroke();
+    // travelling current head (tail -> head)
+    if(f<1){ const fp=f*(ns.length-1); const i0=Math.floor(fp), i1=Math.min(ns.length-1,i0+1), t=fp-i0;
+      const hx=ns[i0].x+(ns[i1].x-ns[i0].x)*t, hy=ns[i0].y+(ns[i1].y-ns[i0].y)*t;
+      ctx.globalAlpha=1; ctx.fillStyle='#fff'; ctx.shadowColor=z.hi; ctx.shadowBlur=20; ctx.beginPath(); ctx.arc(hx,hy,5,0,7); ctx.fill(); }
+    ctx.restore(); ctx.globalAlpha=1; ctx.shadowBlur=0;
+  }
+  function drawHint(){
+    // a looping demo trace along the top surface of the pile
+    let best=null;
+    for(let c=0;c<COLS-2;c++){ const r=topR(c); if(r>=ROWS) continue; const i0=cellAt(c,r); if(i0<0||cells[i0].rust) continue;
+      const col=cells[i0].color; const seq=[i0]; let cc=c;
+      while(seq.length<5 && cc+1<COLS){ const nr=topR(cc+1); let found=-1; for(let dr=-1;dr<=1;dr++){ const ni=cellAt(cc+1,nr+dr); if(ni>=0&&!cells[ni].rust&&cells[ni].color===col&&adjacent(seq[seq.length-1],ni)){ found=ni; break; } } if(found<0) break; seq.push(found); cc++; }
+      if(seq.length>=3){ best=seq; break; } }
+    if(!best) return;
+    const ns=wireNodes(best); const ph=(performance.now()/1600)%1; const e=ph<0.75?ph/0.75:1;
+    const fp=e*(ns.length-1), i0=Math.floor(fp), i1=Math.min(ns.length-1,i0+1), t=fp-i0;
+    const hx=ns[i0].x+(ns[i1].x-ns[i0].x)*t, hy=ns[i0].y+(ns[i1].y-ns[i0].y)*t;
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.strokeStyle='rgba(214,248,74,0.55)'; ctx.lineWidth=3; ctx.setLineDash([2,7]); ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(ns[0].x,ns[0].y); for(let i=1;i<ns.length;i++) ctx.lineTo(ns[i].x,ns[i].y); ctx.stroke(); ctx.setLineDash([]);
+    if(ph<0.78){ ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.shadowColor='#d6f84a'; ctx.shadowBlur=14; ctx.beginPath(); ctx.arc(hx,hy,7,0,7); ctx.fill(); }
+    ctx.shadowBlur=0; ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle='rgba(214,248,74,0.75)'; ctx.font='bold 12px ui-monospace,monospace'; ctx.textAlign='center'; ctx.fillText('trace to link', ns[0].x+ (ns[ns.length-1].x-ns[0].x)/2, ns[0].y-18); ctx.restore();
+  }
+
+  // debug hook
+  window.__weave={ COL,K,COLS,ROWS, get cells(){return cells;}, cellAt, adjacent, gainFor, growStep, settle, rebuild, oxidise,
+    getScore:()=>score, getState:()=>state, setState:v=>state=v, getDanger:()=>danger, maxHeight, rustTime,
+    getRust:()=>rustCount, countRust(){ let n=0; for(const c of cells) if(c.rust) n++; return n; },
+    // trace+discharge a wire by cell indices (validates adjacency/colour), returns gain or -1
+    wire(indices){ if(state!=='play') return -1; path=[]; pathColor=-1; for(const ci of indices){ const before=path.length; tryExtend(ci); if(path.length===before) return -1; } const len=path.length; if(len<K){ cancelPath(); return -1; } const g=gainFor(len); discharge(); return g; },
+    // greedily find one same-colour wire of length>=K from the surface, return its indices
+    findWire(){ for(let c=0;c<COLS;c++){ for(let r=topR(c); r<ROWS; r++){ const i0=cellAt(c,r); if(i0<0||cells[i0].rust) continue;
+        const seen=new Set([i0]); const seq=[i0]; let cur=i0;
+        while(true){ const cl=cells[cur]; let nx=-1; for(const [dc,dr] of ADJ){ const ni=cellAt(cl.c+dc,cl.r+dr); if(ni>=0&&!cells[ni].rust&&cells[ni].color===cells[i0].color&&!seen.has(ni)){ nx=ni; break; } } if(nx<0) break; seen.add(nx); seq.push(nx); cur=nx; }
+        if(seq.length>=K) return seq; } } return null; },
+    force(c,r,color,rust){ cells.push({id:idn++,c,r,color,oy:0,pop:0,born:0,age:0,rust:!!rust}); rebuild(); }, clear(){ cells=[]; rebuild(); } };
+
+  reset(true); last=performance.now(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

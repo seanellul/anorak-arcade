@@ -98,7 +98,7 @@
   <div class="overlay" id="title">
     <h2 class="title">SUR<span style="color:#5be8ff">GE</span></h2>
     <p>Charged orbs drift in and pile up. When your <b style="color:#ffd23f">charge</b> is full, <b style="color:#eaf0ff">tap the field</b> to fire an arc — it rips through every orb in reach, and each one detonates its neighbours.</p>
-    <p>A tight cluster makes a <b style="color:#5be8ff">screen-wide chain</b>. Wait for density to score big — but if the field packs past the <b style="color:#ff4d6d">limit</b>, it overloads.</p>
+    <p>A tight cluster makes a <b style="color:#5be8ff">screen-wide chain</b>. Wait for density — but an orb left too long <b style="color:#6b7184">burns out into a dead husk</b> (it flickers grey first) that blocks chains; only a long chain (×6+) clears them. Race the burnout, and don't pack past the <b style="color:#ff4d6d">limit</b>.</p>
     <button id="startBtn">CHARGE ▶</button>
     <div class="statline"><span class="key">tap / click</span> detonate &nbsp; <span class="key">P</span> pause</div>
   </div>
@@ -111,7 +111,7 @@
   <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
 </div>
 <div class="foot">
-  One tap when charged. The arc chains through any orbs within reach of each other — <b style="color:#5be8ff">herd them into clusters</b> and the chain explodes in length. Longer chains score exponentially and clear the field, buying you room. Charge refills over time; pick your moment.
+  One tap when charged. The arc chains through any orbs within reach of each other — <b style="color:#5be8ff">herd them into clusters</b> and the chain explodes in length. Orbs left too long <b style="color:#6b7184">burn out into dead husks</b> (they flicker grey first) that break chains; only a long chain (×6+) vaporizes them. So herd density and fire before it burns. Longer chains score exponentially and buy room. Charge refills over time; pick your moment.
 </div>
 <script src="juice.js"></script>
 <script src="stats.js"></script>
@@ -130,6 +130,14 @@
   const CAP = MOBILE?54:66;           // overflow capacity
   const STEP = 26;                    // ms between chain hops (the ripple speed)
   const CHARGE_MS_0 = 2100;
+  // inert husks: an orb grazed by chains too many times without popping burns out into dead,
+  // chain-blocking matter (the ratchet). Only a long chain sweeping past vaporizes it.
+  const HUSK_N = 3, HUSK_CLEAR_MIN = 6, HUSK_COL='#474c5b', HUSK_HI='#6b7184', HUSK_LO='#23262f';
+  // an orb left un-popped for this long BURNS OUT on its own (the clock-squeeze that guarantees a loss
+  // curve in a self-emptying field) — and it bounds "wait for density": herd and fire before they burn.
+  // Window tightens as you score. Telegraphed by a flicker over the last third of an orb's life.
+  const HUSK_AGE_START = 6800, HUSK_AGE_MIN = 3400, HUSK_AGE_K = 0.05;
+  function huskAge(){ return Math.max(HUSK_AGE_MIN, HUSK_AGE_START - score*HUSK_AGE_K); }
   const STARS=[]; for(let i=0;i<46;i++) STARS.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.2+0.3,p:Math.random()*7,sp:0.5+Math.random()});
 
   // ---- state ----
@@ -164,7 +172,7 @@
         const ang=Math.random()*7, sp=0.12+Math.random()*0.18;
         const super_= Math.random()<0.08;                          // rare supercharged node (bigger reach, worth more)
         orbs.push({id:idc.n++, x,y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, r: super_?ORB_R*1.5:ORB_R,
-          ig:0, igAt:0, px:0, py:0, ph:Math.random()*7, born:1, sup:super_});
+          ig:0, igAt:0, px:0, py:0, ph:Math.random()*7, born:1, sup:super_, husk:false, missed:0, age:0});
         if(!anywhere){ fx.ring(x,y,ORB_R*3,'#5be8ff',{lw:1.5,decay:0.08}); J.tone(420+Math.random()*80,0.04,'sine',0.02); }
         return true;
       }
@@ -181,17 +189,17 @@
     sfxZap();
     if(navigator.vibrate) try{navigator.vibrate(12);}catch(e){}
     let seeded=0;
-    for(const o of orbs){ if(o.ig) continue; const d=Math.hypot(o.x-x,o.y-y); if(d<BLAST0){ o.ig=1; o.igAt=T + (d/BLAST0)*STEP; o.px=x; o.py=y; seeded++; } }
-    if(seeded===0){ // fizzle — wasted charge, clear feedback
+    for(const o of orbs){ if(o.ig||o.husk) continue; const d=Math.hypot(o.x-x,o.y-y); if(d<BLAST0){ o.ig=1; o.igAt=T + (d/BLAST0)*STEP; o.px=x; o.py=y; seeded++; } }
+    if(seeded===0){ // fizzle — wasted charge, clear feedback (and a missed beat still scorches survivors)
       fx.float(x,y,'FIZZLE','#7e89ad',{size:16,vy:-0.5}); J.tone(120,0.18,'sawtooth',0.05); fx.burst(x,y,'#46506e',6,{spread:1.5,decay:0.06,r:2});
-      chain=null; return;
+      tickHusks([[x,y]], BLAST0*1.6); chain=null; return;
     }
-    chain={count:0, gain:0, x, y, sup:0};
+    chain={count:0, gain:0, x, y, sup:0, pts:[]};
   }
 
   function popOrb(o){
     o.ig=2;
-    chain.count++; chain.sup += o.sup?1:0;
+    chain.count++; chain.sup += o.sup?1:0; chain.pts.push([o.x,o.y]);
     const add = Math.round((10*chain.count) * (o.sup?2.2:1));
     chain.gain += add;
     score += add;
@@ -204,14 +212,38 @@
     const f = 240*Math.pow(1.045, Math.min(60,chain.count)) * (o.sup?1.5:1);
     J.tone(f,0.09,'triangle',0.045, 0);
     if(o.sup) J.tone(f*0.5,0.18,'sine',0.06);
-    // seed neighbours
-    for(const n of orbs){ if(n.ig) continue; const dx=n.x-o.x, dy=n.y-o.y; const reach=LINK*(o.sup?1.4:1); if(dx*dx+dy*dy < reach*reach){ n.ig=1; n.igAt=T+STEP; n.px=o.x; n.py=o.y; } }
+    // seed neighbours (husks are dead — they block the chain)
+    for(const n of orbs){ if(n.ig||n.husk) continue; const dx=n.x-o.x, dy=n.y-o.y; const reach=LINK*(o.sup?1.4:1); if(dx*dx+dy*dy < reach*reach){ n.ig=1; n.igAt=T+STEP; n.px=o.x; n.py=o.y; } }
+  }
+
+  // ---- husks (the ratchet) ----
+  let huskCount=0;
+  function makeHusk(o){ o.husk=true; o.ig=0; o.missed=0; o.vx*=0.25; o.vy*=0.25;
+    fx.burst(o.x,o.y, HUSK_HI, 7, {spread:1.6,decay:0.05,r:1.8,grav:0.04}); fx.ring(o.x,o.y,o.r*3.2, HUSK_COL,{lw:1.5,decay:0.08});
+    J.tone(95,0.16,'sine',0.045); J.tone(60,0.2,'sine',0.03,0.03); }
+  // orbs that survived within `rad` of any point in `pts` get scorched (missed++ → husk)
+  function tickHusks(pts, rad){ const r2=rad*rad;
+    for(const o of orbs){ if(o.husk||o.ig) continue;
+      let graze=false; for(const p of pts){ const dx=o.x-p[0], dy=o.y-p[1]; if(dx*dx+dy*dy<r2){ graze=true; break; } }
+      if(graze){ o.missed=(o.missed||0)+1; if(o.missed>=HUSK_N) makeHusk(o); }
+    }
+  }
+  // a long chain sweeping past vaporizes husks near its popped path
+  function clearHusksNear(pts, rad){ const r2=rad*rad; let cleared=0;
+    for(const o of orbs){ if(!o.husk) continue;
+      for(const p of pts){ const dx=o.x-p[0], dy=o.y-p[1]; if(dx*dx+dy*dy<r2){ o.ig=2; cleared++;
+        fx.burst(o.x,o.y,'#9fe0ff',8,{spread:2.4,decay:0.05,r:2}); fx.ring(o.x,o.y,o.r*4,'#cfe6ff',{lw:2,decay:0.07}); break; } }
+    }
+    if(cleared){ orbs=orbs.filter(o=>o.ig!==2); J.tone(520,0.12,'triangle',0.05); J.tone(780,0.14,'sine',0.04,0.05); fx.float(pts[0][0],pts[0][1]-30,'+'+cleared+' CLEARED','#cfe6ff',{size:16,vy:-0.5}); }
   }
 
   function finalizeChain(){
     const c=chain; chain=null;
     lastChain=c.count;
     best=Math.max(best,c.count);
+    // the chain scorches survivors at its fringe, and — if long enough — vaporizes husks it swept past
+    if(c.pts.length){ tickHusks(c.pts, LINK*1.35);
+      if(c.count>=HUSK_CLEAR_MIN) clearHusksNear(c.pts, LINK*1.25); }
     const big = c.count>=8;
     if(c.count>=14 && !REDUCE) slowmoT=Math.min(620, 240+c.count*16);
     flash=Math.max(flash, Math.min(0.9, 0.2+c.count*0.04));
@@ -330,9 +362,13 @@
       // spawn
       spawnT-=dt;
       if(spawnT<=0){ spawnOrb(false); spawnT=spawnEvery; }
-      // self-scaling ramp
-      levelT+=dt; if(levelT>6000){ levelT=0; spawnEvery=Math.max(360,spawnEvery*0.92); chargeMs=Math.max(1300,chargeMs*0.97); }
-      // pressure
+      // self-scaling ramp (monotonic, never resets — the non-resetting accelerator)
+      levelT+=dt; if(levelT>4200){ levelT=0; spawnEvery=Math.max(270,spawnEvery*0.90); chargeMs=Math.max(1150,chargeMs*0.965); }
+      // burnout clock: orbs left un-popped past the (tightening) window burn out into husks
+      const ha=huskAge();
+      for(const o of orbs){ if(o.husk||o.ig) continue; o.age+=dt; if(o.age>=ha) makeHusk(o); }
+      // pressure (husks are dead weight that counts toward overload)
+      huskCount=0; for(const o of orbs) if(o.husk) huskCount++;
       danger = Math.min(1, orbs.length/CAP);
       if(orbs.length>=CAP) gameOver();
       // danger heartbeat
@@ -371,15 +407,15 @@
 
     // proximity links between idle orbs (shows where chains will flow) — cheap, only near pairs
     ctx.globalCompositeOperation='lighter';
-    for(let i=0;i<orbs.length;i++){ const a=orbs[i]; if(a.ig) continue;
-      for(let j=i+1;j<orbs.length;j++){ const b=orbs[j]; if(b.ig) continue; const dx=b.x-a.x,dy=b.y-a.y; const d2=dx*dx+dy*dy; if(d2<LINK*LINK){ const d=Math.sqrt(d2); const al=(1-d/LINK)*0.16; ctx.globalAlpha=al; ctx.strokeStyle='#5be8ff'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); } }
+    for(let i=0;i<orbs.length;i++){ const a=orbs[i]; if(a.ig||a.husk) continue;
+      for(let j=i+1;j<orbs.length;j++){ const b=orbs[j]; if(b.ig||b.husk) continue; const dx=b.x-a.x,dy=b.y-a.y; const d2=dx*dx+dy*dy; if(d2<LINK*LINK){ const d=Math.sqrt(d2); const al=(1-d/LINK)*0.16; ctx.globalAlpha=al; ctx.strokeStyle='#5be8ff'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); } }
     }
     ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
 
     // orbs (glow + core) — pulse faster + jitter as the field nears overload (nervous energy)
     const pulDiv = 300 - danger*210, jit = danger>0.55 ? (danger-0.55)*4 : 0;
     ctx.globalCompositeOperation='lighter';
-    for(const o of orbs){ o.jx=(Math.random()-.5)*jit; o.jy=(Math.random()-.5)*jit; const ox=o.x+o.jx, oy=o.y+o.jy;
+    for(const o of orbs){ if(o.husk){ o.jx=0; o.jy=0; continue; } o.jx=(Math.random()-.5)*jit; o.jy=(Math.random()-.5)*jit; const ox=o.x+o.jx, oy=o.y+o.jy;
       const pul=0.6+0.4*Math.sin(tt/pulDiv+o.ph); const gr=o.r*(o.sup?3.4:2.6)*pul;
       // base cyan/gold, warming toward danger
       const col=o.sup?'#ffd23f':(danger>0.6?'#9fe0ff':'#5be8ff');
@@ -388,9 +424,17 @@
     }
     ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
     for(const o of orbs){ const sc=o.born>0?(1-o.born)*1.0+0.2:1; const ox=o.x+(o.jx||0), oy=o.y+(o.jy||0);
+      if(o.husk){ // dead grey rock — no charge, blocks chains
+        const g=ctx.createRadialGradient(ox-o.r*0.3,oy-o.r*0.35,o.r*0.1,ox,oy,o.r); g.addColorStop(0,HUSK_HI); g.addColorStop(0.5,HUSK_COL); g.addColorStop(1,HUSK_LO);
+        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(ox,oy,o.r,0,7); ctx.fill();
+        ctx.strokeStyle='rgba(0,0,0,0.5)'; ctx.lineWidth=1.1; ctx.beginPath(); ctx.moveTo(ox-o.r*0.5,oy-o.r*0.15); ctx.lineTo(ox,oy+o.r*0.15); ctx.lineTo(ox+o.r*0.5,oy-o.r*0.05); ctx.stroke();
+        continue; }
       ctx.fillStyle=o.sup?'#fff6cf':'#dff6ff'; ctx.beginPath(); ctx.arc(ox,oy,o.r*0.6*sc,0,7); ctx.fill();
       ctx.strokeStyle=o.sup?'#ffd23f':'#5be8ff'; ctx.lineWidth=o.sup?2.5:2; ctx.beginPath(); ctx.arc(ox,oy,o.r*sc,0,7); ctx.stroke();
       if(o.sup){ ctx.globalAlpha=0.5+0.5*Math.sin(tt/140+o.ph); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(ox,oy,o.r*sc+3,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+      // burnout telegraph — grey film flickers in over the last third of the orb's life
+      { const ha=huskAge(); if(o.age>ha*0.62){ const af=Math.min(1,(o.age-ha*0.62)/(ha*0.38)); const fl=0.4+0.6*Math.abs(Math.sin(tt/(110-af*78)+o.ph));
+        ctx.globalAlpha=af*fl*0.8; ctx.fillStyle=HUSK_COL; ctx.beginPath(); ctx.arc(ox,oy,o.r*sc*0.96,0,7); ctx.fill(); ctx.globalAlpha=1; } }
     }
 
     // arcs (lightning) — colored glow halo, then white-hot core, plus forks
@@ -456,8 +500,9 @@
 
   // debug hook (inert in normal play)
   window.__surge={ get orbs(){return orbs;}, spawnOrb, detonate, LINK, CAP, getScore:()=>score, getBest:()=>best, getState:()=>state, setState:v=>state=v,
-    setCharge:v=>charge=v, getChain:()=>chain, get T(){return T;}, step(ms){ T+=ms; if(chain){ for(const o of orbs){ if(o.ig===1&&o.igAt<=T) popOrb(o);} orbs=orbs.filter(o=>o.ig!==2); let act=false; for(const o of orbs) if(o.ig===1){act=true;break;} if(!act) finalizeChain(); } },
-    place(x,y){ orbs.push({id:idc.n++,x,y,vx:0,vy:0,r:ORB_R,ig:0,igAt:0,px:0,py:0,ph:0,born:0,sup:false}); }, getLast:()=>lastChain };
+    setCharge:v=>charge=v, getCharge:()=>charge, getChain:()=>chain, get T(){return T;}, makeHusk, getHusks(){ let n=0; for(const o of orbs) if(o.husk) n++; return n; },
+    step(ms){ T+=ms; if(chain){ for(const o of orbs){ if(o.ig===1&&o.igAt<=T) popOrb(o);} orbs=orbs.filter(o=>o.ig!==2); let act=false; for(const o of orbs) if(o.ig===1){act=true;break;} if(!act) finalizeChain(); } },
+    place(x,y){ const o={id:idc.n++,x,y,vx:0,vy:0,r:ORB_R,ig:0,igAt:0,px:0,py:0,ph:0,born:0,sup:false,husk:false,missed:0,age:0}; orbs.push(o); return o; }, getLast:()=>lastChain, huskAge };
 
   reset(true); last=performance.now(); requestAnimationFrame(loop);
 })();
