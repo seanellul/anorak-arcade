@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout arcade
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Clone Motherload (public)
         run: git clone --depth 1 https://github.com/seanellul/motherload.git /tmp/motherload
