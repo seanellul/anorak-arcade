@@ -10,7 +10,7 @@
   const LOCAL = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|.*\.local)$/i.test(location.hostname);
   if (API && LOCAL) try { console.info('[GameStats] local dev — leaderboard writes disabled (reads still live).'); } catch (e) {}
   const SKEY='aa.stats', CKEY='aa.clientId', NKEY='aa.name';
-  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','MOTHERLOAD'];
+  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','MOTHERLOAD'];
 
   const lget=k=>{ try{return localStorage.getItem(k);}catch(e){return null;} };
   const lset=(k,v)=>{ try{localStorage.setItem(k,v);}catch(e){} };

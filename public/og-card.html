@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OG card generator — Anorak Arcade</title>
+<style>
+  *{margin:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  body{position:relative;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#eaf0ff;
+    background:radial-gradient(1400px 900px at 50% -20%, #161a36, #080611 60%) #080611}
+  .grid{position:absolute;inset:0;opacity:.5;background-image:radial-gradient(rgba(255,255,255,.045) 1.4px, transparent 1.4px);background-size:34px 34px}
+  .scan{position:absolute;inset:0;opacity:.32;mix-blend-mode:multiply;background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 3px,rgba(0,0,0,.22) 3px 6px)}
+  .orb{position:absolute;border-radius:50%;filter:blur(70px)}
+  .o1{width:300px;height:300px;right:120px;top:30px}
+  .o2{width:200px;height:200px;right:300px;bottom:60px}
+  .o3{width:160px;height:160px;right:80px;bottom:160px}
+  .wrap{position:absolute;inset:0;padding:74px 80px;display:flex;flex-direction:column;justify-content:space-between}
+  .top{display:flex;align-items:center;gap:18px}
+  .logo{width:46px;height:46px;border-radius:11px;background:#080611;border:1px solid #2a2447;position:relative}
+  .logo::after{content:"";position:absolute;inset:11px;border-radius:5px;background:var(--c);transform:rotate(45deg);box-shadow:0 0 16px var(--c)}
+  .brand{font-size:24px;letter-spacing:.34em;font-weight:700;color:#cdd6e6}
+  .kick{margin-left:auto;font-size:16px;letter-spacing:.26em;color:#9aa3c8;border:1px solid #2a2447;border-radius:999px;padding:9px 20px;background:rgba(18,14,34,.5)}
+  .mid{margin-top:2px}
+  .verb{font-size:22px;letter-spacing:.34em;color:var(--c);font-weight:700;margin-bottom:12px;text-transform:uppercase}
+  .title{font-size:150px;line-height:.9;font-weight:800;letter-spacing:.02em}
+  .title span{color:var(--c);text-shadow:0 0 40px var(--c)}
+  .lede{margin-top:26px;font-size:31px;line-height:1.45;color:#c4cde0;max-width:1000px}
+  .lede b{color:#fff}
+  .bottom{display:flex;align-items:center;gap:14px}
+  .chip{font-size:20px;letter-spacing:.16em;font-weight:700;background:rgba(18,14,34,.72);border:1px solid #2a2447;border-radius:999px;padding:11px 22px;color:#dbe3f1}
+  .url{margin-left:auto;font-size:22px;letter-spacing:.06em;color:#9aa3c8}
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div>
+  <div class="scan"></div>
+  <div class="wrap">
+    <div class="top"><span class="logo"></span><span class="brand">ANORAK ARCADE</span><span class="kick" id="kick">PROTOTYPE</span></div>
+    <div class="mid">
+      <div class="verb" id="verb">VERB</div>
+      <div class="title" id="title">TITLE</div>
+      <div class="lede" id="lede">tagline</div>
+    </div>
+    <div class="bottom"><span class="chip" id="chip">order from chaos</span><span class="url">anorak-arcade.pages.dev</span></div>
+  </div>
+<script>
+  const q=new URLSearchParams(location.search);
+  const c=q.get('c')||'#ff5ec7', c2=q.get('c2')||c, c3=q.get('c3')||c;
+  document.body.style.setProperty('--c', c);
+  document.querySelector('.o1').style.background='radial-gradient(circle,'+c+',transparent 70%)'; document.querySelector('.o1').style.opacity=.55;
+  document.querySelector('.o2').style.background='radial-gradient(circle,'+c2+',transparent 70%)'; document.querySelector('.o2').style.opacity=.5;
+  document.querySelector('.o3').style.background='radial-gradient(circle,'+c3+',transparent 70%)'; document.querySelector('.o3').style.opacity=.45;
+  const t=q.get('t')||'NOVA'; const split=Math.ceil(t.length/2);
+  document.getElementById('title').innerHTML=t.slice(0,split)+'<span>'+t.slice(split)+'</span>';
+  document.getElementById('verb').textContent=q.get('v')||'fusion';
+  document.getElementById('lede').innerHTML=q.get('l')||'';
+  document.getElementById('chip').textContent=q.get('p')||'';
+  document.title='og';
+</script>
+</body>
+</html>

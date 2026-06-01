@@ -1,8 +1,16 @@
-# Anorak Arcade — research → 4 playable prototypes
+# Anorak Arcade — research → 8 playable prototypes
 
 A deep study of *why Tetris works* — history, mechanics, neuroscience, and game theory — distilled
-into **8 design pillars**, then rebuilt as **4 playable prototypes** that capture the same
-psychology with **four different core verbs** and **no falling tetrominoes or line clears**.
+into **8 design pillars**, then rebuilt as **8 playable prototypes** that capture the same
+psychology with **eight different core verbs** and **no falling tetrominoes or line clears**.
+
+Wave 1 (CINDER · SHIFT · CONDUIT · HOMEOSTAT) edits a *static* field with *continuous* action.
+**Wave 2** breaks both assumptions: **NOVA** lives in real physics (drop & merge), and **SURGE** is a
+*loaded-spring* loop (set the field up, then unleash one gambled chain). **Wave 3** fills the last empty
+matrix cells: **CLEAVE** imposes order by *division* (swipe to slice a crystal into pure shards) and
+**FLUX** routes a *live* analog stream (drop magnetic poles to bend particles home). All four are built
+mobile-first and as maximum-juice showcases — see `public/research/04-prototype-wave-2.md`,
+`05-prototype-wave-3.md` and `06-juice-log.md`.
 
 ## Repo layout
 
@@ -102,6 +110,10 @@ for auto-deploy on every push.
 | **SHIFT** `shift.html` | **shift** | Slide rising rock layers to align mineral veins and cascade them | perpetual pressure · order-from-chaos |
 | **CONDUIT** `conduit.html` | **rotate** | Rotate nodes to channel a rhythmic pulse to its sink before overload | tension→resolution rhythm · self-scaling |
 | **HOMEOSTAT** `homeostat.html` | **allocate** | One feed stream, many draining reactors — keep each in its flow band | perpetual pressure · loss-aversion |
+| **NOVA** `nova.html` | **fuse** | Drop motes into a gravity basin; equal masses fuse upward to a supernova | order-from-chaos (synthesis) · physics juice |
+| **SURGE** `surge.html` | **trigger** | Load the field with drifting charged orbs, then unleash one chain | tension→resolution (loaded spring) · perpetual pressure |
+| **CLEAVE** `cleave.html` | **cut** | Slice a growing crystal so its pure-color veins shatter off | order-by-division · risk/reward release |
+| **FLUX** `flux.html` | **bend** | Drop magnetic poles to curve a live particle stream into matching collectors | route a live stream · perpetual pressure |
 
 Each shares the Tetris loop — **open loops faster than they close, under one self-scaling pressure,
 with transparent state and skill-contingent release** — but tests a different relationship to
@@ -122,7 +134,13 @@ all pages share one origin.
    marketing/disputed claims flagged.
 2. **`02-design-pillars.md`** — the 8 transferable pillars as a buildable spec + the neuro-loop
    diagram + a "is it Tetris-shaped?" acceptance test.
-3. **`03-prototype-rationale.md`** — how each of the 4 builds maps back to the research.
+3. **`03-prototype-rationale.md`** — how each of the 4 Wave-1 builds maps back to the research.
+4. **`04-prototype-wave-2.md`** — Wave 2 (NOVA & SURGE): the two new loops and the new axes they test
+   (dynamic physical substrate; the loaded-spring / delayed-trigger gamble).
+5. **`05-prototype-wave-3.md`** — Wave 3 (a separate track): two further loops filling the remaining
+   cells of the verb matrix.
+6. **`06-juice-log.md`** — the six dedicated game-feel cycles each Wave-2 game received, and the
+   reusable juice techniques (time-dilation apex, anticipation telegraphs, legible pressure).
 
 ## How these were validated
 
@@ -133,6 +151,10 @@ eyeballed:
 - **CONDUIT** — a complete source→sink path delivers; a broken one fails; restoring re-delivers.
 - **HOMEOSTAT** — dies unattended in ~5s (real pressure) yet survives & scores with competent play;
   drain ramp guarantees eventual loss.
+- **NOVA** — two equal-tier motes in contact fuse to the next tier; unequal tiers don't; the physics
+  solver runs cascades without error (and naturally-stacked equal motes fuse on contact).
+- **SURGE** — a connected cluster fully chains; isolated orbs don't; an uncharged tap is a no-op; the
+  field overloads at capacity.
 
 Each game exposes a small `window.__<name>` debug hook used by those tests; it's inert during normal
 play.

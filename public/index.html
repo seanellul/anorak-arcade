@@ -164,7 +164,7 @@ a.card.v2.feature .body p{max-width:560px}
       <a class="btn ghost" href="#prototypes">EXPLORE PROTOTYPES</a>
     </div>
     <div class="metarow">
-      <div class="m"><b>5</b><span>GAMES</span></div>
+      <div class="m"><b>9</b><span>GAMES</span></div>
       <div class="m"><b>0</b><span>DEPENDENCIES</span></div>
       <div class="m"><b>100%</b><span>HTML5 CANVAS</span></div>
       <div class="m"><b>∞</b><span>RETRIES</span></div>
@@ -226,6 +226,42 @@ a.card.v2.feature .body p{max-width:560px}
         <div class="pill">perpetual pressure · loss-aversion</div>
       </div>
     </a>
+    <a class="card v2 reveal" href="nova.html" style="--c:#ff5ec7">
+      <span class="demo"><canvas data-demo="nova"></canvas><span class="verb">FUSION</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>NOVA</h2>
+        <div class="tag">fusion · drop &amp; merge</div>
+        <p>Drop glowing motes into a gravity basin. Equal masses fuse upward — bigger, brighter, worth more — chaining toward a supernova. Don't let the stack crest the rim.</p>
+        <div class="pill">synthesis · physics juice</div>
+      </div>
+    </a>
+    <a class="card v2 reveal" href="surge.html" style="--c:#ffd23f">
+      <span class="demo"><canvas data-demo="surge"></canvas><span class="verb">CHAIN REACTION</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>SURGE</h2>
+        <div class="tag">chain reaction · load &amp; unleash</div>
+        <p>Charged orbs drift and pile up. Spend a charge to fire an arc that rips through the cluster — every orb detonates its neighbours. Wait for density; don't overload.</p>
+        <div class="pill">loaded spring · tension→release</div>
+      </div>
+    </a>
+    <a class="card v2 reveal" href="cleave.html" style="--c:#3fe0c2">
+      <span class="demo"><canvas data-demo="cleave"></canvas><span class="verb">DIVISION</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>CLEAVE</h2>
+        <div class="tag">division · slice &amp; partition</div>
+        <p>A crystal grows from a colored stream. Swipe to cleave straight through it — any pure-color vein your cut crosses shatters. Grow a region big before you slice; the chamber is filling.</p>
+        <div class="pill">order-by-division · risk/reward release</div>
+      </div>
+    </a>
+    <a class="card v2 reveal" href="flux.html" style="--c:#6c8cff">
+      <span class="demo"><canvas data-demo="flux"></canvas><span class="verb">LIVE STREAM</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>FLUX</h2>
+        <div class="tag">live stream · bend with magnets</div>
+        <p>Charged particles pour down the field. Hold to drop a magnetic pole that bends them toward their matching collector. Bank a color streak — or let the spill overflow.</p>
+        <div class="pill">route a live stream · perpetual pressure</div>
+      </div>
+    </a>
   </div>
 
   <section class="playtime reveal">
@@ -253,8 +289,8 @@ a.card.v2.feature .body p{max-width:560px}
    playtime panel (unchanged from prod)
    ===================================================================== */
 (()=>{
-  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',MOTHERLOAD:'#e8a13a'};
-  const ORDER=['MOTHERLOAD','CINDER','SHIFT','CONDUIT','HOMEOSTAT'];
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',MOTHERLOAD:'#e8a13a'};
+  const ORDER=['MOTHERLOAD','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX'];
   function render(){
     if(!window.GameStats) return;
     const all=GameStats.all(); const map={}; all.forEach(a=>map[a.game]=a);
@@ -523,6 +559,128 @@ a.card.v2.feature .body p{max-width:560px}
     }, onResize:reset};
   }
 
+  /* ---------- NOVA: motes drop into a basin, fuse upward with a bloom ---------- */
+  function nova(g){
+    const {ctx}=g; const COL=['#3f7fd0','#46c6e0','#33d6b0','#7ee06b','#ffd23f','#ff5ec7'];
+    let balls,drop,t=0,dropT=0,flash=null;
+    function radFor(tier){ return 7+tier*4; }
+    function reset(){ balls=[]; drop=null; dropT=0; flash=null;
+      // a settled row along the bottom
+      let x=14; while(x<g.w-10){ const tier=Math.random()<0.5?0:(Math.random()<0.6?1:2); const r=radFor(tier); balls.push({x:x+r,y:g.h-r-3,tier,r,bob:Math.random()*7}); x+=r*2+3; } }
+    reset();
+    function mkDrop(){ const tier=Math.random()<0.7?0:1; drop={x:14+Math.random()*(g.w-28),y:-8,vy:0,tier,r:radFor(tier)}; }
+    return {step(dt){ t+=dt; dropT+=dt;
+      if(!drop && dropT>900){ dropT=0; mkDrop(); }
+      if(drop){ drop.vy+=0.5*dt/16; drop.y+=drop.vy*dt/16; const rest=g.h-drop.r-3;
+        if(drop.y>=rest){ drop.y=rest;
+          // try to fuse with an equal-tier neighbour
+          let fused=false;
+          for(const b of balls){ if(b.tier===drop.tier && Math.abs(b.x-drop.x)<b.r+drop.r+6){ b.tier=Math.min(COL.length-1,b.tier+1); b.r=radFor(b.tier); b.y=g.h-b.r-3; flash={x:b.x,y:b.y,r:b.r,t:1,c:COL[b.tier]}; fused=true; break; } }
+          if(!fused){ balls.push({x:drop.x,y:rest,tier:drop.tier,r:drop.r,bob:Math.random()*7}); flash={x:drop.x,y:drop.y,r:drop.r,t:0.7,c:COL[drop.tier]}; }
+          drop=null;
+          // keep the basin from overfilling
+          if(balls.length>Math.ceil(g.w/22)) reset();
+        }
+      }
+      ctx.clearRect(0,0,g.w,g.h);
+      // glow + bodies
+      ctx.globalCompositeOperation='lighter';
+      for(const b of balls){ const gr=b.r*2.2; const rad=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,gr); rad.addColorStop(0,COL[b.tier]); rad.addColorStop(1,'rgba(0,0,0,0)'); ctx.globalAlpha=.5; ctx.fillStyle=rad; ctx.beginPath(); ctx.arc(b.x,b.y,gr,0,7); ctx.fill(); }
+      ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+      for(const b of balls){ const yy=b.y+Math.sin(t/400+b.bob)*1.2; ctx.fillStyle=COL[b.tier]; ctx.beginPath(); ctx.arc(b.x,yy,b.r,0,7); ctx.fill(); ctx.fillStyle='rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(b.x-b.r*0.3,yy-b.r*0.35,b.r*0.22,0,7); ctx.fill(); }
+      if(drop){ ctx.fillStyle=COL[drop.tier]; ctx.beginPath(); ctx.arc(drop.x,drop.y,drop.r,0,7); ctx.fill(); }
+      if(flash){ flash.t-=dt/350; if(flash.t<=0)flash=null; else { ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=flash.t; ctx.strokeStyle=flash.c; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(flash.x,flash.y,flash.r*(1+(1-flash.t)*1.6),0,7); ctx.stroke(); ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over'; } }
+    }, onResize:reset};
+  }
+
+  /* ---------- SURGE: drifting orbs, periodic chain reaction of lightning ---------- */
+  function surge(g){
+    const {ctx}=g; let orbs,t=0,chainT=0,arcs=[],phase='idle',popQ=[],popT=0;
+    const LINK=Math.min(64,g.w/4);
+    function reset(){ orbs=[]; arcs=[]; phase='idle'; chainT=0; popQ=[];
+      const N=Math.round(g.w/22); for(let i=0;i<N;i++) orbs.push({x:14+Math.random()*(g.w-28),y:14+Math.random()*(g.h-28),vx:(Math.random()-.5)*.2,vy:(Math.random()-.5)*.2,r:5,ph:Math.random()*7,ig:false}); }
+    reset();
+    function startChain(){ // ignite the densest-ish orb, flood to neighbours
+      if(!orbs.length){ reset(); return; }
+      const seed=orbs[Math.random()*orbs.length|0]; seed.ig=true; popQ=[{o:seed,px:seed.x,py:seed.y,at:0}]; popT=0; phase='chain'; }
+    return {step(dt){ t+=dt;
+      for(const o of orbs){ o.x+=o.vx*dt/16; o.y+=o.vy*dt/16; if(o.x<8||o.x>g.w-8)o.vx*=-1; if(o.y<8||o.y>g.h-8)o.vy*=-1; }
+      if(phase==='idle'){ chainT+=dt; if(chainT>1500) startChain(); }
+      else if(phase==='chain'){ popT+=dt;
+        // process due pops
+        for(let i=popQ.length-1;i>=0;i--){ const p=popQ[i]; if(popT>=p.at){ popQ.splice(i,1); const o=p.o;
+          arcs.push({ax:p.px,ay:p.py,bx:o.x,by:o.y,t:1});
+          // seed neighbours
+          for(const n of orbs){ if(n.ig) continue; if(Math.hypot(n.x-o.x,n.y-o.y)<LINK){ n.ig=true; popQ.push({o:n,px:o.x,py:o.y,at:popT+90}); } }
+        } }
+        if(!popQ.length){ phase='cool'; chainT=0; }
+      } else { chainT+=dt; if(chainT>500) reset(); }
+      ctx.clearRect(0,0,g.w,g.h);
+      // links
+      ctx.globalCompositeOperation='lighter';
+      for(let i=0;i<orbs.length;i++){ const a=orbs[i]; if(a.ig)continue; for(let j=i+1;j<orbs.length;j++){ const b=orbs[j]; if(b.ig)continue; const d=Math.hypot(a.x-b.x,a.y-b.y); if(d<LINK){ ctx.globalAlpha=(1-d/LINK)*0.18; ctx.strokeStyle='#5be8ff'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); } } }
+      ctx.globalAlpha=1;
+      // orbs
+      for(const o of orbs){ if(o.ig)continue; const pul=.6+.4*Math.sin(t/300+o.ph); const gr=o.r*2.6*pul; const rad=ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,gr); rad.addColorStop(0,'#5be8ff'); rad.addColorStop(1,'rgba(0,0,0,0)'); ctx.globalAlpha=.5; ctx.fillStyle=rad; ctx.beginPath(); ctx.arc(o.x,o.y,gr,0,7); ctx.fill(); ctx.globalAlpha=1; ctx.fillStyle='#dff6ff'; ctx.beginPath(); ctx.arc(o.x,o.y,o.r*.6,0,7); ctx.fill(); ctx.strokeStyle='#5be8ff'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,7); ctx.stroke(); }
+      // arcs (lightning)
+      for(let i=arcs.length-1;i>=0;i--){ const a=arcs[i]; a.t-=dt/300; if(a.t<=0){arcs.splice(i,1);continue;} ctx.globalAlpha=a.t; ctx.shadowColor='#cfe6ff'; ctx.shadowBlur=8; ctx.strokeStyle='#cfe6ff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(a.ax,a.ay); const mx=(a.ax+a.bx)/2+(Math.random()-.5)*6, my=(a.ay+a.by)/2+(Math.random()-.5)*6; ctx.lineTo(mx,my); ctx.lineTo(a.bx,a.by); ctx.stroke(); ctx.shadowBlur=0; ctx.globalAlpha=a.t; ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.stroke(); }
+      ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+    }, onResize:reset};
+  }
+
+  /* ---------- CLEAVE: a colored crystal, sliced — a pure vein shatters into shards ---------- */
+  function cleave(g){
+    const {ctx}=g; const COL=['#36c8ff','#ff5e9c','#7ee06b','#ffc24d'];
+    let cell,COLS,ROWS,grid,t=0,slT=0,blade=null,shards=[];
+    function dims(){ cell=Math.ceil(g.w/9); COLS=Math.max(6,Math.round(g.w/cell)); ROWS=Math.max(4,Math.round(g.h/cell)); }
+    function fill(){ for(let c=0;c<COLS;c++){ let h=0; for(let r=0;r<ROWS;r++) if(grid[r*COLS+c]) h++; const add=2+Math.floor(Math.random()*(ROWS-2-h>0?ROWS-2-h:1)); let col=Math.random()*COL.length|0;
+      for(let r=ROWS-1-h;r>=ROWS-h-add && r>=0;r--){ if(Math.random()<0.3) col=Math.random()*COL.length|0; grid[r*COLS+c]=col+1; } } }
+    function reset(){ dims(); grid=new Int8Array(COLS*ROWS); fill(); shards=[]; blade=null; slT=0; }
+    reset();
+    function settle(){ for(let c=0;c<COLS;c++){ const st=[]; for(let r=0;r<ROWS;r++){ if(grid[r*COLS+c]) st.push(grid[r*COLS+c]); grid[r*COLS+c]=0; } let nr=ROWS-1; for(let i=st.length-1;i>=0;i--){ grid[nr*COLS+c]=st[i]; nr--; } } }
+    function slice(){ const r=ROWS-1-(Math.random()*Math.min(ROWS,4)|0);
+      const counts={}; for(let c=0;c<COLS;c++){ const v=grid[r*COLS+c]; if(v) counts[v]=(counts[v]||0)+1; }
+      let col=0,mx=0; for(const k in counts){ if(counts[k]>mx){mx=counts[k];col=+k;} } if(!col){ fill(); return; }
+      const y=r*cell+cell/2; blade={y, ang:(Math.random()-.5)*0.5, t:1};
+      const ox=(g.w-COLS*cell)/2;
+      for(let c=0;c<COLS;c++){ if(grid[r*COLS+c]===col){ const x=ox+c*cell+cell/2; for(let s=0;s<3;s++) shards.push({x,y,vx:(Math.random()-.5)*3,vy:-1-Math.random()*2,rot:Math.random()*7,vr:(Math.random()-.5)*.4,t:1,c:COL[col-1]}); grid[r*COLS+c]=0; } }
+      settle();
+    }
+    return {step(dt){ t+=dt; slT+=dt;
+      if(slT>1300){ slT=0; slice(); if(Math.random()<.5) fill(); }
+      let any=false; for(let i=0;i<grid.length;i++) if(grid[i]){any=true;break;} if(!any) fill();
+      ctx.clearRect(0,0,g.w,g.h); const ox=(g.w-COLS*cell)/2;
+      for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ const v=grid[r*COLS+c]; if(!v)continue; const px=ox+c*cell,py=r*cell; ctx.fillStyle=COL[v-1]; ctx.globalAlpha=.92; rr(ctx,px+1.5,py+1.5,cell-3,cell-3,3); ctx.globalAlpha=.2; ctx.fillStyle='#fff'; rr(ctx,px+1.5,py+1.5,cell-3,(cell-3)/2.4,3); ctx.globalAlpha=1; }
+      for(let i=shards.length-1;i>=0;i--){ const s=shards[i]; s.x+=s.vx;s.y+=s.vy;s.vy+=0.18;s.rot+=s.vr;s.t-=dt/600; if(s.t<=0){shards.splice(i,1);continue;} ctx.save(); ctx.globalAlpha=s.t; ctx.translate(s.x,s.y); ctx.rotate(s.rot); ctx.fillStyle=s.c; ctx.beginPath(); ctx.moveTo(0,-3); ctx.lineTo(2.4,2); ctx.lineTo(-2.4,2); ctx.closePath(); ctx.fill(); ctx.restore(); }
+      if(blade){ blade.t-=dt/300; if(blade.t<=0)blade=null; else { ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.strokeStyle='rgba(189,239,255,'+blade.t+')'; ctx.lineWidth=2+3*blade.t; ctx.shadowColor='#5be1ff'; ctx.shadowBlur=12; const dy=Math.tan(blade.ang)*g.w/2; ctx.beginPath(); ctx.moveTo(0,blade.y-dy); ctx.lineTo(g.w,blade.y+dy); ctx.stroke(); ctx.restore(); } }
+    }, onResize:reset};
+  }
+
+  /* ---------- FLUX: particles fall, a magnet bends them into matching collectors ---------- */
+  function flux(g){
+    const {ctx}=g; const COL=['#ffd23f','#3fd6ff','#ff5edb']; const N=3;
+    const ca=(c,a)=>{ const [r,gg,b]=hx(c); return 'rgba('+r+','+gg+','+b+','+a+')'; };
+    let parts,t=0,spawnT=0,pole,binC,flashB;
+    const binW=()=>g.w/N, binTop=()=>g.h-15;
+    function reset(){ parts=[]; spawnT=0; binC=[0,1,2].sort(()=>Math.random()-.5); flashB=new Float32Array(N); pole={x:g.w/2,y:g.h*0.5}; }
+    reset();
+    function spawn(){ parts.push({x:14+Math.random()*(g.w-28),y:-6,vx:0,vy:0.6+Math.random()*0.4,color:Math.random()*N|0,trail:[]}); }
+    return {step(dt){ t+=dt; spawnT+=dt; pole.x=g.w/2+Math.sin(t/1100)*g.w*0.30; pole.y=g.h*0.54;
+      if(spawnT>620){ spawnT=0; spawn(); }
+      for(let i=parts.length-1;i>=0;i--){ const p=parts[i]; p.vy+=0.02; const dx=pole.x-p.x,d=Math.hypot(dx,pole.y-p.y); if(d<115){ const desired=(pole.x-p.x)*0.05; p.vx+=(desired-p.vx)*0.13; } p.vx*=0.94; p.vy=Math.min(2.4,p.vy); p.x+=p.vx; p.y+=p.vy;
+        p.trail.push({x:p.x,y:p.y}); if(p.trail.length>10)p.trail.shift();
+        if(p.y>=binTop()){ const bi=Math.max(0,Math.min(N-1,Math.floor(p.x/binW()))); if(binC[bi]===p.color) flashB[bi]=1; parts.splice(i,1); } }
+      for(let b=0;b<N;b++) if(flashB[b]>0) flashB[b]-=dt/400;
+      ctx.clearRect(0,0,g.w,g.h);
+      for(let b=0;b<N;b++){ const co=COL[binC[b]],x0=b*binW(); const fl=Math.max(0,flashB[b]); ctx.fillStyle=ca(co,0.22+fl*0.5); ctx.fillRect(x0+1,binTop(),binW()-2,15); ctx.fillStyle=ca(co,0.7); ctx.fillRect(x0+1,binTop(),binW()-2,2+fl*3); }
+      ctx.globalCompositeOperation='lighter'; const gr=ctx.createRadialGradient(pole.x,pole.y,0,pole.x,pole.y,90); gr.addColorStop(0,'rgba(108,140,255,0.16)'); gr.addColorStop(1,'rgba(108,140,255,0)'); ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(pole.x,pole.y,90,0,7); ctx.fill();
+      for(const p of parts){ const co=COL[p.color]; for(let i=1;i<p.trail.length;i++){ const a=p.trail[i],b2=p.trail[i-1],f=i/p.trail.length; ctx.strokeStyle=ca(co,f*0.5); ctx.lineWidth=1+2*f; ctx.beginPath(); ctx.moveTo(b2.x,b2.y); ctx.lineTo(a.x,a.y); ctx.stroke(); } }
+      ctx.globalCompositeOperation='source-over';
+      for(const p of parts){ const co=COL[p.color]; ctx.fillStyle=co; ctx.beginPath(); ctx.arc(p.x,p.y,4,0,7); ctx.fill(); ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(p.x-1,p.y-1,1.6,0,7); ctx.fill(); }
+      ctx.fillStyle='#cfe0ff'; ctx.shadowColor='#6c8cff'; ctx.shadowBlur=12; ctx.beginPath(); ctx.arc(pole.x,pole.y,7,0,7); ctx.fill(); ctx.shadowBlur=0;
+    }, onResize:reset};
+  }
+
   /* helpers */
   function rr(ctx,x,y,w,h,r){ r=Math.min(r,w/2,h/2); ctx.beginPath();
     ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill(); }
@@ -532,7 +690,7 @@ a.card.v2.feature .body p{max-width:560px}
   function hx(c){ return [parseInt(c.slice(1,3),16),parseInt(c.slice(3,5),16),parseInt(c.slice(5,7),16)]; }
   function mix(a,b,f){ const A=hx(a),B=hx(b); return 'rgb('+Math.round(A[0]+(B[0]-A[0])*f)+','+Math.round(A[1]+(B[1]-A[1])*f)+','+Math.round(A[2]+(B[2]-A[2])*f)+')'; }
 
-  const FACTORY={cinder,shift,conduit,homeostat,motherload};
+  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,motherload};
 
   /* boot every demo canvas; share one rAF; pause off-screen */
   document.querySelectorAll('canvas[data-demo]').forEach(cv=>{

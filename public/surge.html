@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="Charged orbs drift and pile toward critical mass. Spend a charge to fire an arc that chains through the cluster — the longer you wait, the bigger the eruption.">
+<meta name="theme-color" content="#070a16">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Anorak Arcade">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Anorak Arcade">
+<meta property="og:title" content="SURGE — chain reaction">
+<meta property="og:description" content="Load the field, then unleash one arc that rips through the whole cluster. Wait for density — but don't let it overflow.">
+<meta property="og:image" content="https://anorak-arcade.pages.dev/og-surge.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SURGE — chain reaction">
+<meta name="twitter:description" content="One tap, one screen-wide eruption. A love letter to a bygone era — original browser prototypes.">
+
+<title>SURGE — chain reaction</title>
+<style>
+  :root{ --bg:#070a16; --panel:#0f1426; --ink:#eaf0ff; --dim:#7e89ad; --c1:#5be8ff; --hot:#ffd23f; --acc:#ffd23f; --arc:#cfe6ff; --good:#36d399; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  html,body{overscroll-behavior:none}
+  body{margin:0;background:radial-gradient(1100px 760px at 50% -8%,#10183a,#070a16 62%);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  header{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.34em;margin:0;font-weight:700}h1 .v{color:var(--acc)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:520px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #1a2138;border-radius:8px;padding:8px 10px;position:relative;overflow:hidden}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}
+  .stat .val{font-size:21px;font-weight:700;margin-top:2px;transition:transform .08s}
+  .stat .val.bump{transform:scale(1.2)}
+  .bars{width:100%;max-width:520px;padding:0 8px;display:flex;flex-direction:column;gap:6px}
+  .bar{height:13px;background:#0a0e1c;border:1px solid #1a2138;border-radius:7px;overflow:hidden;position:relative}
+  .bar>i{display:block;height:100%;width:0}
+  .bar .lab{position:absolute;left:8px;top:0;font-size:9px;letter-spacing:.2em;line-height:13px;color:#cdd6e6;mix-blend-mode:difference;pointer-events:none}
+  #chargeFill{transition:width .06s linear}
+  #pressure{transition:width .12s linear}
+  .bar.ready{box-shadow:0 0 14px rgba(255,210,63,.55)}
+  .bar.danger{animation:pulseb .42s infinite}
+  @keyframes pulseb{50%{box-shadow:0 0 14px rgba(255,77,109,.8)}}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#04060f;border:1px solid #1a2138;border-radius:12px;display:block;max-width:100%;height:auto;cursor:crosshair;touch-action:none}
+  .foot{max-width:520px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#161d33;border:1px solid #25304b;border-radius:5px;padding:1px 7px;font-size:11px}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,9,18,.92);border-radius:12px;text-align:center;padding:24px}
+  .overlay h2{margin:0 0 4px;letter-spacing:.18em;font-size:26px}
+  .overlay h2.bad{color:var(--bad)} .overlay h2.title{color:var(--acc)}
+  .overlay p{color:var(--dim);margin:6px 0;max-width:430px;line-height:1.6;font-size:13px}
+  .overlay .big{font-size:40px;font-weight:700;color:var(--hot);margin:8px 0}
+  button{background:linear-gradient(180deg,#ffe27a,#ffc220);color:#1a1404;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:13px 30px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:14px;box-shadow:0 6px 22px rgba(255,200,40,.35)}
+  button:hover{filter:brightness(1.08)}
+  .statline{color:var(--dim);font-size:12px;margin-top:10px;letter-spacing:.06em}
+  .statline b{color:var(--ink)}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}a.back:hover{color:var(--ink)}
+  @media(max-width:560px){
+    body{justify-content:flex-start}
+    a.back{position:static;display:block;margin:7px 0 0 10px;font-size:11px}
+    header{padding:2px 10px 0}
+    header h1{font-size:14px}
+    header .sub{display:none}
+    .hud{gap:6px;padding:4px 8px}
+    .hud .stat{background:none;border:0;padding:2px 5px;overflow:visible}
+    .hud .stat .k{font-size:8px;letter-spacing:.08em}
+    .hud .stat .val{font-size:16px;margin-top:0}
+    .bars{gap:3px}
+    .bar{height:9px;margin:2px 8px}
+    .bar .lab{font-size:7px;line-height:9px}
+    #wrap{margin:5px 0}
+    .foot{display:none}
+  }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← arcade</a>
+<header>
+  <div><h1>SUR<span class="v">GE</span></h1><div class="sub">CHAIN REACTION · load &amp; unleash</div></div>
+</header>
+<div class="hud">
+  <div class="stat"><div class="k">SCORE</div><div class="val" id="score">0</div></div>
+  <div class="stat"><div class="k">BEST CHAIN</div><div class="val" id="best" style="color:var(--hot)">0</div></div>
+  <div class="stat"><div class="k">LAST</div><div class="val" id="last">—</div></div>
+  <div class="stat"><div class="k">ORBS</div><div class="val" id="orbs">0</div></div>
+</div>
+<div class="bars">
+  <div class="bar" id="pressWrap"><i id="pressure" style="background:linear-gradient(90deg,#36d399,#ffd23f,#ff4d6d)"></i><span class="lab">FIELD PRESSURE</span></div>
+  <div class="bar" id="chargeWrap"><i id="chargeFill" style="background:linear-gradient(90deg,#7a5cff,#5be8ff,#ffd23f)"></i><span class="lab" id="chargeLab">CHARGE</span></div>
+</div>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="title">
+    <h2 class="title">SUR<span style="color:#5be8ff">GE</span></h2>
+    <p>Charged orbs drift in and pile up. When your <b style="color:#ffd23f">charge</b> is full, <b style="color:#eaf0ff">tap the field</b> to fire an arc — it rips through every orb in reach, and each one detonates its neighbours.</p>
+    <p>A tight cluster makes a <b style="color:#5be8ff">screen-wide chain</b>. Wait for density to score big — but if the field packs past the <b style="color:#ff4d6d">limit</b>, it overloads.</p>
+    <button id="startBtn">CHARGE ▶</button>
+    <div class="statline"><span class="key">tap / click</span> detonate &nbsp; <span class="key">P</span> pause</div>
+  </div>
+  <div class="overlay" id="over" style="display:none">
+    <h2 class="bad">OVERLOAD</h2>
+    <div class="big" id="finalScore">0</div>
+    <div class="statline" id="finalStats"></div>
+    <button id="again">RECHARGE ⏎</button>
+  </div>
+  <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
+</div>
+<div class="foot">
+  One tap when charged. The arc chains through any orbs within reach of each other — <b style="color:#5be8ff">herd them into clusters</b> and the chain explodes in length. Longer chains score exponentially and clear the field, buying you room. Charge refills over time; pick your moment.
+</div>
+<script src="juice.js"></script>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const MOBILE = window.matchMedia('(max-width:560px)').matches;
+  const W = MOBILE?380:460, H = MOBILE?600:600;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  const J=window.Juice; const fx=J.layer();
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const ORB_R = MOBILE?9:10;
+  const LINK = MOBILE?72:80;          // orbs within this distance chain to each other
+  const BLAST0 = LINK*1.15;           // initial detonation reach
+  const CAP = MOBILE?54:66;           // overflow capacity
+  const STEP = 26;                    // ms between chain hops (the ripple speed)
+  const CHARGE_MS_0 = 2100;
+  const STARS=[]; for(let i=0;i<46;i++) STARS.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.2+0.3,p:Math.random()*7,sp:0.5+Math.random()});
+
+  // ---- state ----
+  let orbs, score, dispScore, best, lastChain, danger, state, last, T,
+      charge, chargeMs, spawnEvery, spawnT, chain, slowmoT, timeScale,
+      arcs, ripples, flash, hbT, wasReady, mouseX, mouseY, hasMouse, shockT, scoreScale, levelT, chargeTickT;
+  const idc={n:0};
+
+  function reset(showTitle){
+    orbs=[]; score=0; dispScore=0; best=0; lastChain=0; danger=0; T=0;
+    charge=0; chargeMs=CHARGE_MS_0; spawnEvery=900; spawnT=300; chain=null;
+    slowmoT=0; timeScale=1; arcs=[]; ripples=[]; flash=0; hbT=0; wasReady=false;
+    mouseX=W/2; mouseY=H/2; hasMouse=false; shockT=0; scoreScale=1; levelT=0; chargeTickT=0;
+    // seed a few orbs
+    for(let i=0;i<10;i++) spawnOrb(true);
+    document.getElementById('over').style.display='none';
+    document.getElementById('paused').style.display='none';
+    document.getElementById('title').style.display=showTitle?'flex':'none';
+    state=showTitle?'title':'play';
+    updateHUD();
+  }
+  function start(){ J.unlock(); reset(false); }
+
+  function spawnOrb(anywhere){
+    let tries=24;
+    while(tries--){
+      const x = ORB_R+8 + Math.random()*(W-2*ORB_R-16);
+      const y = ORB_R+8 + Math.random()*(H-2*ORB_R-16);
+      let ok=true;
+      for(const o of orbs){ const dx=o.x-x, dy=o.y-y; if(dx*dx+dy*dy < (ORB_R*2.4)*(ORB_R*2.4)){ ok=false; break; } }
+      if(ok || anywhere&&tries<2){
+        const ang=Math.random()*7, sp=0.12+Math.random()*0.18;
+        const super_= Math.random()<0.08;                          // rare supercharged node (bigger reach, worth more)
+        orbs.push({id:idc.n++, x,y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp, r: super_?ORB_R*1.5:ORB_R,
+          ig:0, igAt:0, px:0, py:0, ph:Math.random()*7, born:1, sup:super_});
+        if(!anywhere){ fx.ring(x,y,ORB_R*3,'#5be8ff',{lw:1.5,decay:0.08}); J.tone(420+Math.random()*80,0.04,'sine',0.02); }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // ---- detonation / chain ----
+  function detonate(x,y){
+    if(state!=='play'||charge<100) return;
+    charge=0; wasReady=false;
+    flash=Math.max(flash,0.5); fx.shake(6); shockT=1;
+    ripples.push({x,y,r:6,max:BLAST0*1.4,life:1,col:'#ffd23f',lw:3});
+    sfxZap();
+    if(navigator.vibrate) try{navigator.vibrate(12);}catch(e){}
+    let seeded=0;
+    for(const o of orbs){ if(o.ig) continue; const d=Math.hypot(o.x-x,o.y-y); if(d<BLAST0){ o.ig=1; o.igAt=T + (d/BLAST0)*STEP; o.px=x; o.py=y; seeded++; } }
+    if(seeded===0){ // fizzle — wasted charge, clear feedback
+      fx.float(x,y,'FIZZLE','#7e89ad',{size:16,vy:-0.5}); J.tone(120,0.18,'sawtooth',0.05); fx.burst(x,y,'#46506e',6,{spread:1.5,decay:0.06,r:2});
+      chain=null; return;
+    }
+    chain={count:0, gain:0, x, y, sup:0};
+  }
+
+  function popOrb(o){
+    o.ig=2;
+    chain.count++; chain.sup += o.sup?1:0;
+    const add = Math.round((10*chain.count) * (o.sup?2.2:1));
+    chain.gain += add;
+    score += add;
+    // arc from parent → this orb
+    arcs.push(bolt(o.px,o.py,o.x,o.y, o.sup?'#ffd23f':'#cfe6ff'));
+    ripples.push({x:o.x,y:o.y,r:o.r,max:o.r*4.5,life:1,col:o.sup?'#ffd23f':'#5be8ff',lw:2});
+    fx.burst(o.x,o.y, o.sup?'#ffd23f':'#7fe3ff', o.sup?16:9, {spread:2.2+(o.sup?2:0),up:0,decay:0.05,r:2});
+    fx.shake(o.sup?3:1.2);
+    // rising pitch with chain length
+    const f = 240*Math.pow(1.045, Math.min(60,chain.count)) * (o.sup?1.5:1);
+    J.tone(f,0.09,'triangle',0.045, 0);
+    if(o.sup) J.tone(f*0.5,0.18,'sine',0.06);
+    // seed neighbours
+    for(const n of orbs){ if(n.ig) continue; const dx=n.x-o.x, dy=n.y-o.y; const reach=LINK*(o.sup?1.4:1); if(dx*dx+dy*dy < reach*reach){ n.ig=1; n.igAt=T+STEP; n.px=o.x; n.py=o.y; } }
+  }
+
+  function finalizeChain(){
+    const c=chain; chain=null;
+    lastChain=c.count;
+    best=Math.max(best,c.count);
+    const big = c.count>=8;
+    if(c.count>=14 && !REDUCE) slowmoT=Math.min(620, 240+c.count*16);
+    flash=Math.max(flash, Math.min(0.9, 0.2+c.count*0.04));
+    fx.shake(Math.min(30, 4+c.count*1.1));
+    let bonus=0;
+    if(c.count>=3){ bonus=Math.round(c.gain*0.5*(c.count/10)); score+=bonus; }
+    const total=c.gain+bonus;
+    const col = c.count>=20?'#ffffff':(c.count>=10?'#ffd23f':'#5be8ff');
+    fx.float(c.x, c.y-20, '+'+total, col, {size: Math.min(40,18+c.count), sub:'×'+c.count+' CHAIN'+(c.count>=10?'  !':'')});
+    if(big){ ripples.push({x:c.x,y:c.y,r:10,max:W*0.9,life:1,col:'#ffffff',lw:5}); for(let k=0;k<Math.min(80,c.count*3);k++){ const a=Math.random()*7,sp=2+Math.random()*6; fx.burst(c.x,c.y, k%2?'#5be8ff':'#ffffff',1,{spread:sp,decay:0.03,r:2}); } }
+    sfxChain(c.count);
+    if(navigator.vibrate && c.count>=6) try{navigator.vibrate(c.count>=14?[20,30,20,30,40]:[14,20,14]);}catch(e){}
+    bump('score'); bump('best'); bump('last');
+    updateHUD();
+  }
+
+  // lightning bolt path between two points (jagged) + optional forks
+  function jagged(ax,ay,bx,by,amp){
+    const L=Math.hypot(bx-ax,by-ay)||1; const segs=Math.max(2, Math.round(L/13));
+    const nx=-(by-ay)/L, ny=(bx-ax)/L; const pts=[[ax,ay]];
+    for(let i=1;i<segs;i++){ const f=i/segs; const off=(Math.random()-0.5)*amp*Math.sin(f*Math.PI); pts.push([ax+(bx-ax)*f+nx*off, ay+(by-ay)*f+ny*off]); }
+    pts.push([bx,by]); return pts;
+  }
+  function bolt(ax,ay,bx,by,col){
+    const main=jagged(ax,ay,bx,by,12);
+    const forks=[];
+    const L=Math.hypot(bx-ax,by-ay);
+    if(L>26 && Math.random()<0.7){ const m=main[(main.length/2)|0]; const a=Math.atan2(by-ay,bx-ax)+(Math.random()-0.5)*1.6; const fl=L*(0.3+Math.random()*0.3); forks.push(jagged(m[0],m[1], m[0]+Math.cos(a)*fl, m[1]+Math.sin(a)*fl, 8)); }
+    return {pts:main, forks, life:1, col};
+  }
+
+  // ---- audio ----
+  function sfxZap(){ J.tone(880,0.05,'square',0.04); J.tone(330,0.12,'sawtooth',0.05,0.01); }
+  function sfxReady(){ J.tone(660,0.06,'sine',0.04); J.tone(990,0.1,'triangle',0.04,0.05); }
+  function sfxChain(n){ if(n<3){ J.tone(200,0.18,'sine',0.07); return; }
+    const steps=Math.min(8,3+Math.floor(n/4)); J.chord(220, steps, {step:1.16,dur:0.4,gain:0.06,spacing:0.04,type:'triangle'});
+    J.tone(60,0.7,'sine', Math.min(0.2,0.08+n*0.006)); if(n>=10) J.tone(1500,0.3,'sine',0.05); }
+  function sfxDead(){ J.tone(140,0.6,'sawtooth',0.12); J.tone(70,0.9,'sine',0.1,0.05); }
+
+  function bump(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'),100); }
+
+  // ---- input ----
+  function ptFromEvent(e){ const r=cv.getBoundingClientRect(); const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left, cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return [cx*(W/r.width), cy*(H/r.height)]; }
+  cv.addEventListener('mousedown',e=>{ if(state!=='play') return; const[x,y]=ptFromEvent(e); detonate(x,y); });
+  cv.addEventListener('mousemove',e=>{ hasMouse=true; const[x,y]=ptFromEvent(e); mouseX=x; mouseY=y; });
+  cv.addEventListener('mouseleave',()=>hasMouse=false);
+  cv.addEventListener('touchstart',e=>{ if(state!=='play') return; e.preventDefault(); const[x,y]=ptFromEvent(e); mouseX=x;mouseY=y; detonate(x,y); },{passive:false});
+  cv.addEventListener('contextmenu',e=>e.preventDefault());
+  window.addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
+    if(k==='enter'&&state==='dead') start();
+    else if(k==='p'&&(state==='play'||state==='paused')){ state=state==='play'?'paused':'play'; document.getElementById('paused').style.display=state==='paused'?'flex':'none'; if(state==='play') last=performance.now(); }
+  });
+  document.getElementById('startBtn').onclick=start;
+  document.getElementById('again').onclick=start;
+  window.addEventListener('blur',()=>{ if(state==='play'){ state='paused'; document.getElementById('paused').style.display='flex'; } });
+
+  // ---- HUD ----
+  function updateHUD(){
+    document.getElementById('score').textContent=Math.round(dispScore);
+    document.getElementById('best').textContent=best;
+    document.getElementById('last').textContent= lastChain>0?('×'+lastChain):'—';
+    document.getElementById('orbs').textContent=orbs.length;
+    const ready=charge>=100;
+    document.getElementById('chargeFill').style.width=Math.min(100,charge)+'%';
+    document.getElementById('chargeLab').textContent= ready?'READY ⚡':'CHARGE';
+    document.getElementById('chargeWrap').classList.toggle('ready', ready);
+    document.getElementById('pressure').style.width=Math.min(100,danger*100)+'%';
+    document.getElementById('pressWrap').classList.toggle('danger', danger>0.7);
+  }
+
+  function gameOver(){ state='dead'; sfxDead(); fx.shake(24); flash=1;
+    if(window.GameStats) GameStats.submitScore('SURGE', score);
+    document.getElementById('finalScore').textContent=Math.round(score);
+    document.getElementById('finalStats').innerHTML='best chain <b>×'+best+'</b> &nbsp;·&nbsp; overloaded at <b>'+orbs.length+'</b> orbs';
+    document.getElementById('over').style.display='flex'; }
+
+  // ---- physics: gentle drift + soft repulsion + wall bounce ----
+  function moveOrbs(k){
+    const n=orbs.length;
+    for(const o of orbs){
+      if(o.born>0) o.born-=0.04*k;
+      // tiny wander
+      o.vx += (Math.random()-0.5)*0.01*k; o.vy += (Math.random()-0.5)*0.01*k;
+      // faint pull toward center so clusters form
+      o.vx += (W/2-o.x)*0.00004*k; o.vy += (H/2-o.y)*0.00004*k;
+      o.x += o.vx*k; o.y += o.vy*k;
+      o.vx*=0.992; o.vy*=0.992;
+      if(o.x<o.r){ o.x=o.r; o.vx=Math.abs(o.vx)*0.6; } else if(o.x>W-o.r){ o.x=W-o.r; o.vx=-Math.abs(o.vx)*0.6; }
+      if(o.y<o.r){ o.y=o.r; o.vy=Math.abs(o.vy)*0.6; } else if(o.y>H-o.r){ o.y=H-o.r; o.vy=-Math.abs(o.vy)*0.6; }
+    }
+    for(let i=0;i<n;i++){ const a=orbs[i];
+      for(let j=i+1;j<n;j++){ const b=orbs[j]; let dx=b.x-a.x, dy=b.y-a.y; let d2=dx*dx+dy*dy; const md=(a.r+b.r)*1.15;
+        if(d2<md*md && d2>0){ const d=Math.sqrt(d2); const ov=(md-d)/d*0.5; dx*=ov; dy*=ov; a.x-=dx*k; a.y-=dy*k; b.x+=dx*k; b.y+=dy*k; }
+      }
+    }
+  }
+
+  // ---- loop ----
+  function loop(now){ let dtReal=Math.min(48, now-last); last=now;
+    if(slowmoT>0){ slowmoT-=dtReal; timeScale += (0.3-timeScale)*0.2; } else { timeScale += (1-timeScale)*0.12; }
+    const dt=dtReal*timeScale; const k=dt/16.7; T+=dt;
+    if(state==='play'){
+      if(window.GameStats) GameStats.ping('SURGE', dtReal);
+      moveOrbs(Math.min(2.2,k));
+      // charge
+      if(charge<100){ charge=Math.min(100, charge + dt/chargeMs*100); if(charge>=100 && !wasReady){ wasReady=true; sfxReady(); }
+        if(charge>72 && charge<100){ chargeTickT-=dt; if(chargeTickT<=0){ J.tone(300+(charge-72)*22,0.03,'square',0.015); chargeTickT=Math.max(70, 300-(charge-72)*8); } } }
+      // chain processing
+      if(chain){ let active=false;
+        for(const o of orbs){ if(o.ig===1){ if(o.igAt<=T) popOrb(o); else active=true; } }
+        // also keep active if any just-seeded remain
+        for(const o of orbs){ if(o.ig===1) { active=true; break; } }
+        orbs=orbs.filter(o=>o.ig!==2);
+        if(!active) finalizeChain();
+      }
+      // spawn
+      spawnT-=dt;
+      if(spawnT<=0){ spawnOrb(false); spawnT=spawnEvery; }
+      // self-scaling ramp
+      levelT+=dt; if(levelT>6000){ levelT=0; spawnEvery=Math.max(360,spawnEvery*0.92); chargeMs=Math.max(1300,chargeMs*0.97); }
+      // pressure
+      danger = Math.min(1, orbs.length/CAP);
+      if(orbs.length>=CAP) gameOver();
+      // danger heartbeat
+      if(danger>0.7){ hbT-=dtReal; if(hbT<=0){ J.tone(54,0.16,'sine',0.05+danger*0.06); hbT=Math.max(240,640-danger*360); } }
+    }
+    // decays
+    dispScore += (score-dispScore)*0.2; if(Math.abs(score-dispScore)<1) dispScore=score;
+    for(let i=arcs.length-1;i>=0;i--){ arcs[i].life-=dtReal/260; if(arcs[i].life<=0) arcs.splice(i,1); }
+    for(let i=ripples.length-1;i>=0;i--){ const r=ripples[i]; r.r+=(r.max-r.r)*0.16; r.life-=dtReal/420; if(r.life<=0) ripples.splice(i,1); }
+    if(flash>0) flash=Math.max(0,flash-dtReal/300);
+    if(shockT>0) shockT=Math.max(0,shockT-dtReal/250);
+    scoreScale += (1-scoreScale)*0.15;
+    fx.update(dt);
+    draw();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- draw ----
+  function draw(){
+    ctx.save();
+    const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
+    ctx.clearRect(-40,-40,W+80,H+80);
+    const tt=T;
+
+    // nebula + drifting starfield backdrop
+    const neb=ctx.createRadialGradient(W*0.5,H*0.42,30, W*0.5,H*0.42,H*0.7);
+    neb.addColorStop(0,'rgba(40,70,150,0.16)'); neb.addColorStop(0.5,'rgba(30,40,100,0.08)'); neb.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=neb; ctx.fillRect(0,0,W,H);
+    for(const s of STARS){ const tw=0.4+0.6*Math.abs(Math.sin(tt/700*s.sp+s.p)); ctx.globalAlpha=tw*0.6; ctx.fillStyle='#bcd0ff'; ctx.fillRect(s.x,s.y,s.r,s.r); }
+    ctx.globalAlpha=1;
+
+    // faint grid backdrop
+    ctx.strokeStyle='rgba(120,160,255,0.04)'; ctx.lineWidth=1; const gs=44; ctx.beginPath();
+    for(let x=gs;x<W;x+=gs){ ctx.moveTo(x,0); ctx.lineTo(x,H); } for(let y=gs;y<H;y+=gs){ ctx.moveTo(0,y); ctx.lineTo(W,y); } ctx.stroke();
+
+    // proximity links between idle orbs (shows where chains will flow) — cheap, only near pairs
+    ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<orbs.length;i++){ const a=orbs[i]; if(a.ig) continue;
+      for(let j=i+1;j<orbs.length;j++){ const b=orbs[j]; if(b.ig) continue; const dx=b.x-a.x,dy=b.y-a.y; const d2=dx*dx+dy*dy; if(d2<LINK*LINK){ const d=Math.sqrt(d2); const al=(1-d/LINK)*0.16; ctx.globalAlpha=al; ctx.strokeStyle='#5be8ff'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); } }
+    }
+    ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+
+    // orbs (glow + core) — pulse faster + jitter as the field nears overload (nervous energy)
+    const pulDiv = 300 - danger*210, jit = danger>0.55 ? (danger-0.55)*4 : 0;
+    ctx.globalCompositeOperation='lighter';
+    for(const o of orbs){ o.jx=(Math.random()-.5)*jit; o.jy=(Math.random()-.5)*jit; const ox=o.x+o.jx, oy=o.y+o.jy;
+      const pul=0.6+0.4*Math.sin(tt/pulDiv+o.ph); const gr=o.r*(o.sup?3.4:2.6)*pul;
+      // base cyan/gold, warming toward danger
+      const col=o.sup?'#ffd23f':(danger>0.6?'#9fe0ff':'#5be8ff');
+      const g=ctx.createRadialGradient(ox,oy,0,ox,oy,gr); g.addColorStop(0,col); g.addColorStop(0.4, o.sup?'rgba(255,210,63,0.3)':'rgba(91,232,255,0.28)'); g.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.globalAlpha=0.5*(o.born>0?1-o.born*0.5:1); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(ox,oy,gr,0,7); ctx.fill();
+    }
+    ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+    for(const o of orbs){ const sc=o.born>0?(1-o.born)*1.0+0.2:1; const ox=o.x+(o.jx||0), oy=o.y+(o.jy||0);
+      ctx.fillStyle=o.sup?'#fff6cf':'#dff6ff'; ctx.beginPath(); ctx.arc(ox,oy,o.r*0.6*sc,0,7); ctx.fill();
+      ctx.strokeStyle=o.sup?'#ffd23f':'#5be8ff'; ctx.lineWidth=o.sup?2.5:2; ctx.beginPath(); ctx.arc(ox,oy,o.r*sc,0,7); ctx.stroke();
+      if(o.sup){ ctx.globalAlpha=0.5+0.5*Math.sin(tt/140+o.ph); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(ox,oy,o.r*sc+3,0,7); ctx.stroke(); ctx.globalAlpha=1; }
+    }
+
+    // arcs (lightning) — colored glow halo, then white-hot core, plus forks
+    ctx.globalCompositeOperation='lighter'; ctx.lineCap='round'; ctx.lineJoin='round';
+    function strokePath(p){ ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.stroke(); }
+    for(const a of arcs){ const al=Math.max(0,a.life);
+      ctx.shadowColor=a.col; ctx.shadowBlur=14;
+      ctx.globalAlpha=al*0.9; ctx.strokeStyle=a.col; ctx.lineWidth=4; strokePath(a.pts); if(a.forks) for(const f of a.forks) strokePath(f);
+      ctx.shadowBlur=0; ctx.globalAlpha=al; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.4; strokePath(a.pts); if(a.forks) for(const f of a.forks){ ctx.globalAlpha=al*0.7; strokePath(f); }
+    }
+    ctx.shadowBlur=0;
+    // ripples
+    for(const r of ripples){ if(r.r<=0) continue; ctx.globalAlpha=Math.max(0,r.life)*0.7; ctx.strokeStyle=r.col; ctx.lineWidth=r.lw; ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,7); ctx.stroke(); }
+    ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+
+    // fx layer
+    fx.render(ctx);
+
+    // aim preview (desktop, when charged)
+    if(state==='play' && hasMouse && charge>=100){
+      const pul=0.5+0.5*Math.sin(tt/120);
+      ctx.globalCompositeOperation='lighter';
+      ctx.strokeStyle=`rgba(255,210,63,${0.3+0.3*pul})`; ctx.lineWidth=2; ctx.setLineDash([4,6]); ctx.beginPath(); ctx.arc(mouseX,mouseY,BLAST0,0,7); ctx.stroke(); ctx.setLineDash([]);
+      // highlight orbs that would ignite
+      let inrange=0; for(const o of orbs){ if(Math.hypot(o.x-mouseX,o.y-mouseY)<BLAST0){ inrange++; ctx.globalAlpha=0.5; ctx.strokeStyle='#ffd23f'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(o.x,o.y,o.r+3,0,7); ctx.stroke(); } }
+      ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+    }
+    // mobile ready hint (no hover affordance on touch)
+    if(MOBILE && state==='play' && charge>=100 && !chain){ const p=0.5+0.5*Math.sin(tt/180);
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.textAlign='center'; ctx.globalAlpha=0.4+0.4*p;
+      ctx.fillStyle='#ffd23f'; ctx.font='bold 13px ui-monospace,monospace'; ctx.fillText('⚡ TAP TO FIRE', W/2, H-22); ctx.restore(); }
+
+    // live chain counter (grows as the chain rips through the field)
+    if(chain && chain.count>=2){ const cc=chain.count; const sc=1+Math.min(1.4,cc*0.04); const col=cc>=20?'#ffffff':(cc>=10?'#ffd23f':'#5be8ff');
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.globalAlpha=0.9; ctx.fillStyle=col; ctx.font='bold '+(26*sc)+'px ui-monospace,monospace';
+      ctx.shadowColor=col; ctx.shadowBlur=18; ctx.fillText('×'+cc, chain.x, chain.y-44); ctx.shadowBlur=0;
+      ctx.globalAlpha=0.5; ctx.font='bold 11px ui-monospace,monospace'; ctx.fillStyle='#cfe6ff'; ctx.fillText('CHAIN', chain.x, chain.y-44+20*sc); ctx.restore(); }
+
+    ctx.restore();
+
+    // electric border pulse — charge ready (gold), active chain (cyan, scales), danger (red)
+    {
+      let bw=0, bcol=null;
+      if(chain && chain.count>=2){ bw=Math.min(26,4+chain.count*0.9); bcol=chain.count>=10?'255,210,63':'91,232,255'; }
+      else if(danger>0.7){ const p=0.6+0.4*Math.sin(tt/120); bw=10*p; bcol='255,70,90'; }
+      else if(charge>=100){ const p=0.5+0.5*Math.sin(tt/200); bw=5+4*p; bcol='255,210,63'; }
+      if(bw>0){ const g=ctx.createLinearGradient(0,0,0,H); const c='rgba('+bcol+',';
+        ctx.save(); ctx.globalCompositeOperation='lighter';
+        // top/bottom/left/right inner glows
+        let gg=ctx.createLinearGradient(0,0,0,bw*2); gg.addColorStop(0,c+'0.5)'); gg.addColorStop(1,c+'0)'); ctx.fillStyle=gg; ctx.fillRect(0,0,W,bw*2);
+        gg=ctx.createLinearGradient(0,H,0,H-bw*2); gg.addColorStop(0,c+'0.5)'); gg.addColorStop(1,c+'0)'); ctx.fillStyle=gg; ctx.fillRect(0,H-bw*2,W,bw*2);
+        gg=ctx.createLinearGradient(0,0,bw*2,0); gg.addColorStop(0,c+'0.5)'); gg.addColorStop(1,c+'0)'); ctx.fillStyle=gg; ctx.fillRect(0,0,bw*2,H);
+        gg=ctx.createLinearGradient(W,0,W-bw*2,0); gg.addColorStop(0,c+'0.5)'); gg.addColorStop(1,c+'0)'); ctx.fillStyle=gg; ctx.fillRect(W-bw*2,0,bw*2,H);
+        ctx.restore(); }
+    }
+
+    // danger vignette
+    if(danger>0.3){ const a=(danger-0.3)/0.7; J.vignette(ctx,W,H, a*0.6*(danger>0.8?(0.7+0.3*Math.sin(tt/90)):1), 'rgba(255,40,70,A)'); }
+    // detonation flash
+    if(flash>0){ ctx.fillStyle=`rgba(180,220,255,${flash*0.4})`; ctx.fillRect(0,0,W,H); }
+  }
+
+  // debug hook (inert in normal play)
+  window.__surge={ get orbs(){return orbs;}, spawnOrb, detonate, LINK, CAP, getScore:()=>score, getBest:()=>best, getState:()=>state, setState:v=>state=v,
+    setCharge:v=>charge=v, getChain:()=>chain, get T(){return T;}, step(ms){ T+=ms; if(chain){ for(const o of orbs){ if(o.ig===1&&o.igAt<=T) popOrb(o);} orbs=orbs.filter(o=>o.ig!==2); let act=false; for(const o of orbs) if(o.ig===1){act=true;break;} if(!act) finalizeChain(); } },
+    place(x,y){ orbs.push({id:idc.n++,x,y,vx:0,vy:0,r:ORB_R,ig:0,igAt:0,px:0,py:0,ph:0,born:0,sup:false}); }, getLast:()=>lastChain };
+
+  reset(true); last=performance.now(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
