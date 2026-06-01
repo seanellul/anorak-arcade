@@ -24,3 +24,6 @@ dist/
 
 # secrets
 api/.admin-key.txt
+
+# but DO ship the public image assets
+!public/*.png
