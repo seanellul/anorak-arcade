@@ -14,13 +14,37 @@ public/                 ← the deployable static site (Cloudflare Pages output 
   research.html           "The Tetris Lab" — pillars, neuro-loop, dossier links
   doc.html                in-site Markdown viewer for the research docs
   cinder.html  strata.html  conduit.html  homeostat.html
-  motherload/             featured full game — self-contained vanilla-JS canvas roguelite
+  motherload/             featured full game — SYNCED from the motherload repo (don't hand-edit)
+    arcade-track.js         arcade glue: desktop-only gate + playtime tracking (lives here, not in the game)
   site.css  site.js        shared shell (nav, styling, Markdown renderer, TOC, back-to-top)
   stats.js                playtime + leaderboard client (localStorage + optional sync)
   research/               the research dossier (Markdown, rendered in-site)
 api/                    ← Cloudflare Worker + D1 leaderboard / data API
   worker.js  schema.sql  wrangler.toml  README.md
+tools/
+  sync-motherload.sh      pull the latest Motherload web build into public/motherload
 ```
+
+## Updating Motherload
+
+Motherload is its **own repo** (`github.com/seanellul/motherload`) and is the **single source of
+truth** — edit the game *there*, never inside `public/motherload/` (that copy gets overwritten).
+
+`public/motherload/` is a synced copy. To update the arcade to the latest Motherload:
+
+```bash
+tools/sync-motherload.sh            # pulls the motherload repo, copies its web files in,
+                                    # and re-injects the arcade glue (stats.js + arcade-track.js)
+git add public/motherload && git commit -m "Sync Motherload" && git push   # → Pages auto-deploys
+```
+
+The arcade-specific bits (desktop-only mobile gate + playtime tracking) live in
+`public/motherload/arcade-track.js`, which the game source never touches — so syncing is a clean
+overwrite. (Motherload is keyboard/gamepad-only, so it's gated off on phones for now.)
+
+> Fully-automatic loading (git submodule / CI sync) is possible later, but the Motherload repo is
+> currently **private**, which makes a Pages-build submodule fetch unreliable — the sync script keeps
+> it to one command without that complexity.
 
 The site has four sections: **Arcade** (home, the games), **Leaderboard** (scores + global stats),
 **About** (the origin story and philosophy), and **Research** — *The Tetris Lab* — where the full
