@@ -31,9 +31,11 @@
     if(now-lastFlush>20000) flush(false);
   }
   function submitScore(game, score){ score=Math.max(0,Math.round(score||0)); const e=ensure(game);
-    if(score>e.best) e.best=score;
+    const newBest = score>e.best;
+    if(newBest) e.best=score;
     const p=pend(game); p.plays+=1; p.score=Math.max(p.score,score); save();
-    if(!name && score>0 && !promptedThisLoad){ promptedThisLoad=true; openNameModal(()=>flush(false)); }
+    // nudge for a name on every new personal best while still anonymous (openNameModal self-guards against stacking)
+    if(!name && score>0 && newBest) openNameModal(()=>flush(false));
     setTimeout(()=>flush(false),250);
   }
 

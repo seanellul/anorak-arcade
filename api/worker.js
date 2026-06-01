@@ -86,18 +86,18 @@ async function leaderboard(url, env) {
   const game = String(url.searchParams.get('game') || '').toUpperCase();
   if (game && GAMES.indexOf(game) >= 0) {
     const r = await env.DB.prepare(
-      "SELECT name, MAX(best_score) AS score, SUM(total_ms) AS ms FROM totals " +
-      "WHERE game = ?1 AND best_score > 0 AND name <> '' " +
-      "GROUP BY name ORDER BY score DESC, ms DESC LIMIT ?2"
+      "SELECT CASE WHEN name <> '' THEN name ELSE 'anon' END AS name, MAX(best_score) AS score, SUM(total_ms) AS ms FROM totals " +
+      "WHERE game = ?1 AND best_score > 0 " +
+      "GROUP BY CASE WHEN name <> '' THEN name ELSE client_id END ORDER BY score DESC, ms DESC LIMIT ?2"
     ).bind(game, limit).all();
     return json({ game, top: r.results || [] });
   }
   const out = {};
   for (const g of GAMES) {
     const r = await env.DB.prepare(
-      "SELECT name, MAX(best_score) AS score FROM totals " +
-      "WHERE game = ?1 AND best_score > 0 AND name <> '' " +
-      "GROUP BY name ORDER BY score DESC LIMIT 5"
+      "SELECT CASE WHEN name <> '' THEN name ELSE 'anon' END AS name, MAX(best_score) AS score FROM totals " +
+      "WHERE game = ?1 AND best_score > 0 " +
+      "GROUP BY CASE WHEN name <> '' THEN name ELSE client_id END ORDER BY score DESC LIMIT 5"
     ).bind(g).all();
     out[g] = r.results || [];
   }

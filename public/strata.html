@@ -52,6 +52,26 @@
   a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px}a.back:hover{color:var(--ink)}
   @media(max-width:520px){.hud{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){a.back{position:static;display:block;margin:10px 0 0 12px}header{padding-top:6px}}
+  /* AA-MOBILE: maximize the canvas, shrink the chrome */
+  @media(max-width:560px){
+    body{justify-content:flex-start}
+    a.back{position:static;display:block;margin:7px 0 0 10px;font-size:11px}
+    header{padding:2px 10px 0}
+    header h1{font-size:14px}
+    header .sub{display:none}
+    .hud{gap:6px;padding:4px 8px;grid-template-columns:repeat(4,1fr)}
+    .hud .stat{background:none;border:0;padding:2px 5px;overflow:visible}
+    .hud .stat .k{font-size:8px;letter-spacing:.08em}
+    .hud .stat .val{font-size:16px;margin-top:0}
+    #heatName{font-size:12px}
+    .bars{gap:3px}
+    .bar{height:8px;margin:2px 8px}
+    .bar .lab{font-size:7px;line-height:8px}
+    #wrap{margin:5px 0}
+    .foot{display:none}
+    .ctrls{margin:6px 8px 0}
+    .ctrls button{padding:13px}
+  }
 </style>
 </head>
 <body>
