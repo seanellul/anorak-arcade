@@ -1,0 +1,13 @@
+{
+  "name": "Anorak Arcade",
+  "short_name": "Anorak",
+  "description": "Original arcade games reverse-engineered from why play works.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0e14",
+  "theme_color": "#0a0e14",
+  "icons": [
+    { "src": "icon.png", "sizes": "192x192 512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
