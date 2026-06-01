@@ -1,7 +1,7 @@
 {
   "name": "Anorak Arcade",
   "short_name": "Anorak",
-  "description": "Original arcade games reverse-engineered from why play works.",
+  "description": "A love letter to a bygone era — original browser games built as experimental prototypes.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

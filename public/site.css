@@ -155,3 +155,99 @@ a.card.feature .verb{background:var(--c)}
   .srow{grid-template-columns:84px 1fr auto;gap:11px}
   .srow .ssess{display:none}
 }
+
+/* ============================================================
+   v2 cinematic chrome — shared ambient + hero layer.
+   Used by about / research / leaderboard (and mirrored inline
+   on the homepage). Additive; zero dependencies. Drive the
+   orb parallax + scroll reveal with chrome.js.
+   ============================================================ */
+body.v2{
+  background:
+    radial-gradient(900px 600px at 12% 8%, rgba(255,106,61,.10), transparent 60%),
+    radial-gradient(900px 600px at 88% 4%, rgba(90,209,255,.10), transparent 60%),
+    radial-gradient(1000px 700px at 70% 60%, rgba(185,140,255,.08), transparent 60%),
+    radial-gradient(1100px 800px at 30% 90%, rgba(54,211,153,.07), transparent 60%),
+    radial-gradient(1400px 900px at 50% -10%, #16203a, #0a0e14 55%) #0a0e14;
+}
+.fx{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.fx .orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5;will-change:transform}
+.orb.a{width:520px;height:520px;left:-120px;top:-80px;background:radial-gradient(circle,#ff6a3d,transparent 70%)}
+.orb.b{width:560px;height:560px;right:-160px;top:-60px;background:radial-gradient(circle,#5ad1ff,transparent 70%)}
+.orb.c{width:600px;height:600px;left:40%;top:30%;background:radial-gradient(circle,#b98cff,transparent 70%);opacity:.32}
+.scanlines{position:fixed;inset:0;pointer-events:none;z-index:2;opacity:.5;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.20) 2px 4px);mix-blend-mode:multiply}
+.grain{position:fixed;inset:-50%;pointer-events:none;z-index:2;opacity:.05;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  animation:grain 1.2s steps(4) infinite}
+@keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-3%,2%)}50%{transform:translate(2%,-2%)}75%{transform:translate(-2%,-3%)}100%{transform:translate(2%,2%)}}
+body.v2 .wrap,body.v2 .nav,body.v2 .footer{position:relative;z-index:3}
+
+/* hero / page header */
+.hero{padding:52px 0 22px;text-align:left}
+.kicker{display:inline-flex;align-items:center;gap:9px;font-size:11px;letter-spacing:.28em;color:var(--dim);
+  border:1px solid var(--line2);border-radius:999px;padding:6px 14px;margin-bottom:20px;background:rgba(18,24,38,.5);backdrop-filter:blur(6px)}
+.kicker .kdot{width:7px;height:7px;border-radius:2px;background:var(--acc);box-shadow:0 0 10px var(--acc);transform:rotate(45deg)}
+.kicker .live{width:7px;height:7px;border-radius:50%;background:#36d399;box-shadow:0 0 10px #36d399;animation:blink 1.8s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.bigtitle{font-size:clamp(46px,9vw,104px);line-height:.92;margin:0;letter-spacing:-.01em;font-weight:800}
+.bigtitle.sm{font-size:clamp(34px,6vw,58px);line-height:.98}
+.bigtitle .arc{background:linear-gradient(100deg,#ffb13d 0%,#fff1d6 30%,#ffb13d 55%,#ff8a3d 100%);
+  background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:sweep 6s linear infinite;text-shadow:0 0 60px rgba(255,177,61,.25)}
+@keyframes sweep{to{background-position:220% center}}
+.bigtitle .anorak{color:var(--ink);display:block;font-size:.42em;letter-spacing:.34em;font-weight:700;margin-bottom:6px;opacity:.85}
+.lede2{color:#c4cde0;max-width:640px;font-size:16px;margin:22px 0 0;line-height:1.65}
+.lede2 b{color:var(--ink)}
+.lede2.thanks{font-size:14px;color:#8ea2cf;margin-top:14px}
+.lede2.thanks b{color:var(--acc)}
+.rotor{color:var(--acc);font-weight:700}
+
+/* cinematic CTAs */
+.cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.cta .btn{display:inline-flex;align-items:center;gap:8px;background:var(--acc);color:#1a0d06;font-weight:700;
+  letter-spacing:.08em;padding:13px 24px;border-radius:10px;font-size:13px;transition:.18s;box-shadow:0 8px 30px rgba(255,177,61,.18)}
+.cta .btn:hover{transform:translateY(-2px);box-shadow:0 12px 38px rgba(255,177,61,.32)}
+.cta .btn.ghost{background:rgba(18,24,38,.6);color:var(--ink);border:1px solid var(--line2);box-shadow:none}
+.cta .btn.ghost:hover{border-color:var(--acc);color:var(--acc)}
+
+/* meta stat row */
+.metarow{display:flex;gap:28px;flex-wrap:wrap;margin-top:32px;padding-top:22px;border-top:1px solid var(--line)}
+.metarow .m{display:flex;flex-direction:column;gap:2px}
+.metarow .m b{font-size:22px;color:var(--ink);font-variant-numeric:tabular-nums}
+.metarow .m span{font-size:10.5px;letter-spacing:.18em;color:var(--dim)}
+
+/* hero entrance — staggered fade-up, pure CSS */
+.hero>.kicker{animation:heroIn .7s cubic-bezier(.2,.7,.2,1) both}
+.hero>.bigtitle{animation:heroIn .7s cubic-bezier(.2,.7,.2,1) .06s both}
+.hero>.lede2{animation:heroIn .7s cubic-bezier(.2,.7,.2,1) .14s both}
+.hero>.lede2.thanks{animation-delay:.20s}
+.hero>.cta{animation:heroIn .7s cubic-bezier(.2,.7,.2,1) .26s both}
+.hero>.metarow{animation:heroIn .7s cubic-bezier(.2,.7,.2,1) .32s both}
+@keyframes heroIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+
+/* scroll reveal */
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .6s cubic-bezier(.2,.7,.2,1),transform .6s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* upgraded section header */
+.section-h.v2{display:flex;align-items:center;gap:14px;border:0;padding-top:36px;margin:48px 0 8px}
+.section-h.v2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+
+/* magnetic + tilt interaction layers (driven by chrome.js) */
+.magnetic{transition:transform .3s cubic-bezier(.2,.7,.2,1)}
+.tilt{position:relative;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease;
+  transform-style:preserve-3d;will-change:transform}
+.tilt::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .3s;
+  background:radial-gradient(240px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--tc,var(--acc)) 18%,transparent),transparent 60%)}
+.tilt:hover{border-color:var(--tc,var(--line2))}
+.tilt:hover::after{opacity:1}
+/* when an element is both revealed and tiltable, keep the slow opacity fade
+   for the entrance while letting transform stay snappy for the tilt */
+.reveal.tilt{transition:opacity .6s cubic-bezier(.2,.7,.2,1),transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+
+@media(prefers-reduced-motion:reduce){
+  .grain,.bigtitle .arc,.kicker .live,.hero>*{animation:none}
+  .reveal{opacity:1;transform:none;transition:none}
+  .magnetic,.tilt{transition:none}
+}

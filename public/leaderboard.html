@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Original arcade games reverse-engineered from why play works — built from the design pillars behind Tetris, with no falling blocks. Play, chase a high score, hit the global leaderboard.">
+<meta name="description" content="The Anorak Arcade leaderboard — global high scores across every game. A love letter to a bygone era; original browser games, zero dependencies, pure HTML5 canvas.">
 <meta name="theme-color" content="#0a0e14">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,14 +14,14 @@
 <link rel="apple-touch-icon" href="icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Anorak Arcade">
-<meta property="og:title" content="Anorak Arcade — original system-games">
-<meta property="og:description" content="Original arcade games reverse-engineered from why play works. Play, chase a high score, and hit the global leaderboard.">
+<meta property="og:title" content="Leaderboard — Anorak Arcade">
+<meta property="og:description" content="Global high scores across every Anorak Arcade game. A love letter to a bygone era — original browser games, zero dependencies, pure HTML5 canvas.">
 <meta property="og:image" content="https://anorak-arcade.pages.dev/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Anorak Arcade — original system-games">
-<meta name="twitter:description" content="Original arcade games reverse-engineered from why play works.">
+<meta name="twitter:title" content="Leaderboard — Anorak Arcade">
+<meta name="twitter:description" content="Global high scores across every Anorak Arcade game.">
 <meta name="twitter:image" content="https://anorak-arcade.pages.dev/og.png">
 
 <title>Leaderboard — Anorak Arcade</title>
@@ -58,7 +58,16 @@
   .empty{color:var(--dim);padding:14px 0}
 </style>
 </head>
-<body>
+<body class="v2">
+
+<div class="fx" aria-hidden="true">
+  <span class="orb a" data-depth="0.020"></span>
+  <span class="orb b" data-depth="0.035"></span>
+  <span class="orb c" data-depth="0.050"></span>
+</div>
+<div class="scanlines" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
 <nav class="nav">
   <a class="brand" href="index.html"><span class="dot"></span>ANORAK ARCADE</a>
   <span class="spacer"></span>
@@ -68,27 +77,31 @@
   <a class="link" href="research.html">RESEARCH</a>
 </nav>
 <div class="wrap">
-  <div class="eyebrow">HIGH SCORES</div>
-  <h1 class="title">Leader<span class="amber">board</span></h1>
+  <header class="hero">
+    <span class="kicker"><span class="live"></span> GLOBAL · LIVE</span>
+    <h1 class="bigtitle sm"><span class="anorak">LEADERBOARD</span><span class="arc">High Scores</span></h1>
+    <p class="lede2">Names are arcade-style — pick anything. Climb the board on every game, and watch the global clock tick up as the world plays.</p>
+  </header>
 
-  <div class="you">
+  <div class="you reveal">
     <span class="lbl">YOU ARE</span> <span class="nm" id="youName">anonymous</span>
-    <button id="setName">SET NAME</button>
+    <button id="setName" class="magnetic">SET NAME</button>
   </div>
   <div id="banner" class="banner" style="display:none"></div>
 
-  <h2 class="section-h">▶ HIGH SCORES</h2>
+  <h2 class="section-h v2">▶ HIGH SCORES</h2>
   <div class="tabs" id="tabs"></div>
-  <div id="board"><div class="empty">Loading…</div></div>
+  <div id="board" class="reveal"><div class="empty">Loading…</div></div>
 
-  <h2 class="section-h">⏱ GLOBAL</h2>
-  <div id="global"><div class="empty">Loading…</div></div>
+  <h2 class="section-h v2">⏱ GLOBAL</h2>
+  <div id="global" class="reveal"><div class="empty">Loading…</div></div>
 
   <p class="note">Names are whatever you type — old-arcade style. Your personal playtime lives in your browser and the <b>RESET</b> on the home page only clears your local copy; the global record stays. Scores are submitted by the client, so treat the board as friendly, not Fort Knox.</p>
 </div>
-<div class="footer">Anorak Arcade · <a href="index.html">arcade</a> · <a href="about.html">about</a> · <a href="research.html">research</a></div>
+<div class="footer">Anorak Arcade · <a href="index.html">arcade</a> · <a href="about.html">about</a> · <a href="research.html">research</a> · <a href="https://github.com/seanellul/anorak-arcade" target="_blank" rel="noopener">source ↗</a> · built by <a class="byline" href="https://seanellul.com" target="_blank" rel="noopener">seanellul ↗</a></div>
 <script src="site.js"></script>
 <script src="stats.js"></script>
+<script src="chrome.js"></script>
 <script>
 (()=>{
   const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','MOTHERLOAD'];
@@ -133,21 +146,23 @@
     const el=document.getElementById('global');
     if(!GameStats.hasAPI){
       const total=GameStats.total();
-      el.innerHTML='<div class="glob"><div class="gcell"><div class="k">YOUR TIME (LOCAL)</div><div class="v">'+GameStats.fmt(total)+'</div></div></div>';
+      el.innerHTML='<div class="glob"><div class="gcell tilt" style="--tc:var(--acc)"><div class="k">YOUR TIME (LOCAL)</div><div class="v">'+GameStats.fmt(total)+'</div></div></div>';
+      window.AAChrome&&AAChrome.bind(el);
       return;
     }
     GameStats.api('/api/stats').then(d=>{
       const max=Math.max(1,...d.perGame.map(p=>p.ms||0));
       const players=new Set(); let plays=0; d.perGame.forEach(p=>{ plays+=p.plays||0; });
       let html='<div class="glob">'+
-        '<div class="gcell"><div class="k">GLOBAL TIME PLAYED</div><div class="v">'+GameStats.fmt(d.globalMs||0)+'</div></div>'+
-        '<div class="gcell"><div class="k">TOTAL PLAYS</div><div class="v">'+plays.toLocaleString()+'</div></div></div>';
+        '<div class="gcell tilt" style="--tc:var(--acc)"><div class="k">GLOBAL TIME PLAYED</div><div class="v">'+GameStats.fmt(d.globalMs||0)+'</div></div>'+
+        '<div class="gcell tilt" style="--tc:var(--shift)"><div class="k">TOTAL PLAYS</div><div class="v">'+plays.toLocaleString()+'</div></div></div>';
       html+='<h3 style="color:var(--dim);letter-spacing:.18em;font-size:12px;margin:18px 0 8px">MOST PLAYED</h3><div class="mp">';
       d.perGame.forEach(p=>{ const c=COLORS[p.game]||'#888'; const w=((p.ms||0)/max*100)||0;
         html+='<div class="row"><span class="nmg" style="color:'+c+'">'+p.game+'</span><div class="bar"><i style="width:'+w+'%;background:'+c+'"></i></div>'+
               '<span class="t">'+GameStats.fmt(p.ms||0)+'</span></div>'; });
       html+='</div>';
       el.innerHTML=html;
+      window.AAChrome&&AAChrome.bind(el);
     }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach global stats.</div>'; });
   }
 

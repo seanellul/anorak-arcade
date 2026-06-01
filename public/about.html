@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Original arcade games reverse-engineered from why play works — built from the design pillars behind Tetris, with no falling blocks. Play, chase a high score, hit the global leaderboard.">
+<meta name="description" content="A love letter to a bygone era — original browser games, each a hand-built prototype exploring a different game loop. Zero dependencies, pure HTML5 canvas.">
 <meta name="theme-color" content="#0a0e14">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,20 +14,29 @@
 <link rel="apple-touch-icon" href="icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Anorak Arcade">
-<meta property="og:title" content="Anorak Arcade — original system-games">
-<meta property="og:description" content="Original arcade games reverse-engineered from why play works. Play, chase a high score, and hit the global leaderboard.">
+<meta property="og:title" content="About — Anorak Arcade">
+<meta property="og:description" content="A love letter to a bygone era. Original browser games, each a prototype exploring a different game loop — zero dependencies, pure HTML5 canvas.">
 <meta property="og:image" content="https://anorak-arcade.pages.dev/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Anorak Arcade — original system-games">
-<meta name="twitter:description" content="Original arcade games reverse-engineered from why play works.">
+<meta name="twitter:title" content="About — Anorak Arcade">
+<meta name="twitter:description" content="A love letter to a bygone era — original browser games built as experimental prototypes.">
 <meta name="twitter:image" content="https://anorak-arcade.pages.dev/og.png">
 
 <title>About — Anorak Arcade</title>
 <link rel="stylesheet" href="site.css">
 </head>
-<body>
+<body class="v2">
+
+<div class="fx" aria-hidden="true">
+  <span class="orb a" data-depth="0.020"></span>
+  <span class="orb b" data-depth="0.035"></span>
+  <span class="orb c" data-depth="0.050"></span>
+</div>
+<div class="scanlines" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
 <nav class="nav">
   <a class="brand" href="index.html"><span class="dot"></span>ANORAK ARCADE</a>
   <span class="spacer"></span>
@@ -36,40 +45,45 @@
   <a class="link active" href="about.html">ABOUT</a>
   <a class="link" href="research.html">RESEARCH</a>
 </nav>
+
 <div class="wrap narrow prose">
-  <div class="eyebrow">ABOUT</div>
-  <h1 class="title">About <span class="amber">Anorak Arcade</span></h1>
-  <p class="lede"><b>anorak</b> <i>(n., British slang)</i> — someone with an obsessive, encyclopaedic love of a niche subject. This arcade is built by anoraks, about the thing under the fun: <b>why</b> certain games grab a brain and won't let go — and whether you can rebuild that grip from scratch.</p>
+  <header class="hero">
+    <span class="kicker"><span class="kdot"></span> THE PROJECT</span>
+    <h1 class="bigtitle sm"><span class="anorak">ABOUT</span><span class="arc">Anorak Arcade</span></h1>
+    <p class="lede2"><b>anorak</b> <i>(n., British slang)</i> — someone with an obsessive, encyclopaedic love of a niche subject. This arcade is built by anoraks, about the thing under the fun: <b>why</b> certain games grab a brain and won't let go — and whether you can rebuild that grip from scratch.</p>
+  </header>
 
   <h2>The premise</h2>
-  <p>Most "tributes" to a classic clone its <i>surface</i> — the blocks, the colours, the controls. We wanted the opposite: ignore the surface entirely and reverse-engineer the <b>machine underneath</b>. What is the actual psychological loop that makes a game like Tetris feel impossible to put down? And once you can name that loop precisely, can you build <i>brand-new</i> games that pull the same levers — without copying a single block?</p>
-  <p>Anorak Arcade is the answer to that question, made playable. Every game here is an original system engineered from researched first principles, not a reskin of anything.</p>
+  <p class="reveal">Most "tributes" to a classic clone its <i>surface</i> — the blocks, the colours, the controls. We wanted the opposite: ignore the surface entirely and reverse-engineer the <b>machine underneath</b>. What is the actual psychological loop that makes a game like Tetris feel impossible to put down? And once you can name that loop precisely, can you build <i>brand-new</i> games that pull the same levers — without copying a single block?</p>
+  <p class="reveal">Anorak Arcade is the answer to that question, made playable. Every game here is an original system engineered from researched first principles, not a reskin of anything.</p>
 
   <h2>The seed</h2>
-  <p>It started with a single brief — research <i>why Tetris works</i> down to the neuroscience, then build original prototypes that hit the same nerve:</p>
-  <blockquote>
+  <p class="reveal">It started with a single brief — research <i>why Tetris works</i> down to the neuroscience, then build original prototypes that hit the same nerve:</p>
+  <blockquote class="reveal">
     <p>“Conduct deep research on what makes the game ‘Tetris’ successful. Its history. Its story. Its mechanics. Its execution. <b>What makes it give dopamine.</b> Why is it so successful.</p>
     <p>Then … create research-backed prototypes that try to capture the same elements of Tetris, without copying it. We go to the engineering — <b>bio-engineering!</b> — roots and philosophies of why Tetris works, and recreate prototypes that fulfil the same needs/philosophies from a game-theory perspective, but as a fresh, new concept we can claim as our own.”</p>
   </blockquote>
 
   <h2>The method</h2>
   <p>We treated it like an engineering teardown:</p>
-  <ul>
-    <li><b>Research the loop, not the blocks.</b> History, mechanics, and — most importantly — the neuroscience: dopaminergic <i>wanting</i> vs. liking, reward-prediction-error, the Zeigarnik tension of unfinished tasks, flow state, and the clinical "Tetris effect" work on intrusive memory and craving.</li>
-    <li><b>Distil it into 8 transferable pillars</b> — perpetual pressure, order from chaos, tractable decisions under uncertainty, tension→resolution rhythm, transparent state, mastery ceiling, fairness, self-scaling difficulty — plus the neuro-loop that connects them.</li>
-    <li><b>Rebuild the loop with different verbs.</b> Four prototypes, four <i>core actions</i> — enclose, shift, rotate, allocate — each engineered to fire the same pillars with <b>no falling tetrominoes and no line clears</b>.</li>
-    <li><b>Playtest and follow the feel.</b> Keep what snaps, deepen what sings. CINDER (containment) and SHIFT (the shifting field) emerged as front-runners and got real game-feel investment.</li>
-  </ul>
+  <div class="pillars stagger">
+    <div class="pillar tilt reveal" style="--tc:var(--cinder)"><div class="n">01</div><div class="nm">Research the loop, not the blocks</div><p>History, mechanics, and — most importantly — the neuroscience: dopaminergic <i>wanting</i> vs. liking, reward-prediction-error, the Zeigarnik tension of unfinished tasks, flow state, and the clinical "Tetris effect" work on intrusive memory and craving.</p></div>
+    <div class="pillar tilt reveal" style="--tc:var(--shift)"><div class="n">02</div><div class="nm">Distil it into 8 pillars</div><p>Perpetual pressure, order from chaos, tractable decisions, tension→resolution rhythm, transparent state, mastery ceiling, fairness, self-scaling difficulty — plus the neuro-loop that connects them.</p></div>
+    <div class="pillar tilt reveal" style="--tc:var(--conduit)"><div class="n">03</div><div class="nm">Rebuild the loop fresh</div><p>Original prototypes, each a different core action, engineered to fire the same pillars with <b>no falling tetrominoes and no line clears</b>.</p></div>
+    <div class="pillar tilt reveal" style="--tc:var(--homeostat)"><div class="n">04</div><div class="nm">Playtest and follow the feel</div><p>Keep what snaps, deepen what sings. CINDER (containment) and SHIFT (the shifting field) emerged as front-runners and got real game-feel investment.</p></div>
+  </div>
 
   <h2>What it’s becoming</h2>
-  <p>An arcade for friends — a place to drop in for 30 seconds or 30 minutes, chase a personal best, and compare notes. Next up: persistent <b>leaderboards</b>, a tiny data layer tracking plays and high scores, and the ability to serve these games out to other platforms. The lab keeps running underneath it: every new game starts as a research question.</p>
+  <p class="reveal">An arcade for friends — a place to drop in for 30 seconds or 30 minutes, chase a personal best, and compare notes. Next up: persistent <b>leaderboards</b>, a tiny data layer tracking plays and high scores, and the ability to serve these games out to other platforms. The lab keeps running underneath it: every new game starts as a research question.</p>
 
-  <div class="btnrow">
-    <a class="btn" href="index.html">Enter the arcade →</a>
-    <a class="btn ghost" href="research.html">Read the research</a>
+  <div class="cta reveal">
+    <a class="btn magnetic" href="index.html">▶ Enter the arcade</a>
+    <a class="btn ghost magnetic" href="research.html">Read the research</a>
   </div>
 </div>
-<div class="footer">Anorak Arcade · built by reverse-engineering why play works. <a href="https://github.com/seanellul/anorak-arcade" target="_blank" rel="noopener">Source ↗</a></div>
+
+<div class="footer">Anorak Arcade · <a href="index.html">arcade</a> · <a href="research.html">research</a> · <a href="https://github.com/seanellul/anorak-arcade" target="_blank" rel="noopener">source ↗</a> · built by <a class="byline" href="https://seanellul.com" target="_blank" rel="noopener">seanellul ↗</a></div>
 <script src="site.js"></script>
+<script src="chrome.js"></script>
 </body>
 </html>
