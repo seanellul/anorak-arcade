@@ -104,7 +104,9 @@
 <script>
 (()=>{
   const N=1,E=2,S=4,Wb=8;
-  const G=7, CELL=64, W=G*CELL, H=G*CELL;
+  const G=7, CELL=64, PADX=36, PADY=24, W=G*CELL+2*PADX, H=G*CELL+2*PADY;
+  const GL=PADX, GR=W-PADX, GT=PADY, GB=H-PADY;   // grid bounds (wires never cross these)
+  const NODX=PADX/2;                                // node x sits centred in the margin
   const cv=document.getElementById('c'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
   const SRC_Y=3; const SINK_ROWS=[1,3,5];
   let mask, spin, score, streak, tempo, charge, CHARGE_MAX, beatEvery, beatT, last, dead, litSink, pulse, shake, flashT, state;
@@ -160,8 +162,9 @@
   }
 
   function rotateAt(x,y,cw){ if(!playing()) return; const i=idx(x,y); mask[i]=cw?rotCW(mask[i]):rotCCW(mask[i]); spin[i]+=cw?-Math.PI/2:Math.PI/2; Juice.sfx.tick(cw?340:300); }
-  cv.addEventListener('mousedown',e=>{ const r=cv.getBoundingClientRect(); const x=Math.floor((e.clientX-r.left)/(r.width/G)), y=Math.floor((e.clientY-r.top)/(r.height/G)); if(x<0||y<0||x>=G||y>=G) return; rotateAt(x,y,e.button!==2); });
-  cv.addEventListener('touchstart',e=>{ e.preventDefault(); const r=cv.getBoundingClientRect(); const t=e.touches[0]; const x=Math.floor((t.clientX-r.left)/(r.width/G)), y=Math.floor((t.clientY-r.top)/(r.height/G)); if(x<0||y<0||x>=G||y>=G) return; rotateAt(x,y,true); },{passive:false});
+  function cellAt(clientX,clientY){ const r=cv.getBoundingClientRect(); const px=(clientX-r.left)*(W/r.width)-GL, py=(clientY-r.top)*(H/r.height)-GT; const x=Math.floor(px/CELL), y=Math.floor(py/CELL); return (x<0||y<0||x>=G||y>=G)?null:[x,y]; }
+  cv.addEventListener('mousedown',e=>{ const c=cellAt(e.clientX,e.clientY); if(c) rotateAt(c[0],c[1],e.button!==2); });
+  cv.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.touches[0]; const c=cellAt(t.clientX,t.clientY); if(c) rotateAt(c[0],c[1],true); },{passive:false});
   cv.addEventListener('contextmenu',e=>e.preventDefault());
   window.addEventListener('keydown',e=>{ const k=(e.key||'').toLowerCase();
     if(k==='p' && (state==='play'||state==='paused')){ togglePause(); e.preventDefault(); return; }
@@ -185,12 +188,18 @@
     draw(); updateHUD(); requestAnimationFrame(loop);
   }
 
-  const cx=x=>x*CELL+CELL/2, cy=y=>y*CELL+CELL/2;
+  const cx=x=>GL+x*CELL+CELL/2, cy=y=>GT+y*CELL+CELL/2;
   const DIRV={1:[0,-1],2:[1,0],4:[0,1],8:[-1,0]};
   function draw(){ ctx.save(); if(shake>0) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
     ctx.clearRect(-20,-20,W+40,H+40);
     const {reach}=trace(); const path=delivered(); const live=!!path; const onPath=new Set(path||[]);
     const t=performance.now();
+
+    // playfield boundary — the wires live strictly inside this frame; source/sink nodes are housed in the margin outside it
+    const fr=10;
+    ctx.fillStyle='rgba(10,16,28,0.55)'; roundRect(GL-4,GT-4,(GR-GL)+8,(GB-GT)+8,fr); ctx.fill();
+    ctx.strokeStyle=live?'rgba(139,233,255,0.30)':'rgba(120,140,180,0.20)'; ctx.lineWidth=2;
+    roundRect(GL-4,GT-4,(GR-GL)+8,(GB-GT)+8,fr); ctx.stroke();
 
     // pipes — three legible states: inert (dark) · powered (calm purple) · live route (bright cyan, glowing)
     for(let y=0;y<G;y++)for(let x=0;x<G;x++){ const c=idx(x,y), m=mask[c];
@@ -207,25 +216,25 @@
     // energy visibly flowing along the actual route (only the live path — keeps it readable)
     if(live) drawFlow(path, t);
 
-    // source
+    // source — node housed in the left margin, a short lead reaching to the grid edge
     const sy=cy(SRC_Y); const fed=(mask[idx(0,SRC_Y)]&Wb); const frac=Math.max(0,beatT/beatEvery);
-    ctx.strokeStyle='rgba(54,211,153,'+(0.12+0.45*(1-frac))+')'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(15,sy, 11+frac*24, 0,7); ctx.stroke();
-    ctx.strokeStyle= fed?'#36d399':'#2c4a40'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(2,sy); ctx.lineTo(CELL/2,sy); ctx.stroke();
-    ctx.fillStyle='#36d399'; ctx.shadowColor='#36d399'; ctx.shadowBlur=12+(1-frac)*14; ctx.beginPath(); ctx.arc(15,sy,11,0,7); ctx.fill(); ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(54,211,153,'+(0.12+0.45*(1-frac))+')'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(NODX,sy, 10+frac*16, 0,7); ctx.stroke();
+    ctx.strokeStyle= fed?'#36d399':'#2c4a40'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(NODX,sy); ctx.lineTo(GL,sy); ctx.stroke();
+    ctx.fillStyle='#36d399'; ctx.shadowColor='#36d399'; ctx.shadowBlur=12+(1-frac)*14; ctx.beginPath(); ctx.arc(NODX,sy,10,0,7); ctx.fill(); ctx.shadowBlur=0;
 
     // sinks — connected (filled, glowing, ring) vs target waiting (hollow amber + visible gap) vs idle
-    for(const r of SINK_ROWS){ const yy=cy(r); const on=(r===litSink); const connected=on&&live; const nx=W-15;
+    for(const r of SINK_ROWS){ const yy=cy(r); const on=(r===litSink); const connected=on&&live; const nx=W-NODX;
       if(connected){
-        ctx.strokeStyle='#8be9ff'; ctx.lineWidth=9; ctx.shadowColor='#5ad1ff'; ctx.shadowBlur=14; ctx.beginPath(); ctx.moveTo(W-CELL/2,yy); ctx.lineTo(nx,yy); ctx.stroke(); ctx.shadowBlur=0;
-        ctx.fillStyle='#aef0ff'; ctx.shadowColor='#8be9ff'; ctx.shadowBlur=20; ctx.beginPath(); ctx.arc(nx,yy,12,0,7); ctx.fill(); ctx.shadowBlur=0;
-        ctx.strokeStyle='rgba(139,233,255,'+(0.45+0.35*Math.sin(t/110))+')'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(nx,yy,16+2*Math.sin(t/110),0,7); ctx.stroke();
+        ctx.strokeStyle='#8be9ff'; ctx.lineWidth=9; ctx.shadowColor='#5ad1ff'; ctx.shadowBlur=14; ctx.beginPath(); ctx.moveTo(GR,yy); ctx.lineTo(nx,yy); ctx.stroke(); ctx.shadowBlur=0;
+        ctx.fillStyle='#aef0ff'; ctx.shadowColor='#8be9ff'; ctx.shadowBlur=20; ctx.beginPath(); ctx.arc(nx,yy,11,0,7); ctx.fill(); ctx.shadowBlur=0;
+        ctx.strokeStyle='rgba(139,233,255,'+(0.45+0.35*Math.sin(t/110))+')'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(nx,yy,15+2*Math.sin(t/110),0,7); ctx.stroke();
       } else if(on){
         const p=0.5+0.5*Math.sin(t/170);
-        ctx.strokeStyle='rgba(255,210,80,0.22)'; ctx.lineWidth=3; ctx.setLineDash([3,6]); ctx.beginPath(); ctx.moveTo(W-CELL/2+8,yy); ctx.lineTo(nx-13,yy); ctx.stroke(); ctx.setLineDash([]);
-        ctx.strokeStyle='#ffd23f'; ctx.lineWidth=3; ctx.shadowColor='#ffd23f'; ctx.shadowBlur=8+p*12; ctx.beginPath(); ctx.arc(nx,yy,12,0,7); ctx.stroke(); ctx.shadowBlur=0;
+        ctx.strokeStyle='rgba(255,210,80,0.22)'; ctx.lineWidth=3; ctx.setLineDash([3,6]); ctx.beginPath(); ctx.moveTo(GR,yy); ctx.lineTo(nx-12,yy); ctx.stroke(); ctx.setLineDash([]);
+        ctx.strokeStyle='#ffd23f'; ctx.lineWidth=3; ctx.shadowColor='#ffd23f'; ctx.shadowBlur=8+p*12; ctx.beginPath(); ctx.arc(nx,yy,11,0,7); ctx.stroke(); ctx.shadowBlur=0;
         ctx.fillStyle='rgba(255,210,80,'+(0.25+p*0.4)+')'; ctx.beginPath(); ctx.arc(nx,yy,4.5,0,7); ctx.fill();
       } else {
-        ctx.strokeStyle='#243049'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(nx-14,yy); ctx.lineTo(nx,yy); ctx.stroke();
+        ctx.strokeStyle='#243049'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(GR,yy); ctx.lineTo(nx-3,yy); ctx.stroke();
         ctx.fillStyle='#39435c'; ctx.beginPath(); ctx.arc(nx,yy,6,0,7); ctx.fill();
       }
     }
@@ -245,11 +254,13 @@
     ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round';
     ctx.strokeStyle='rgba(225,250,255,0.92)'; ctx.lineWidth=3; ctx.shadowColor='#8be9ff'; ctx.shadowBlur=8;
     ctx.setLineDash([5,17]); ctx.lineDashOffset = -(t/7)%22;
-    ctx.beginPath(); ctx.moveTo(2, cy(SRC_Y));
+    ctx.beginPath(); ctx.moveTo(NODX, cy(SRC_Y));
     for(const c of path) ctx.lineTo(cx(c%G), cy((c/G)|0));
-    ctx.lineTo(W-15, cy(litSink));
+    ctx.lineTo(W-NODX, cy(litSink));
     ctx.stroke(); ctx.setLineDash([]); ctx.shadowBlur=0; ctx.restore();
   }
+
+  function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 
   window.__conduit={ idx, trace, delivered, get mask(){return mask;}, getLitSink:()=>litSink, G, N,E,S,Wb, SRC_Y, setLitSink:v=>litSink=v, setState:v=>state=v, onBeat };
   reset(true); requestAnimationFrame(loop);
