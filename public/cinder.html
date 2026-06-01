@@ -25,7 +25,7 @@
   @keyframes pulseb{50%{box-shadow:0 0 14px rgba(255,77,109,.7)}}
   #comboBar{height:5px}
   #wrap{position:relative;margin:10px 0}
-  canvas{background:#05070c;border:1px solid #1e2638;border-radius:10px;display:block;cursor:crosshair;touch-action:none}
+  canvas{background:#05070c;border:1px solid #1e2638;border-radius:10px;display:block;max-width:100%;height:auto;cursor:crosshair;touch-action:none}
   .foot{max-width:680px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
   .key{color:var(--ink);background:#1b2335;border:1px solid #2a3447;border-radius:5px;padding:1px 7px;font-size:11px}
   .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,10,16,.9);border-radius:10px;text-align:center;padding:24px}
@@ -35,10 +35,16 @@
   .overlay .big{font-size:40px;font-weight:700;color:var(--hot2);margin:8px 0}
   button{background:linear-gradient(180deg,#ff8a4d,#ff5a2d);color:#1a0d06;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:13px 30px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:14px;box-shadow:0 6px 22px rgba(255,90,45,.35)}
   button:hover{filter:brightness(1.08)}
+  .ctrls{display:flex;gap:10px;justify-content:center;width:100%;max-width:680px;padding:0 8px;margin:8px 0 0}
+  .ctrls button{background:#1b2335;border:1px solid #2a3447;color:var(--ink);font-weight:700;letter-spacing:.1em;padding:11px 22px;border-radius:9px;font-size:13px;margin:0;box-shadow:none}
+  .ctrls button.on{background:#3a2740;border-color:var(--hot);color:var(--hot2)}
+  .ctrls button:hover{filter:none}
   .statline{color:var(--dim);font-size:12px;margin-top:10px;letter-spacing:.06em}
   .statline b{color:var(--ink)}
   a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}a.back:hover{color:var(--ink)}
   #hidden{display:none}
+  @media(max-width:520px){.hud{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){a.back{position:static;display:block;margin:10px 0 0 12px}header{padding-top:6px}}
 </style>
 </head>
 <body>
@@ -75,6 +81,7 @@
   </div>
   <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
 </div>
+<div class="ctrls"><button id="btnErase" type="button">✎ BUILD</button></div>
 <div class="foot">
   Seal fire into a closed pocket to capture it. Bigger captures escalate: <b style="color:#ffd23f">SPARK → BLAZE → INFERNO → FIRESTORM</b>. Chain captures quickly to build a <b>combo</b> multiplier. Walls refund when their pocket is captured.
 </div>
@@ -90,7 +97,7 @@
 
   let grid, pop, wallPop, score, dispScore, combo, comboT, caps, bestCap, stone, heat, heatName,
       spreadEvery, seedEvery, pIgnite, spreadT, seedT, stoneAcc, heatAcc,
-      wind, windT, seeds, particles, floaters, shocks, shake, last, state, hoverX, hoverY, painting, eraseMode, alarmT;
+      wind, windT, seeds, particles, floaters, shocks, shake, last, state, hoverX, hoverY, painting, eraseMode, eraseToggle, alarmT;
 
   const STAGES=['SMOLDER','KINDLE','BLAZE','INFERNO','MELTDOWN','MELTDOWN+'];
 
@@ -208,7 +215,7 @@
   window.addEventListener('mouseup',()=>painting=false);
   cv.addEventListener('mouseleave',()=>{hoverX=-1;hoverY=-1;});
   cv.addEventListener('contextmenu',e=>e.preventDefault());
-  cv.addEventListener('touchstart',e=>{ if(state!=='play') return; e.preventDefault(); painting=true; eraseMode=false; const[x,y]=cellFromEvent(e); hoverX=x;hoverY=y; paintAt(x,y); },{passive:false});
+  cv.addEventListener('touchstart',e=>{ if(state!=='play') return; e.preventDefault(); painting=true; eraseMode=eraseToggle; const[x,y]=cellFromEvent(e); hoverX=x;hoverY=y; paintAt(x,y); },{passive:false});
   cv.addEventListener('touchmove',e=>{ e.preventDefault(); const[x,y]=cellFromEvent(e); hoverX=x;hoverY=y; if(painting) paintAt(x,y); },{passive:false});
   window.addEventListener('touchend',()=>painting=false);
   window.addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
@@ -217,6 +224,7 @@
   });
   document.getElementById('startBtn').onclick=start;
   document.getElementById('again').onclick=start;
+  document.getElementById('btnErase').onclick=()=>{ eraseToggle=!eraseToggle; const b=document.getElementById('btnErase'); b.textContent=eraseToggle?'⌫ ERASE':'✎ BUILD'; b.classList.toggle('on',eraseToggle); };
   window.addEventListener('blur',()=>{ if(state==='play'){ state='paused'; document.getElementById('paused').style.display='flex'; } });
 
   function updateHUD(){

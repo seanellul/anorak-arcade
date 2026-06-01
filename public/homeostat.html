@@ -15,13 +15,14 @@
   .stat{background:var(--panel);border:1px solid #1e2638;border-radius:8px;padding:8px 10px}
   .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}.stat .val{font-size:20px;font-weight:700;margin-top:2px}
   #wrap{position:relative;margin:10px 0}
-  canvas{background:#070a10;border:1px solid #1e2638;border-radius:10px;display:block;touch-action:none}
+  canvas{background:#070a10;border:1px solid #1e2638;border-radius:10px;display:block;max-width:100%;height:auto;touch-action:none}
   .foot{max-width:560px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
   .key{color:var(--ink);background:#1b2335;border:1px solid #2a3447;border-radius:5px;padding:1px 7px;font-size:11px}
   #over{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,10,16,.86);border-radius:10px;text-align:center}
   #over h2{margin:0 0 6px;letter-spacing:.2em;color:var(--bad)}#over p{color:var(--dim);margin:4px 0 16px}
   button{background:var(--accent);color:#04150f;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:10px 22px;border-radius:8px;cursor:pointer}
   a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px}a.back:hover{color:var(--ink)}
+  @media(max-width:560px){a.back{position:static;display:block;margin:10px 0 0 12px}header{padding-top:6px}}
 </style>
 </head>
 <body>
