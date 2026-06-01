@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Tetris Lab — 4 prototypes</title>
+<style>
+  :root{ --bg:#0a0e14; --panel:#121826; --ink:#e7ecf5; --dim:#7d8aa0; }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1400px 900px at 50% -10%,#16203a,#0a0e14 55%);color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace;min-height:100vh;padding:48px 20px 80px}
+  .wrap{max-width:920px;margin:0 auto}
+  .eyebrow{color:var(--dim);letter-spacing:.32em;font-size:12px}
+  h1{font-size:34px;margin:8px 0 6px;letter-spacing:.04em}
+  .lede{color:var(--dim);max-width:680px;line-height:1.7;font-size:14px}
+  .lede b{color:var(--ink)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:34px 0}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid #1e2638;border-radius:14px;padding:22px;transition:.16s;position:relative;overflow:hidden}
+  a.card:hover{transform:translateY(-3px);border-color:#37425e}
+  a.card .verb{font-size:11px;letter-spacing:.22em;color:#0a0e14;background:var(--c);display:inline-block;padding:3px 10px;border-radius:20px;font-weight:700}
+  a.card h2{margin:14px 0 4px;font-size:24px;letter-spacing:.18em}
+  a.card .tag{color:var(--dim);font-size:12px;letter-spacing:.1em;margin-bottom:10px}
+  a.card p{color:#b6c0d4;font-size:13px;line-height:1.6;margin:0}
+  a.card .pill{margin-top:14px;font-size:11px;color:var(--dim)}
+  a.card .glow{position:absolute;right:-40px;top:-40px;width:120px;height:120px;border-radius:50%;background:var(--c);opacity:.14;filter:blur(20px)}
+  .docs{border-top:1px solid #1e2638;padding-top:24px;margin-top:10px}
+  .docs h3{letter-spacing:.2em;font-size:13px;color:var(--dim)}
+  .docs a{color:#8ea2cf;display:block;padding:6px 0;text-decoration:none;font-size:14px}
+  .docs a:hover{color:var(--ink)}
+  .note{color:var(--dim);font-size:12px;margin-top:28px;line-height:1.7}
+  .stats{margin-top:30px}
+  .stats h3{display:flex;align-items:center;gap:8px}
+  .stats h3 #totalTime{color:var(--ink)}
+  #resetStats{margin-left:auto;background:none;border:1px solid #2a3447;color:var(--dim);font-family:inherit;font-size:10px;padding:3px 9px;border-radius:6px;cursor:pointer;letter-spacing:.12em}
+  #resetStats:hover{color:var(--ink);border-color:#37425e}
+  .srow{display:grid;grid-template-columns:118px 1fr 66px 40px;align-items:center;gap:12px;padding:6px 0}
+  .sname{font-size:13px;letter-spacing:.14em;font-weight:700}
+  .sbar{height:9px;background:#0c1220;border:1px solid #1e2638;border-radius:5px;overflow:hidden}
+  .sbar>i{display:block;height:100%;width:0;border-radius:5px;transition:width .5s ease}
+  .stime{font-size:12px;color:var(--ink);text-align:right}
+  .ssess{font-size:11px;color:var(--dim);text-align:right}
+  .empty{color:var(--dim);font-size:13px;padding:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">RESEARCH → PROTOTYPE</div>
+  <h1>The Tetris Lab</h1>
+  <p class="lede">Four playable game loops, each engineered from the <b>8 design pillars</b> behind Tetris — perpetual pressure, order from chaos, tractable decisions under uncertainty, tension→resolution rhythm, transparent state, mastery ceiling, fairness, self-scaling difficulty — and the neuro-loop underneath (Zeigarnik open-loops → dopaminergic <i>wanting</i> → skill action → prediction-error release). <b>None uses falling tetrominoes or line clears.</b> Each attacks the same psychology with a different core verb.</p>
+
+  <div class="grid">
+    <a class="card" href="cinder.html" style="--c:#ff6a3d">
+      <span class="glow"></span>
+      <span class="verb">ENCLOSE</span>
+      <h2>CINDER</h2>
+      <div class="tag">containment · draw walls</div>
+      <p>A fire spreads across the grid. Wall it into sealed pockets to suffocate it. Bigger captures pay more — but the longer you wait, the faster it spreads. The risk/reward gamble is Tetris's "go for the Tetris" decision, made of fire.</p>
+      <div class="pill">leans on · order-from-chaos · risk/reward release</div>
+    </a>
+    <a class="card" href="strata.html" style="--c:#5ad1ff">
+      <span class="glow"></span>
+      <span class="verb">SHIFT</span>
+      <h2>STRATA</h2>
+      <div class="tag">shifting field · slide rows</div>
+      <p>Mineral layers push up from below. Slide whole rows sideways (they wrap) to align 3+ of a color — they crystallize, clear, and cascade. You never place a piece; you rearrange the field that's burying you.</p>
+      <div class="pill">leans on · perpetual pressure · order-from-chaos</div>
+    </a>
+    <a class="card" href="conduit.html" style="--c:#b98cff">
+      <span class="glow"></span>
+      <span class="verb">ROTATE</span>
+      <h2>CONDUIT</h2>
+      <div class="tag">rhythmic routing · rotate nodes</div>
+      <p>A source fires a pulse every beat toward a lit sink. Rotate nodes to connect a path before the beat lands. Deliver to score and cool the core; miss and overload climbs. The beat is the metronome of tension and release.</p>
+      <div class="pill">leans on · tension→resolution rhythm · self-scaling</div>
+    </a>
+    <a class="card" href="homeostat.html" style="--c:#36d399">
+      <span class="glow"></span>
+      <span class="verb">ALLOCATE</span>
+      <h2>HOMEOSTAT</h2>
+      <div class="tag">equilibrium · feed meters</div>
+      <p>Reactors drain on their own clocks. You have one feed stream and can only tend one at a time. Keep every needle in its green flow band; a starve or overload ends the run. Plate-spinning as pure loss-aversion.</p>
+      <div class="pill">leans on · perpetual pressure · tractable decisions</div>
+    </a>
+  </div>
+
+  <div class="docs">
+    <h3>THE RESEARCH</h3>
+    <a href="../research/01-tetris-dossier.md">01 · Tetris Dossier — history, mechanics, neuroscience, why it succeeded</a>
+    <a href="../research/02-design-pillars.md">02 · The 8 Pillars — Tetris distilled into a buildable spec</a>
+    <a href="../research/03-prototype-rationale.md">03 · Prototype Rationale — how each build maps to the research</a>
+  </div>
+
+  <div class="docs stats">
+    <h3>PLAYTIME · <span id="totalTime">0s</span> total <button id="resetStats">RESET</button></h3>
+    <div id="statList"><div class="empty">No play recorded yet — go break something.</div></div>
+  </div>
+
+  <p class="note">Zero dependencies — pure HTML5 canvas. Click in each game once to enable sound (WebAudio tension/release cues). Every prototype has a fail→instant-restart loop so "loss is cheap and clearly your fault" holds. These are <b>feel tests</b>: play each for ~2 minutes and judge which tension→resolution "snap" lands hardest — that's the one to deepen.</p>
+</div>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const COLORS={CINDER:'#ff6a3d',STRATA:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399'};
+  const ORDER=['CINDER','STRATA','CONDUIT','HOMEOSTAT'];
+  function render(){
+    if(!window.GameStats) return;
+    const all=GameStats.all(); const map={}; all.forEach(a=>map[a.game]=a);
+    document.getElementById('totalTime').textContent=GameStats.fmt(GameStats.total());
+    const max=Math.max(1,...all.map(a=>a.ms));
+    const any=all.some(a=>a.ms>0);
+    const list=document.getElementById('statList');
+    if(!any){ list.innerHTML='<div class="empty">No play recorded yet — go break something.</div>'; return; }
+    let html='';
+    for(const g of ORDER){ const a=map[g]||{ms:0,sessions:0}; const w=(a.ms/max*100)||0;
+      html+='<div class="srow"><span class="sname" style="color:'+COLORS[g]+'">'+g+'</span>'+
+            '<div class="sbar"><i style="width:'+w+'%;background:'+COLORS[g]+'"></i></div>'+
+            '<span class="stime">'+GameStats.fmt(a.ms)+'</span>'+
+            '<span class="ssess">'+(a.sessions||0)+'×</span></div>';
+    }
+    list.innerHTML=html;
+  }
+  render(); setInterval(render,1000);
+  document.getElementById('resetStats').onclick=()=>{ if(confirm('Reset all playtime stats?')){ GameStats.reset(); render(); } };
+})();
+</script>
+</body>
+</html>

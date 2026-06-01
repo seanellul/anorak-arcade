@@ -1,0 +1,23 @@
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Test / tooling artifacts
+.playwright-mcp/
+*.png
+/tmp/
+
+# Node (for future backend)
+node_modules/
+npm-debug.log*
+.env
+.env.*
+!.env.example
+
+# Deploy
+.vercel/
+.wrangler/
+dist/
+.output/

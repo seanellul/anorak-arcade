@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOMEOSTAT — balance prototype</title>
+<style>
+  :root{ --bg:#0a0e14; --panel:#121826; --ink:#e7ecf5; --dim:#7d8aa0; --accent:#36d399; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 800px at 50% -10%,#0f2a23,#0a0e14 60%);color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+  header{width:100%;max-width:560px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.32em;margin:0}h1 .v{color:var(--accent)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:560px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #1e2638;border-radius:8px;padding:8px 10px}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}.stat .val{font-size:20px;font-weight:700;margin-top:2px}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#070a10;border:1px solid #1e2638;border-radius:10px;display:block;touch-action:none}
+  .foot{max-width:560px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#1b2335;border:1px solid #2a3447;border-radius:5px;padding:1px 7px;font-size:11px}
+  #over{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,10,16,.86);border-radius:10px;text-align:center}
+  #over h2{margin:0 0 6px;letter-spacing:.2em;color:var(--bad)}#over p{color:var(--dim);margin:4px 0 16px}
+  button{background:var(--accent);color:#04150f;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:10px 22px;border-radius:8px;cursor:pointer}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px}a.back:hover{color:var(--ink)}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← lab</a>
+<header><div><h1>HOMEO<span class="v">STAT</span></h1><div class="sub">EQUILIBRIUM · hold the flow band</div></div><div class="sub">verb: <b style="color:var(--ink)">allocate</b></div></header>
+<div class="hud">
+  <div class="stat"><div class="k">SCORE</div><div class="val" id="score">0</div></div>
+  <div class="stat"><div class="k">UPTIME</div><div class="val" id="uptime">0s</div></div>
+  <div class="stat"><div class="k">LOAD LV</div><div class="val" id="load">1</div></div>
+</div>
+<div id="wrap"><canvas id="c"></canvas>
+  <div id="over"><h2 id="overh">FLATLINE</h2><p id="overmsg"></p><button id="again">RESTART ⏎</button></div>
+</div>
+<div class="foot">
+  Every reactor drains on its own. You have <b>one feed stream</b> — pour it into a reactor to raise it, but only one at a time. Keep each needle inside its <b>green flow band</b> to score; a reactor that <b>starves (0)</b> or <b>overloads (100)</b> ends the run. Drain accelerates and new reactors keep coming online.<br>
+  <span class="key">hold 1–6</span> feed reactor &nbsp; <span class="key">click + hold</span> a reactor &nbsp; <span class="key">⏎</span> restart
+</div>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const W=560, H=420;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
+  const FEED=40, BAND_LO=38, BAND_HI=72;
+  let reactors, feeding, score, t0, last, dead, load, addAcc, surgeAcc, loadAcc, flashes, pulse;
+
+  let AC; function beep(f,d,ty,g){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),v=AC.createGain();o.type=ty||'sine';o.frequency.value=f;v.gain.value=g||0.05;o.connect(v);v.connect(AC.destination);o.start();v.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(d||0.12));o.stop(AC.currentTime+(d||0.12));}catch(e){}}
+
+  function mkReactor(){ return { level:55, drain:7+Math.random()*4, baseDrain:7+Math.random()*4, surge:0, crit:false }; }
+  function reset(){
+    reactors=[mkReactor(),mkReactor(),mkReactor()]; feeding=-1; score=0; t0=performance.now(); last=t0; dead=false; load=1;
+    addAcc=0; surgeAcc=0; loadAcc=0; flashes=[]; pulse=0;
+    document.getElementById('over').style.display='none';
+  }
+  function layout(){ const n=reactors.length; const gap=24; const bw=Math.min(70,(W-gap*(n+1))/n); const total=bw*n+gap*(n+1); const x0=(W-total)/2+gap; return {bw,gap,x0,top:30,bot:H-46,h:H-46-30}; }
+
+  function loseGame(which,why){ dead=true; document.getElementById('overh').textContent = why==='over'?'OVERLOAD':'STARVED';
+    document.getElementById('overmsg').textContent='Reactor '+(which+1)+' '+(why==='over'?'overloaded':'starved')+' · score '+score+' · '+((performance.now()-t0)/1000|0)+'s';
+    document.getElementById('over').style.display='flex'; beep(90,0.6,'sawtooth',0.1); }
+
+  function loop(now){ const dt=Math.min(60,now-last)/1000; last=now;
+    if(!dead){
+      if(window.GameStats) GameStats.ping('HOMEOSTAT', dt*1000);
+      // feeding
+      if(feeding>=0 && feeding<reactors.length){ reactors[feeding].level += FEED*dt; pulse=1; }
+      let inBand=0;
+      for(let i=0;i<reactors.length;i++){ const r=reactors[i];
+        const d=(r.drain + r.surge); r.level -= d*dt; if(r.surge>0) r.surge=Math.max(0,r.surge-12*dt);
+        // critical tracking for "save" release
+        const critical = r.level<16 || r.level>84;
+        if(critical && !r.crit){ r.crit=true; }
+        if(!critical && r.crit){ r.crit=false; score+=25; flashes.push({i,txt:'SAVE +25',t:1.2}); beep(520,0.12,'sine',0.06); setTimeout(()=>beep(780,0.16,'triangle',0.06),70); }
+        if(r.level<=0){ r.level=0; return loseGame(i,'starve'); }
+        if(r.level>=100){ r.level=100; return loseGame(i,'over'); }
+        if(r.level>=BAND_LO && r.level<=BAND_HI) inBand++;
+      }
+      score += inBand*10*dt + (inBand===reactors.length?inBand*4*dt:0);
+      // alarms
+      for(const r of reactors){ if(r.level<12||r.level>88){ if((now/220|0)%2===0) beep(880,0.03,'square',0.02); } }
+      // add reactors
+      addAcc+=dt; if(addAcc>20 && reactors.length<6){ reactors.push(mkReactor()); addAcc=0; flashes.push({i:reactors.length-1,txt:'ONLINE',t:1.4}); beep(300,0.2,'triangle',0.05); }
+      // surges (uncertainty)
+      surgeAcc+=dt; if(surgeAcc> Math.max(3,7-load*0.4)){ surgeAcc=0; const r=reactors[Math.random()*reactors.length|0]; r.surge+=10+load*2; }
+      // self-scaling load
+      loadAcc+=dt; if(loadAcc>12){ loadAcc=0; load++; for(const r of reactors){ r.drain+=1.4; } }
+    }
+    if(pulse>0) pulse-=0.05;
+    draw();
+    document.getElementById('score').textContent=score|0;
+    document.getElementById('uptime').textContent=((dead?0:(now-t0))/1000|0)+'s';
+    document.getElementById('load').textContent=load;
+    requestAnimationFrame(loop);
+  }
+
+  function draw(){ ctx.clearRect(0,0,W,H); const L=layout();
+    for(let i=0;i<reactors.length;i++){ const r=reactors[i]; const x=L.x0+i*(L.bw+L.gap);
+      // tube
+      ctx.fillStyle='#0c1422'; ctx.fillRect(x,L.top,L.bw,L.h);
+      ctx.strokeStyle='#1e2638'; ctx.strokeRect(x,L.top,L.bw,L.h);
+      // band
+      const by=L.bot-(BAND_HI/100)*L.h, bh=((BAND_HI-BAND_LO)/100)*L.h;
+      ctx.fillStyle='rgba(54,211,153,0.16)'; ctx.fillRect(x,by,L.bw,bh);
+      ctx.strokeStyle='rgba(54,211,153,0.5)'; ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(x,by);ctx.lineTo(x+L.bw,by); ctx.moveTo(x,by+bh);ctx.lineTo(x+L.bw,by+bh); ctx.stroke(); ctx.setLineDash([]);
+      // fill
+      const fh=(r.level/100)*L.h; const fy=L.bot-fh; const inb=r.level>=BAND_LO&&r.level<=BAND_HI;
+      const crit=r.level<16||r.level>84;
+      ctx.fillStyle= crit?'#ff4d6d':(inb?'#36d399':'#ffb13d'); ctx.fillRect(x+2,fy,L.bw-4,fh);
+      // feeding glow + arrow
+      if(feeding===i){ ctx.fillStyle=`rgba(90,209,255,${0.25+pulse*0.4})`; ctx.fillRect(x+2,L.top,L.bw-4,L.h);
+        ctx.fillStyle='#5ad1ff'; ctx.font='bold 16px monospace'; ctx.textAlign='center'; ctx.fillText('▲',x+L.bw/2,L.top-2); }
+      // label
+      ctx.fillStyle='#7d8aa0'; ctx.font='11px monospace'; ctx.textAlign='center'; ctx.fillText('['+(i+1)+']',x+L.bw/2,H-26);
+      ctx.fillStyle=inb?'#36d399':'#e7ecf5'; ctx.font='bold 13px monospace'; ctx.fillText((r.level|0),x+L.bw/2,H-10);
+      // surge marker
+      if(r.surge>1){ ctx.fillStyle='#ff4d6d'; ctx.font='10px monospace'; ctx.fillText('⚡',x+L.bw/2,L.top+12); }
+      // flashes
+    }
+    for(let i=flashes.length-1;i>=0;i--){ const f=flashes[i]; f.t-=0.03; if(f.i>=reactors.length){flashes.splice(i,1);continue;}
+      const x=L.x0+f.i*(L.bw+L.gap); ctx.globalAlpha=Math.max(0,f.t); ctx.fillStyle='#5ad1ff'; ctx.font='bold 12px monospace'; ctx.textAlign='center'; ctx.fillText(f.txt,x+L.bw/2,L.top+L.h/2); ctx.globalAlpha=1; if(f.t<=0) flashes.splice(i,1); }
+  }
+
+  // input
+  function feedAt(clientX,clientY){ const r=cv.getBoundingClientRect(); const L=layout(); const px=(clientX-r.left)*(W/r.width);
+    for(let i=0;i<reactors.length;i++){ const x=L.x0+i*(L.bw+L.gap); if(px>=x-L.gap/2 && px<=x+L.bw+L.gap/2){ feeding=i; return; } } }
+  cv.addEventListener('mousedown',e=>{ if(!dead) feedAt(e.clientX,e.clientY); });
+  cv.addEventListener('mousemove',e=>{ if(e.buttons&&!dead) feedAt(e.clientX,e.clientY); });
+  window.addEventListener('mouseup',()=>{ if(!pointerKeyHeld) feeding=-1; });
+  cv.addEventListener('touchstart',e=>{e.preventDefault(); if(!dead) feedAt(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+  cv.addEventListener('touchmove',e=>{e.preventDefault(); if(!dead) feedAt(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+  window.addEventListener('touchend',()=>{ feeding=-1; });
+  let pointerKeyHeld=false;
+  window.addEventListener('keydown',e=>{ if(e.key==='Enter'&&dead){ reset(); return; }
+    const n=parseInt(e.key,10); if(n>=1&&n<=reactors.length){ feeding=n-1; pointerKeyHeld=true; } });
+  window.addEventListener('keyup',e=>{ const n=parseInt(e.key,10); if(n>=1&&n<=6 && feeding===n-1){ feeding=-1; pointerKeyHeld=false; } });
+  document.getElementById('again').onclick=reset;
+
+  window.__homeo={ get reactors(){return reactors;}, feed:i=>feeding=i, getScore:()=>score, isDead:()=>dead, reset };
+  reset(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

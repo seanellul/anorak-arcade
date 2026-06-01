@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CONDUIT — rhythmic routing prototype</title>
+<style>
+  :root{ --bg:#0a0e14; --panel:#121826; --ink:#e7ecf5; --dim:#7d8aa0; --accent:#b98cff; --good:#36d399; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 800px at 50% -10%,#1b1530,#0a0e14 60%);color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+  header{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.32em;margin:0}h1 .v{color:var(--accent)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:520px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #1e2638;border-radius:8px;padding:8px 10px}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}.stat .val{font-size:20px;font-weight:700;margin-top:2px}
+  .bar{width:100%;max-width:520px;height:12px;background:#0c1220;border:1px solid #1e2638;border-radius:6px;overflow:hidden;margin:2px 8px;position:relative}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#36d399,#ff4d6d);transition:width .08s}
+  .bar .lab{position:absolute;left:8px;top:-1px;font-size:9px;letter-spacing:.2em;color:#0a0e14;mix-blend-mode:difference}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#070a10;border:1px solid #1e2638;border-radius:10px;display:block;cursor:pointer;touch-action:none}
+  .foot{max-width:520px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#1b2335;border:1px solid #2a3447;border-radius:5px;padding:1px 7px;font-size:11px}
+  #over{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,10,16,.86);border-radius:10px;text-align:center}
+  #over h2{margin:0 0 6px;letter-spacing:.2em;color:var(--bad)}#over p{color:var(--dim);margin:4px 0 16px}
+  button{background:var(--accent);color:#160b26;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:10px 22px;border-radius:8px;cursor:pointer}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px}a.back:hover{color:var(--ink)}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← lab</a>
+<header><div><h1>CON<span class="v">DUIT</span></h1><div class="sub">RHYTHMIC ROUTING · channel the pulse</div></div><div class="sub">verb: <b style="color:var(--ink)">rotate</b></div></header>
+<div class="hud">
+  <div class="stat"><div class="k">DELIVERED</div><div class="val" id="score">0</div></div>
+  <div class="stat"><div class="k">STREAK</div><div class="val" id="streak">0</div></div>
+  <div class="stat"><div class="k">TEMPO LV</div><div class="val" id="tempo">1</div></div>
+</div>
+<div class="bar"><i id="charge"></i><span class="lab">OVERLOAD CHARGE</span></div>
+<div class="bar"><i id="beat" style="background:linear-gradient(90deg,#b98cff,#5ad1ff)"></i><span class="lab">NEXT PULSE</span></div>
+<div id="wrap"><canvas id="c"></canvas>
+  <div id="over"><h2>OVERLOADED</h2><p id="overmsg"></p><button id="again">RESTART ⏎</button></div>
+</div>
+<div class="foot">
+  The <b>source</b> (left) fires a pulse every beat toward the <b>lit sink</b> (right, glowing). <b>Click a node to rotate it</b> (right-click = other way) and connect a live path before the ring closes. A delivered pulse scores and cools the core; a missed beat raises <b>overload</b>. Each delivery scrambles a few nodes — and the tempo only quickens.<br>
+  <span class="key">click</span> rotate ↻ &nbsp; <span class="key">right-click</span> rotate ↺ &nbsp; <span class="key">⏎</span> restart
+</div>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const N=1,E=2,S=4,Wb=8;
+  const G=7, CELL=64, W=G*CELL, H=G*CELL;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
+  const SRC_Y=3; const SINK_ROWS=[1,3,5];
+  let mask, spin, score, streak, tempo, charge, CHARGE_MAX, beatEvery, beatT, last, dead, litSink, pulse, shake, flashT;
+
+  let AC; function beep(f,d,t,g){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),v=AC.createGain();o.type=t||'sine';o.frequency.value=f;v.gain.value=g||0.05;o.connect(v);v.connect(AC.destination);o.start();v.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(d||0.12));o.stop(AC.currentTime+(d||0.12));}catch(e){}}
+
+  const SHAPES=[10,3,7,15];
+  const idx=(x,y)=>y*G+x;
+  const rotCW=m=>((m<<1)|(m>>3))&15;
+  const rotCCW=m=>((m>>1)|((m&1)<<3))&15;
+  function randPiece(){ let m=SHAPES[Math.random()*SHAPES.length|0]; const r=Math.random()*4|0; for(let i=0;i<r;i++) m=rotCW(m); return m; }
+
+  function reset(){
+    mask=new Uint8Array(G*G); spin=new Float32Array(G*G); for(let i=0;i<mask.length;i++) mask[i]=randPiece();
+    score=0; streak=0; tempo=1; charge=0; CHARGE_MAX=8; beatEvery=2700; beatT=beatEvery; last=performance.now(); dead=false; shake=0; flashT=0;
+    litSink=-1; newSink();
+    document.getElementById('over').style.display='none'; updateHUD();
+  }
+  function newSink(){ let r; do{ r=SINK_ROWS[Math.random()*SINK_ROWS.length|0]; }while(r===litSink && SINK_ROWS.length>1); litSink=r; }
+
+  function trace(){
+    const reach=new Set(), parent={}; const start=idx(0,SRC_Y);
+    if(mask[start]&Wb){ reach.add(start); parent[start]=-1; const q=[start];
+      while(q.length){ const c=q.shift(); const x=c%G,y=(c/G)|0; const m=mask[c];
+        const nbs=[[E,Wb,x+1,y],[Wb,E,x-1,y],[S,N,x,y+1],[N,S,x,y-1]];
+        for(const [out,inn,nx,ny] of nbs){ if(nx<0||ny<0||nx>=G||ny>=G) continue; const ni=idx(nx,ny);
+          if((m&out)&&(mask[ni]&inn)&&!reach.has(ni)){ reach.add(ni); parent[ni]=c; q.push(ni); } } }
+    }
+    return {reach,parent};
+  }
+  function delivered(){ const {reach,parent}=trace(); const sinkCell=idx(G-1,litSink);
+    if(reach.has(sinkCell)&&(mask[sinkCell]&E)){ const path=[]; let c=sinkCell; while(c!==-1&&c!==undefined){ path.push(c); c=parent[c]; } path.reverse(); return path; }
+    return null;
+  }
+
+  function onBeat(){ const path=delivered();
+    if(path){ score++; streak++; charge=Math.max(0,charge-1); pulse={path,t:0}; flashT=1; beep(440,0.1,'sine',0.06); setTimeout(()=>beep(660,0.16,'triangle',0.07),90);
+      const k=2+Math.min(2,(score/6|0)); for(let i=0;i<k;i++){ let q; do{ q=Math.random()*mask.length|0; }while(q===idx(0,SRC_Y)); const old=mask[q]; mask[q]=randPiece(); if(mask[q]!==old) spin[q]-=Math.PI/2; }
+      newSink();
+    } else { streak=0; charge++; shake=10; beep(150,0.22,'sawtooth',0.07);
+      if(charge>=CHARGE_MAX){ dead=true; document.getElementById('overmsg').textContent='Delivered '+score+' pulses'; document.getElementById('over').style.display='flex'; beep(90,0.6,'sawtooth',0.1); } }
+  }
+
+  function rotateAt(x,y,cw){ if(dead) return; const i=idx(x,y); mask[i]=cw?rotCW(mask[i]):rotCCW(mask[i]); spin[i]+=cw?-Math.PI/2:Math.PI/2; beep(cw?330:300,0.04,'square',0.03); }
+  cv.addEventListener('mousedown',e=>{ const r=cv.getBoundingClientRect(); const x=Math.floor((e.clientX-r.left)/(r.width/G)), y=Math.floor((e.clientY-r.top)/(r.height/G)); if(x<0||y<0||x>=G||y>=G) return; rotateAt(x,y,e.button!==2); });
+  cv.addEventListener('contextmenu',e=>e.preventDefault());
+  window.addEventListener('keydown',e=>{ if(e.key==='Enter'&&dead) reset(); });
+  document.getElementById('again').onclick=reset;
+
+  function updateHUD(){ document.getElementById('score').textContent=score; document.getElementById('streak').textContent=streak; document.getElementById('tempo').textContent=tempo;
+    document.getElementById('charge').style.width=(charge/CHARGE_MAX*100)+'%'; document.getElementById('beat').style.width=(100-beatT/beatEvery*100)+'%'; }
+
+  function loop(now){ const dt=Math.min(80,now-last); last=now;
+    if(!dead){ if(window.GameStats) GameStats.ping('CONDUIT', dt); beatT-=dt; if(beatT<=0){ onBeat(); beatT=beatEvery; } }
+    // ease spins toward 0 (the live rotation)
+    const k=Math.min(1,dt*0.022); for(let i=0;i<spin.length;i++){ if(spin[i]) { spin[i]+= -spin[i]*k; if(Math.abs(spin[i])<0.004) spin[i]=0; } }
+    if(pulse){ pulse.t+=dt/240; if(pulse.t>=pulse.path.length) pulse=null; }
+    if(shake>0) shake-=0.6; if(flashT>0) flashT-=0.05;
+    const lv=1+(score/6|0); if(lv!==tempo){ tempo=lv; beatEvery=Math.max(1100,2700*Math.pow(0.9,tempo-1)); }
+    draw(); updateHUD(); requestAnimationFrame(loop);
+  }
+
+  const cx=x=>x*CELL+CELL/2, cy=y=>y*CELL+CELL/2;
+  const DIRV={1:[0,-1],2:[1,0],4:[0,1],8:[-1,0]};
+  function draw(){ ctx.save(); if(shake>0) ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);
+    ctx.clearRect(-20,-20,W+40,H+40);
+    const {reach}=trace(); const live=delivered(); const flowing = !!live;
+    const t=performance.now();
+    for(let y=0;y<G;y++)for(let x=0;x<G;x++){ const c=idx(x,y), m=mask[c]; const lit=reach.has(c);
+      ctx.save(); ctx.translate(cx(x),cy(y)); ctx.rotate(spin[c]);
+      ctx.strokeStyle = lit ? (flowing?'#7fe3ff':'#c9aaff') : '#2c3550'; ctx.lineWidth = lit?9:7; ctx.lineCap='round';
+      if(lit&&flowing){ ctx.setLineDash([10,8]); ctx.lineDashOffset = -(t/26)%18; } else ctx.setLineDash([]);
+      for(const bit of [N,E,S,Wb]){ if(m&bit){ const [dx,dy]=DIRV[bit]; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(dx*CELL/2,dy*CELL/2); ctx.stroke(); } }
+      ctx.setLineDash([]);
+      ctx.fillStyle = lit ? (flowing?'#5ad1ff':'#b98cff') : '#39435c'; ctx.beginPath(); ctx.arc(0,0,lit?8:6,0,7); ctx.fill();
+      ctx.restore();
+    }
+    // source + beat anticipation ring
+    const sy=cy(SRC_Y); const frac=Math.max(0,beatT/beatEvery);
+    ctx.strokeStyle='rgba(54,211,153,'+(0.15+0.5*(1-frac))+')'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(6,sy, 8+frac*30, 0,7); ctx.stroke();
+    ctx.fillStyle='#36d399'; ctx.shadowColor='#36d399'; ctx.shadowBlur=10+ (1-frac)*16; ctx.beginPath(); ctx.arc(6,sy,10,0,7); ctx.fill(); ctx.shadowBlur=0;
+    ctx.strokeStyle='#36d399'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(CELL/2,sy); ctx.stroke();
+    // sinks
+    for(const r of SINK_ROWS){ const yy=cy(r); const on=(r===litSink); const ok=on&&live;
+      ctx.strokeStyle = ok?'#5ad1ff':(on?'#ffd23f':'#39435c'); ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(W-CELL/2,yy); ctx.lineTo(W,yy); ctx.stroke();
+      const pr = on? 11+Math.sin(t/150)*2 : 8; if(on){ ctx.shadowColor=ok?'#5ad1ff':'#ffd23f'; ctx.shadowBlur=14; }
+      ctx.fillStyle = ok?'#5ad1ff':(on?'#ffd23f':'#39435c'); ctx.beginPath(); ctx.arc(W-6,yy,pr,0,7); ctx.fill(); ctx.shadowBlur=0; }
+    if(flashT>0){ ctx.fillStyle=`rgba(90,209,255,${flashT*0.16})`; ctx.fillRect(0,0,W,H); }
+    if(pulse&&pulse.path.length){ const i=Math.min(pulse.path.length-1,Math.floor(pulse.t)); const f=pulse.t-i;
+      const a=pulse.path[i], b=pulse.path[Math.min(pulse.path.length-1,i+1)];
+      const X=cx(a%G)+(cx(b%G)-cx(a%G))*f, Y=cy((a/G)|0)+(cy((b/G)|0)-cy((a/G)|0))*f;
+      ctx.fillStyle='#fff'; ctx.shadowColor='#5ad1ff'; ctx.shadowBlur=20; ctx.beginPath(); ctx.arc(X,Y,7,0,7); ctx.fill(); ctx.shadowBlur=0; }
+    ctx.restore();
+  }
+
+  window.__conduit={ idx, trace, delivered, get mask(){return mask;}, getLitSink:()=>litSink, G, N,E,S,Wb, SRC_Y, setLitSink:v=>litSink=v };
+  reset(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

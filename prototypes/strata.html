@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STRATA — shifting-field prototype</title>
+<style>
+  :root{ --bg:#0a0e14; --panel:#121826; --ink:#e7ecf5; --dim:#7d8aa0; --accent:#5ad1ff; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 800px at 50% -10%,#102433,#0a0e14 60%);color:var(--ink);font-family:ui-monospace,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh}
+  header{width:100%;max-width:560px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.32em;margin:0}h1 .v{color:var(--accent)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:560px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #1e2638;border-radius:8px;padding:8px 10px}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}.stat .val{font-size:20px;font-weight:700;margin-top:2px}
+  .bar{width:100%;max-width:560px;height:12px;background:#0c1220;border:1px solid #1e2638;border-radius:6px;overflow:hidden;margin:2px 8px;position:relative}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5ad1ff,#ff4d6d);transition:width .12s}
+  .bar.danger{animation:pb .5s infinite}@keyframes pb{50%{box-shadow:0 0 12px rgba(255,77,109,.7)}}
+  .bar .lab{position:absolute;left:8px;top:-1px;font-size:9px;letter-spacing:.2em;color:#0a0e14;mix-blend-mode:difference}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#070a10;border:1px solid #1e2638;border-radius:10px;display:block;touch-action:none}
+  .foot{max-width:560px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#1b2335;border:1px solid #2a3447;border-radius:5px;padding:1px 7px;font-size:11px}
+  #over{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,10,16,.86);border-radius:10px;text-align:center}
+  #over h2{margin:0 0 6px;letter-spacing:.2em;color:var(--bad)}#over p{color:var(--dim);margin:4px 0 16px}
+  button{background:var(--accent);color:#04121a;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:10px 22px;border-radius:8px;cursor:pointer}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px}a.back:hover{color:var(--ink)}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← lab</a>
+<header><div><h1>STRA<span class="v">TA</span></h1><div class="sub">SHIFTING FIELD · align the veins</div></div><div class="sub">verb: <b style="color:var(--ink)">shift</b></div></header>
+<div class="hud">
+  <div class="stat"><div class="k">SCORE</div><div class="val" id="score">0</div></div>
+  <div class="stat"><div class="k">CLEARED</div><div class="val" id="cleared">0</div></div>
+  <div class="stat"><div class="k">CHAIN</div><div class="val" id="combo">—</div></div>
+  <div class="stat"><div class="k">DEPTH LV</div><div class="val" id="depth">1</div></div>
+</div>
+<div class="bar" id="riseWrap"><i id="rise"></i><span class="lab">NEXT SHIFT (rise + resolve)</span></div>
+<div id="wrap"><canvas id="c"></canvas>
+  <div id="over"><h2>BURIED</h2><p id="overmsg"></p><button id="again">RESTART ⏎</button></div>
+</div>
+<div class="foot">
+  Layers push up on each <b>Shift</b> — and <b>matches only clear during a Shift</b>, after everything rises. So take your time between Shifts: <b>slide rows</b> to line up <b>big</b> groups of one color, <b>drop</b> to compact your stack, then let the rise resolve it all for a <b>chain</b>. You lose if a filled cell is pushed past the top.<br>
+  <span class="key">hover / W S</span> pick row &nbsp; <span class="key">← → / A D</span> slide &nbsp; <span class="key">click L/R</span> slide &nbsp; <span class="key">↓</span> drop &nbsp; <span class="key">↑ / space</span> push up now
+</div>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const COLS=12, ROWS=15, CELL=34, W=COLS*CELL, H=ROWS*CELL;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H; const ctx=cv.getContext('2d');
+  const COLORS=[null,'#5ad1ff','#ff5ada','#9cff5a','#ffb13d'];
+  const NC=4;
+  let grid, sel, score, cleared, depth, riseEvery, riseT, last, dead, depthAcc;
+  let phase, anim, mult, comboShown, sparks;
+
+  let AC; function beep(f,d,t,g){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),v=AC.createGain();o.type=t||'sine';o.frequency.value=f;v.gain.value=g||0.05;o.connect(v);v.connect(AC.destination);o.start();v.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+(d||0.12));o.stop(AC.currentTime+(d||0.12));}catch(e){}}
+  const idx=(x,y)=>y*COLS+x;
+  const easeOut=t=>1-Math.pow(1-t,3);
+  const easeIn=t=>t*t;
+
+  function reset(){
+    grid=new Uint8Array(COLS*ROWS); sel=ROWS-3; score=0; cleared=0; depth=1;
+    riseEvery=2400; riseT=riseEvery; last=performance.now(); dead=false; depthAcc=0;
+    phase='idle'; anim=null; mult=1; comboShown=0; sparks=[];
+    for(let y=ROWS-5;y<ROWS;y++) fillRow(y);
+    let guard=40; while(guard-- && settleInstant()){}
+    document.getElementById('over').style.display='none'; updateHUD();
+  }
+  function fillRow(y){ for(let x=0;x<COLS;x++) grid[idx(x,y)] = Math.random()<0.82 ? (1+(Math.random()*NC|0)) : 0; }
+
+  function findMatches(){
+    const seen=new Uint8Array(grid.length); const out=new Set();
+    for(let s=0;s<grid.length;s++){ if(grid[s]===0||seen[s]) continue; const col=grid[s];
+      const q=[s]; seen[s]=1; const cells=[s];
+      while(q.length){ const c=q.pop(); const x=c%COLS,y=(c/COLS)|0;
+        for(const [nx,ny] of [[x+1,y],[x-1,y],[x,y+1],[x,y-1]]){ if(nx<0||ny<0||nx>=COLS||ny>=ROWS) continue; const ni=idx(nx,ny); if(!seen[ni]&&grid[ni]===col){seen[ni]=1;q.push(ni);cells.push(ni);} } }
+      if(cells.length>=3) for(const c of cells) out.add(c);
+    }
+    return out;
+  }
+  function applyGravity(){ for(let x=0;x<COLS;x++){ let write=ROWS-1; for(let y=ROWS-1;y>=0;y--){ const v=grid[idx(x,y)]; if(v){ grid[idx(x,y)]=0; grid[idx(x,write)]=v; write--; } } } }
+  function settleInstant(){ const m=findMatches(); if(!m.size) return false; for(const i of m) grid[i]=0; applyGravity(); return true; }
+
+  // ---- SLIDE (sideways): rearrange only, never resolves ----
+  function beginShift(row,dir){ if(phase!=='idle'||dead) return; phase='shift'; anim={t:0,dur:100,row,dir}; beep(420,0.04,'square',0.025); }
+  function commitShift(){ const {row,dir}=anim; const r=[]; for(let x=0;x<COLS;x++) r.push(grid[idx(x,row)]);
+    if(dir>0) r.unshift(r.pop()); else r.push(r.shift()); for(let x=0;x<COLS;x++) grid[idx(x,row)]=r[x];
+    phase='idle'; }
+
+  // ---- DROP (down): compact via gravity, never resolves ----
+  function beginDrop(){ if(phase!=='idle'||dead) return; beginFall(false); }
+
+  // ---- FALL: shared gravity animation; resolveMode chains into clears ----
+  function beginFall(resolve){ const fallers=[]; let maxD=0;
+    for(let x=0;x<COLS;x++){ let write=ROWS-1; for(let y=ROWS-1;y>=0;y--){ const v=grid[idx(x,y)]; if(v){ fallers.push({x,color:v,fromY:y,toY:write}); maxD=Math.max(maxD,write-y); grid[idx(x,y)]=0; write--; } } }
+    if(maxD===0){ for(const f of fallers) grid[idx(f.x,f.toY)]=f.color; if(resolve) afterFall(); else phase='idle'; return; }
+    phase='fall'; anim={t:0,dur:Math.min(300,Math.max(80,maxD*55)),fallers,maxD,resolve}; beep(170,0.05,'sine',0.03); }
+  function commitFall(){ for(const f of anim.fallers) grid[idx(f.x,f.toY)]=f.color; const resolve=anim.resolve;
+    if(anim.maxD>0) beep(180+anim.maxD*20,0.07,'sine',0.035);
+    if(resolve) afterFall(); else phase='idle'; }
+  function afterFall(){ const m=findMatches(); if(m.size) beginClear(m); else { phase='idle'; } }
+
+  // ---- CLEAR: only ever reached via a Shift's resolve ----
+  function beginClear(set){ phase='clear'; anim={t:0,dur:180, cells:[...set].map(i=>({x:i%COLS,y:(i/COLS)|0,color:grid[i]}))};
+    beep(300+mult*120,0.18,'triangle',0.07); if(mult>1) comboShown=mult; }
+  function commitClear(){ const cells=anim.cells; score+=cells.length*10*mult; cleared+=cells.length;
+    for(const c of cells){ grid[idx(c.x,c.y)]=0; for(let k=0;k<3;k++) sparks.push({x:c.x*CELL+CELL/2,y:c.y*CELL+CELL/2,vx:(Math.random()-.5)*4,vy:(Math.random()-.5)*4,t:1,color:c.color}); }
+    mult++; beginFall(true); }
+
+  // ---- SHIFT (rise): move everything up, then resolve ----
+  function beginRise(){ if(phase!=='idle'||dead) return; const newRow=[]; for(let x=0;x<COLS;x++) newRow[x]=Math.random()<0.82?(1+(Math.random()*NC|0)):0;
+    phase='rise'; anim={t:0,dur:160,newRow}; }
+  function commitRise(){ for(let x=0;x<COLS;x++) if(grid[idx(x,0)]!==0){ return gameover(); }
+    for(let y=0;y<ROWS-1;y++) for(let x=0;x<COLS;x++) grid[idx(x,y)]=grid[idx(x,y+1)];
+    for(let x=0;x<COLS;x++) grid[idx(x,ROWS-1)]=anim.newRow[x];
+    if(sel>0) sel--; mult=1; comboShown=0; beginFall(true); }   // resolve after everything has moved up
+
+  function gameover(){ dead=true; phase='idle'; document.getElementById('overmsg').textContent='Reached depth '+depth+' · score '+score; document.getElementById('over').style.display='flex'; beep(110,0.6,'sawtooth',0.09); }
+
+  function selFromY(py){ const r=cv.getBoundingClientRect(); return Math.max(0,Math.min(ROWS-1, Math.floor(py/(r.height/ROWS)))); }
+  cv.addEventListener('mousemove',e=>{ const r=cv.getBoundingClientRect(); sel=selFromY(e.clientY-r.top); });
+  cv.addEventListener('mousedown',e=>{ const r=cv.getBoundingClientRect(); const y=selFromY(e.clientY-r.top); const left=(e.clientX-r.left)<r.width/2; beginShift(y,left?-1:1); });
+  window.addEventListener('keydown',e=>{
+    if(dead){ if(e.key==='Enter') reset(); return; }
+    const k=e.key.toLowerCase();
+    if(k==='w'){ sel=Math.max(0,sel-1); e.preventDefault(); }
+    else if(k==='s'){ sel=Math.min(ROWS-1,sel+1); e.preventDefault(); }
+    else if(k==='arrowleft'||k==='a'){ beginShift(sel,-1); e.preventDefault(); }
+    else if(k==='arrowright'||k==='d'){ beginShift(sel,1); e.preventDefault(); }
+    else if(k==='arrowdown'){ beginDrop(); e.preventDefault(); }
+    else if(k==='arrowup'||k===' '){ if(phase==='idle'){ beginRise(); riseT=riseEvery; } e.preventDefault(); }
+  });
+  document.getElementById('again').onclick=reset;
+
+  function updateHUD(){ document.getElementById('score').textContent=score; document.getElementById('cleared').textContent=cleared; document.getElementById('depth').textContent=depth;
+    document.getElementById('combo').textContent= comboShown>1?('x'+comboShown):'—';
+    const f=100-riseT/riseEvery*100; document.getElementById('rise').style.width=f+'%';
+    document.getElementById('riseWrap').classList.toggle('danger', f>82); }
+
+  function loop(now){ const dt=Math.min(80,now-last); last=now;
+    if(!dead){
+      if(window.GameStats) GameStats.ping('STRATA', dt);
+      if(phase==='idle'){ riseT-=dt; if(riseT<=0){ beginRise(); riseT=riseEvery; }
+        depthAcc+=dt; if(depthAcc>11000){ depth++; riseEvery=Math.max(800,riseEvery*0.85); depthAcc-=11000; } }
+      if(anim){ anim.t+=dt/anim.dur; if(anim.t>=1){ const ph=phase; anim.t=1; if(ph==='shift') commitShift(); else if(ph==='clear') commitClear(); else if(ph==='fall') commitFall(); else if(ph==='rise') commitRise(); } }
+      if(comboShown>1 && phase==='idle') comboShown=0;
+    }
+    for(let i=sparks.length-1;i>=0;i--){ const s=sparks[i]; s.x+=s.vx; s.y+=s.vy; s.vy+=0.25; s.t-=0.05; if(s.t<=0) sparks.splice(i,1); }
+    draw(); updateHUD(); requestAnimationFrame(loop);
+  }
+
+  function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+  function tile(px,py,color,scale,alpha){ const s=scale==null?1:scale; const m=(CELL*(1-s))/2; ctx.globalAlpha=alpha==null?1:alpha;
+    ctx.fillStyle=color; rr(px+2+m,py+2+m,CELL-4-2*m,CELL-4-2*m,6*s); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.18)'; rr(px+5+m,py+5+m,CELL-10-2*m,5*s,3); ctx.fill(); ctx.globalAlpha=1; }
+
+  function draw(){ ctx.clearRect(0,0,W,H);
+    // selection: full when idle, faded to 20% during any animation (don't vanish)
+    const selA = phase==='idle' ? 1 : 0.2;
+    ctx.globalAlpha=selA*0.08*1; ctx.fillStyle='#5ad1ff'; ctx.fillRect(0,sel*CELL,W,CELL); ctx.globalAlpha=1;
+
+    if(phase==='fall'){
+      const e=easeIn(anim.t);
+      for(const f of anim.fallers){ const y=(f.fromY+(f.toY-f.fromY)*e); tile(f.x*CELL, y*CELL, COLORS[f.color]); }
+    } else if(phase==='rise'){
+      const off=easeOut(anim.t);
+      for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){ const v=grid[idx(x,y)]; if(!v) continue; tile(x*CELL,(y-off)*CELL,COLORS[v]); }
+      for(let x=0;x<COLS;x++){ const v=anim.newRow[x]; if(!v) continue; tile(x*CELL,(ROWS-off)*CELL,COLORS[v]); }
+    } else {
+      const shiftRow=(phase==='shift')?anim.row:-1; const e=(phase==='shift')?easeOut(anim.t):0; const dx=(phase==='shift')?anim.dir*e*CELL:0;
+      const clearMap=(phase==='clear')? new Set(anim.cells.map(c=>idx(c.x,c.y))) : null;
+      for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){ const v=grid[idx(x,y)]; if(!v) continue;
+        if(y===shiftRow){ let px=x*CELL+dx; tile(px,y*CELL,COLORS[v]); if(dx>0) tile(px-W,y*CELL,COLORS[v]); else if(dx<0) tile(px+W,y*CELL,COLORS[v]); }
+        else if(clearMap && clearMap.has(idx(x,y))){ const sc=1-easeIn(anim.t)*0.85; const fl=0.5+0.5*Math.sin(anim.t*Math.PI*4);
+          ctx.shadowColor='#fff'; ctx.shadowBlur=12*anim.t; tile(x*CELL,y*CELL, fl>0.5?'#ffffff':COLORS[v], sc, 1-easeIn(anim.t)*0.4); ctx.shadowBlur=0; }
+        else tile(x*CELL,y*CELL,COLORS[v]);
+      }
+    }
+    for(const s of sparks){ ctx.globalAlpha=Math.max(0,s.t); ctx.fillStyle=s.color||'#fff'; ctx.fillRect(s.x-2,s.y-2,4,4); ctx.globalAlpha=1; }
+    // selection arrows (faded during animation, never gone)
+    ctx.globalAlpha=selA; ctx.fillStyle='rgba(231,236,245,0.5)'; ctx.font='bold 18px monospace'; ctx.textBaseline='middle';
+    ctx.textAlign='left'; ctx.fillText('‹',3,sel*CELL+CELL/2); ctx.textAlign='right'; ctx.fillText('›',W-3,sel*CELL+CELL/2); ctx.globalAlpha=1;
+    if(comboShown>1){ ctx.globalAlpha=0.9; ctx.fillStyle='#ffd23f'; ctx.font='bold 30px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('CHAIN x'+comboShown, W/2, H*0.32); ctx.globalAlpha=1; }
+    ctx.strokeStyle='rgba(255,77,109,0.5)'; ctx.setLineDash([6,6]); ctx.beginPath(); ctx.moveTo(0,CELL); ctx.lineTo(W,CELL); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  window.__strata={ idx, findMatches, settleInstant, applyGravity, beginShift, beginRise, beginDrop, COLS, ROWS, get grid(){return grid;}, getScore:()=>score, getPhase:()=>phase, setDead:v=>dead=v };
+  reset(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
