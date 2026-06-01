@@ -55,6 +55,10 @@
   .mp .bar{height:9px;background:#0c1220;border:1px solid var(--line);border-radius:5px;overflow:hidden}
   .mp .bar i{display:block;height:100%;border-radius:5px}
   .mp .t{font-size:12px;color:var(--dim);text-align:right}
+  .mp-head{display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 4px}
+  .mp-head .lbl{color:var(--dim);letter-spacing:.18em;font-size:11px;font-weight:700}
+  .mp-head .sub{color:var(--dim);letter-spacing:.06em;font-size:11px}
+  .mp-head .sub b{color:var(--ink)}
   .empty{color:var(--dim);padding:14px 0}
   .boards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:8px 0}
   .bcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden}
@@ -158,16 +162,25 @@
       return;
     }
     GameStats.api('/api/stats').then(d=>{
-      const max=Math.max(1,...d.perGame.map(p=>p.ms||0));
-      const players=new Set(); let plays=0; d.perGame.forEach(p=>{ plays+=p.plays||0; });
+      let plays=0; d.perGame.forEach(p=>{ plays+=p.plays||0; });
       let html='<div class="glob">'+
         '<div class="gcell tilt" style="--tc:var(--acc)"><div class="k">GLOBAL TIME PLAYED</div><div class="v">'+GameStats.fmt(d.globalMs||0)+'</div></div>'+
         '<div class="gcell tilt" style="--tc:var(--shift)"><div class="k">TOTAL PLAYS</div><div class="v">'+plays.toLocaleString()+'</div></div></div>';
-      html+='<h3 style="color:var(--dim);letter-spacing:.18em;font-size:12px;margin:18px 0 8px">MOST PLAYED</h3><div class="mp">';
-      d.perGame.forEach(p=>{ const c=COLORS[p.game]||'#888'; const w=((p.ms||0)/max*100)||0;
-        html+='<div class="row"><span class="nmg" style="color:'+c+'">'+p.game+'</span><div class="bar"><i style="width:'+w+'%;background:'+c+'"></i></div>'+
-              '<span class="t">'+GameStats.fmt(p.ms||0)+'</span></div>'; });
-      html+='</div>';
+      html+='<h3 style="color:var(--dim);letter-spacing:.18em;font-size:12px;margin:18px 0 8px">MOST PLAYED</h3>';
+      // split full games from prototypes so the headliner doesn't flatten the prototypes;
+      // each group scales its bars to its own max for a readable comparison.
+      const FULL=new Set(['MOTHERLOAD']);
+      const proto=d.perGame.filter(p=>!FULL.has(p.game));
+      const full =d.perGame.filter(p=> FULL.has(p.game));
+      const sum=list=>list.reduce((s,p)=>s+(p.ms||0),0);
+      function mpGroup(label,list){ if(!list.length) return '';
+        const m=Math.max(1,...list.map(p=>p.ms||0));
+        let h='<div class="mp-head"><span class="lbl">'+label+'</span><span class="sub"><b>'+GameStats.fmt(sum(list))+'</b> total</span></div><div class="mp">';
+        list.forEach(p=>{ const c=COLORS[p.game]||'#888'; const w=((p.ms||0)/m*100)||0;
+          h+='<div class="row"><span class="nmg" style="color:'+c+'">'+p.game+'</span><div class="bar"><i style="width:'+w+'%;background:'+c+'"></i></div>'+
+             '<span class="t">'+GameStats.fmt(p.ms||0)+'</span></div>'; });
+        return h+'</div>'; }
+      html+=mpGroup('PROTOTYPES',proto)+mpGroup('FULL GAMES',full);
       el.innerHTML=html;
       window.AAChrome&&AAChrome.bind(el);
     }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach global stats.</div>'; });
