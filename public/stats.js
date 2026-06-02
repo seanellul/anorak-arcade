@@ -10,7 +10,7 @@
   const LOCAL = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|.*\.local)$/i.test(location.hostname);
   if (API && LOCAL) try { console.info('[GameStats] local dev — leaderboard writes disabled (reads still live).'); } catch (e) {}
   const SKEY='aa.stats', CKEY='aa.clientId', NKEY='aa.name';
-  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','MOTHERLOAD'];
+  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','MOTHERLOAD','MOTHERLOAD_CASH'];
 
   const lget=k=>{ try{return localStorage.getItem(k);}catch(e){return null;} };
   const lset=(k,v)=>{ try{localStorage.setItem(k,v);}catch(e){} };
@@ -34,10 +34,13 @@
     if(now-lastSave>1000){ save(); lastSave=now; }
     if(now-lastFlush>20000) flush(false);
   }
-  function submitScore(game, score){ score=Math.max(0,Math.round(score||0)); const e=ensure(game);
+  // countPlay=false records a score without counting a "play" — used for extra
+  // boards of the same run (e.g. MOTHERLOAD_CASH) so they don't double the play/time stats.
+  function submitScore(game, score, countPlay){ if(countPlay===undefined) countPlay=true;
+    score=Math.max(0,Math.round(score||0)); const e=ensure(game);
     const newBest = score>e.best;
     if(newBest) e.best=score;
-    const p=pend(game); p.plays+=1; p.score=Math.max(p.score,score); save();
+    const p=pend(game); if(countPlay) p.plays+=1; p.score=Math.max(p.score,score); save();
     // nudge for a name on every new personal best while still anonymous (openNameModal self-guards against stacking)
     if(!name && score>0 && newBest) openNameModal(()=>flush(false));
     setTimeout(()=>flush(false),250);

@@ -6,8 +6,9 @@
 //   GET  /api/admin?key=...                                         -> full name x game breakdown (secret)
 // CORS-open so the games can be embedded anywhere.
 
-const GAMES = ['CINDER', 'SHIFT', 'CONDUIT', 'HOMEOSTAT', 'NOVA', 'SURGE', 'CLEAVE', 'FLUX', 'WEAVE', 'PULSE', 'MOTHERLOAD'];
-const SCORE_CAP = 50000000;       // absurd-value guard (per-game scores stay well under this)
+// MOTHERLOAD has two boards: MOTHERLOAD = max depth (m), MOTHERLOAD_CASH = lifetime money earned ($).
+const GAMES = ['CINDER', 'SHIFT', 'CONDUIT', 'HOMEOSTAT', 'NOVA', 'SURGE', 'CLEAVE', 'FLUX', 'WEAVE', 'PULSE', 'MOTHERLOAD', 'MOTHERLOAD_CASH'];
+const SCORE_CAP = 1000000000;     // absurd-value guard (money earned can climb high, so 1e9)
 const MS_CAP    = 600000;         // max time accepted per single sync (10 min) - anti-inflation
 const PLAYS_CAP = 100;
 const NAME_MAX  = 16;

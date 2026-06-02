@@ -27,9 +27,17 @@
     return; // don't run the playtime tracker — it isn't playable here
   }
 
+  // ---- ensure a leaderboard handle up-front (skippable) ----
+  // Prompt once on entry if the player hasn't set a name yet, so their runs land
+  // on the board under a handle instead of "anon". Skippable — they can still play
+  // anonymously and get nudged again on a new personal best.
+  function ensureName() { if (window.GameStats && !window.GameStats.getName()) window.GameStats.promptName(); }
+  if (document.readyState === 'complete' || document.readyState === 'interactive') setTimeout(ensureName, 800);
+  else document.addEventListener('DOMContentLoaded', function () { setTimeout(ensureName, 800); });
+
   // ---- playtime tracking + high score (desktop) ----
   // Time: count active run time (HUD visible, tab focused).
-  // Score: submit max depth reached (metres) when a run ends (game-over or victory).
+  // Score: on a run ending, submit two boards — max depth (m) and money earned ($).
   var last = Date.now();
   var submitted = false;
   function runEnded() {
@@ -47,8 +55,12 @@
         if (!submitted) {
           submitted = true;
           var g = window.__game;
-          var depth = (g && g.state && g.state.stats && g.state.stats.maxDepth) || 0;
+          var stats = (g && g.state && g.state.stats) || {};
+          var depth = stats.maxDepth || 0;
+          var cash = stats.totalEarned || 0;
           if (depth > 0) window.GameStats.submitScore('MOTHERLOAD', Math.round(depth));
+          // money-earned board — countPlay=false so it doesn't double the play/time stats
+          if (cash > 0) window.GameStats.submitScore('MOTHERLOAD_CASH', Math.round(cash), false);
         }
       } else {
         submitted = false; // back in a run / menu — arm for the next ending

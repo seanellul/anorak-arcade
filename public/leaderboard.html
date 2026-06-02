@@ -114,22 +114,29 @@
 <script src="chrome.js"></script>
 <script>
 (()=>{
-  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','MOTHERLOAD'];
-  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a'};
+  const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','MOTHERLOAD','MOTHERLOAD_CASH'];
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a',MOTHERLOAD_CASH:'#79e08a'};
+  // Friendly board titles + per-board score formatting (Motherload has two boards).
+  const LABELS={MOTHERLOAD:'MOTHERLOAD · DEPTH', MOTHERLOAD_CASH:'MOTHERLOAD · CASH'};
+  const label=g=>LABELS[g]||g;
+  function fmtScore(g, s){ s=Number(s)||0;
+    if(g==='MOTHERLOAD_CASH') return '$'+s.toLocaleString();
+    if(g==='MOTHERLOAD') return s.toLocaleString()+'m';
+    return s.toLocaleString(); }
 
   function renderYou(){ const n=GameStats.getName(); document.getElementById('youName').textContent=n||'anonymous'; }
   document.getElementById('setName').onclick=()=>GameStats.promptName(()=>{ renderYou(); load(); });
   renderYou();
 
   function esc(s){ return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
-  function href(g){ return g==='MOTHERLOAD' ? 'motherload/index.html' : g.toLowerCase()+'.html'; }
-  function row(rank, name, score, me){
+  function href(g){ return (g==='MOTHERLOAD'||g==='MOTHERLOAD_CASH') ? 'motherload/index.html' : g.toLowerCase()+'.html'; }
+  function row(rank, name, score, me, g){
     return '<tr class="'+(me?'me':'')+'"><td class="rank">'+rank+'</td><td class="nm">'+esc(name)+'</td>'+
-           '<td class="sc">'+Number(score).toLocaleString()+'</td></tr>';
+           '<td class="sc">'+fmtScore(g, score)+'</td></tr>';
   }
   function card(g, body){ const c=COLORS[g]||'#888';
     return '<div class="bcard"><span class="glow" style="background:'+c+'"></span>'+
-           '<h3 style="color:'+c+'"><a href="'+href(g)+'">'+g+'</a></h3>'+body+'</div>';
+           '<h3 style="color:'+c+'"><a href="'+href(g)+'">'+label(g)+'</a></h3>'+body+'</div>';
   }
   function table(rowsHTML){ return '<table class="lb"><tr><th class="rank">#</th><th>NAME</th><th class="sc">SCORE</th></tr>'+rowsHTML+'</table>'; }
 
@@ -139,7 +146,7 @@
     const me=(GameStats.getName()||'').toLowerCase();
     if(!GameStats.hasAPI){
       el.innerHTML='<div class="boards-grid">'+GAMES.map(g=>{ const best=GameStats.localBest(g);
-        return card(g, best>0 ? table(row(1, GameStats.getName()||'you', best, true)) : '<div class="empty">No local score yet.</div>');
+        return card(g, best>0 ? table(row(1, GameStats.getName()||'you', best, true, g)) : '<div class="empty">No local score yet.</div>');
       }).join('')+'</div>';
       return;
     }
@@ -147,7 +154,7 @@
     GameStats.api('/api/leaderboard').then(d=>{
       const boards=d.boards||{};
       el.innerHTML='<div class="boards-grid">'+GAMES.map(g=>{ const rows=boards[g]||[];
-        return card(g, rows.length ? table(rows.map((r,i)=>row(i+1, r.name, r.score, r.name&&r.name.toLowerCase()===me)).join(''))
+        return card(g, rows.length ? table(rows.map((r,i)=>row(i+1, r.name, r.score, r.name&&r.name.toLowerCase()===me, g)).join(''))
                                    : '<div class="empty">No scores yet — be the first.</div>');
       }).join('')+'</div>';
     }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach the leaderboards.</div>'; });
@@ -162,7 +169,9 @@
       return;
     }
     GameStats.api('/api/stats').then(d=>{
-      let plays=0; d.perGame.forEach(p=>{ plays+=p.plays||0; });
+      // MOTHERLOAD_CASH is a score-only board (no playtime) — keep it out of the time stats.
+      const perGame=(d.perGame||[]).filter(p=>p.game!=='MOTHERLOAD_CASH');
+      let plays=0; perGame.forEach(p=>{ plays+=p.plays||0; });
       let html='<div class="glob">'+
         '<div class="gcell tilt" style="--tc:var(--acc)"><div class="k">GLOBAL TIME PLAYED</div><div class="v">'+GameStats.fmt(d.globalMs||0)+'</div></div>'+
         '<div class="gcell tilt" style="--tc:var(--shift)"><div class="k">TOTAL PLAYS</div><div class="v">'+plays.toLocaleString()+'</div></div></div>';
@@ -170,8 +179,8 @@
       // split full games from prototypes so the headliner doesn't flatten the prototypes;
       // each group scales its bars to its own max for a readable comparison.
       const FULL=new Set(['MOTHERLOAD']);
-      const proto=d.perGame.filter(p=>!FULL.has(p.game));
-      const full =d.perGame.filter(p=> FULL.has(p.game));
+      const proto=perGame.filter(p=>!FULL.has(p.game));
+      const full =perGame.filter(p=> FULL.has(p.game));
       const sum=list=>list.reduce((s,p)=>s+(p.ms||0),0);
       function mpGroup(label,list){ if(!list.length) return '';
         const m=Math.max(1,...list.map(p=>p.ms||0));
