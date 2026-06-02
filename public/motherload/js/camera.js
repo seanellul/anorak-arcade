@@ -1,7 +1,7 @@
 // ============================================================
 //  Camera — follows the player, clamped to world bounds
 // ============================================================
-import { VIEW_W, VIEW_H, WORLD_W, WORLD_H, TILE, SKY_CEILING_ROWS } from "./config.js?v=49";
+import { VIEW_W, VIEW_H, WORLD_W, WORLD_H, TILE, SKY_CEILING_ROWS } from "./config.js?v=50";
 
 // How far above the world the camera may rise — a little beyond the pod's
 // open-sky ceiling so it stays centred even at the very top.

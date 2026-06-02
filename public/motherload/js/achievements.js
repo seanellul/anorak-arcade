@@ -4,7 +4,7 @@
 //  Achievements are state-checkable predicates evaluated each tick;
 //  records track lifetime personal bests.
 // ============================================================
-import { ORE_KEYS, ALLOYS, ARTIFACTS, SPACE_ORE_KEYS } from "./config.js?v=49";
+import { ORE_KEYS, ALLOYS, ARTIFACTS, SPACE_ORE_KEYS } from "./config.js?v=50";
 
 const PROGRESS_KEY = "motherload_progress_v1";
 const ALLOY_KEYS = Object.keys(ALLOYS);

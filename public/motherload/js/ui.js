@@ -1,10 +1,10 @@
 // ============================================================
 //  UI — DOM-based HUD, toasts, prompts, and shop modals
 // ============================================================
-import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, consumableCost, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION } from "./config.js?v=49";
-import * as Shop from "./shops.js?v=49";
-import { CAMPAIGN } from "./missions.js?v=49";
-import { ARTIFACTS, ENDINGS } from "./config.js?v=49";
+import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, consumableCost, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION } from "./config.js?v=50";
+import * as Shop from "./shops.js?v=50";
+import { CAMPAIGN } from "./missions.js?v=50";
+import { ARTIFACTS, ENDINGS } from "./config.js?v=50";
 
 const el = (id) => document.getElementById(id);
 

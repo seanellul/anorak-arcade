@@ -11,7 +11,7 @@ import {
   HEAT_MAX, HEAT_BASE_COOL, HEAT_RADIATOR_COOL, HEAT_AMBIENT_SCALE,
   HEAT_LAVA_RADIANT, HEAT_DAMAGE_THRESHOLD, HEAT_DAMAGE_SCALE,
   PRESSURE_DAMAGE_SCALE,
-} from "./config.js?v=49";
+} from "./config.js?v=50";
 
 export class Player {
   constructor(world) {
@@ -206,11 +206,12 @@ export class Player {
       this.vy += THRUST_UP * 0.7 * this.engineMult * (this.thrustMul || 1) * dt;
       downThrusting = true;
     }
-    // In space, vertical speed is held to a gentle drift in both directions so
-    // you can hover & line up on asteroids. Below the belt, full gravity takes
-    // over and a drop accelerates to a genuinely deadly terminal velocity.
-    const riseCap = inSpace ? Math.min(MAX_RISE * this.riseMult, 900) : MAX_RISE * this.riseMult;
-    const fallCap = inSpace ? 900 : MAX_FALL;
+    // Space is a big stage now (~4000m → 10,000m), so allow a brisk vertical
+    // drift to cross it — but still below the booster's full atmospheric climb so
+    // the low-g handling stays readable among the asteroids. Below the belt, full
+    // gravity takes over and a drop accelerates to a deadly terminal velocity.
+    const riseCap = inSpace ? Math.min(MAX_RISE * this.riseMult, 1700) : MAX_RISE * this.riseMult;
+    const fallCap = inSpace ? 1700 : MAX_FALL;
     this.vy = clamp(this.vy, -riseCap, fallCap);
 
     // ----- Fuel burn (reduced by Fuel Reactor; climbing reduced by Booster) -----

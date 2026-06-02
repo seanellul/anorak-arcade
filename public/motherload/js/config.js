@@ -39,18 +39,18 @@ export const FALL_DAMAGE_SCALE = 0.00007;    // hull dmg per (speed² − thresh
 // Sky / ascent — fly up off the surface, through the atmosphere, into space.
 // Reaching space is a major investment: a huge fuel tank AND Vertical Booster
 // upgrades. Space begins at SPACE_ALT (low-gravity drift + asteroid field).
-export const SKY_CEILING_ROWS = 1400;  // tiles the pod may climb above ground (~2800m)
-export const SPACE_ALT = 1000;         // metres of altitude where space (low-g + asteroids) begins
-export const ASTEROID_MIN_ROWS = 500;  // tiles above ground the asteroid field starts (~1000m)
-export const ASTEROID_MAX_ROWS = 1320; // tiles above ground it extends to (~2640m)
+export const SKY_CEILING_ROWS = 5000;  // tiles the pod may climb above ground (~10,000m)
+export const SPACE_ALT = 4000;         // metres of altitude where space (low-g + asteroids) begins
+export const ASTEROID_MIN_ROWS = 2000; // tiles above ground the asteroid field starts (~4000m, the space line)
+export const ASTEROID_MAX_ROWS = 4900; // tiles above ground it extends to (~9800m, just below the ceiling)
 export const SKY_LAYERS = [            // named bands for the altitude readout
   // `col` tints the altitude band on the right-edge navigator (surface → space).
   { name: "Lower Sky",    start: 0,    col: [120, 124, 150] },
-  { name: "Open Sky",     start: 90,   col: [92, 132, 198] },
-  { name: "Stratosphere", start: 280,  col: [58, 92, 168] },
-  { name: "Mesosphere",   start: 600,  col: [40, 50, 118] },
-  { name: "Space",        start: 1000, col: [14, 16, 40] },
-  { name: "Asteroid Belt", start: 1100, col: [78, 72, 86] },
+  { name: "Open Sky",     start: 350,  col: [92, 132, 198] },
+  { name: "Stratosphere", start: 1100, col: [58, 92, 168] },
+  { name: "Mesosphere",   start: 2400, col: [40, 50, 118] },
+  { name: "Space",        start: 3600, col: [14, 16, 40] },
+  { name: "Asteroid Belt", start: 4000, col: [78, 72, 86] },
 ];
 export function skyLayerAt(altM) {
   let n = SKY_LAYERS[0].name;

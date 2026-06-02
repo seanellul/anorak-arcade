@@ -8,20 +8,20 @@ import {
   MUTATORS, MUTATOR_KEYS, resolveMutators,
   PERKS, PERK_BRANCH_KEYS, resolvePerks, perkPointsEarned,
   ENDINGS, RESTOCK_TARGET,
-} from "./config.js?v=49";
-import { World, tileColor } from "./world.js?v=49";
-import { Player } from "./player.js?v=49";
-import { Camera } from "./camera.js?v=49";
-import { Input } from "./input.js?v=49";
-import { UI } from "./ui.js?v=49";
-import { BUILDINGS, buildingAt, sellAll, buyFullFuel, autoRestock } from "./shops.js?v=49";
-import { MissionManager } from "./missions.js?v=49";
-import { AudioManager } from "./audio.js?v=49";
-import { NavManager } from "./nav.js?v=49";
-import { WeatherManager } from "./weather.js?v=49";
-import { MarketManager } from "./market.js?v=49";
-import { AchievementManager, ACHIEVEMENTS } from "./achievements.js?v=49";
-import { RadioManager } from "./radio.js?v=49";
+} from "./config.js?v=50";
+import { World, tileColor } from "./world.js?v=50";
+import { Player } from "./player.js?v=50";
+import { Camera } from "./camera.js?v=50";
+import { Input } from "./input.js?v=50";
+import { UI } from "./ui.js?v=50";
+import { BUILDINGS, buildingAt, sellAll, buyFullFuel, autoRestock } from "./shops.js?v=50";
+import { MissionManager } from "./missions.js?v=50";
+import { AudioManager } from "./audio.js?v=50";
+import { NavManager } from "./nav.js?v=50";
+import { WeatherManager } from "./weather.js?v=50";
+import { MarketManager } from "./market.js?v=50";
+import { AchievementManager, ACHIEVEMENTS } from "./achievements.js?v=50";
+import { RadioManager } from "./radio.js?v=50";
 
 const SAVE_KEY = "motherload_save_v1";
 
@@ -1791,10 +1791,18 @@ export class Game {
   drawAsteroids(ctx, world, cam) {
     if (cam.y > GROUND_ROW * TILE) return; // no sky in view → nothing up there
     const VW = this.viewW, VH = this.viewH;
-    for (const [k, type] of world.skyType) {
-      const r = Math.floor(k / COLS), c = k - r * COLS;
+    // Iterate only the on-screen tile range (sky lives in negative rows) and look
+    // up the sparse sky map — keeps cost bounded no matter how tall the belt is.
+    const c0 = Math.max(0, Math.floor(cam.x / TILE));
+    const c1 = Math.min(COLS - 1, Math.floor((cam.x + VW) / TILE));
+    const r0 = Math.floor(cam.y / TILE);
+    const r1 = Math.min(-1, Math.floor((cam.y + VH) / TILE)); // sky is r < 0
+    for (let r = r0; r <= r1; r++) {
+      for (let c = c0; c <= c1; c++) {
+      const k = r * COLS + c;
+      const type = world.skyType.get(k);
+      if (type === undefined) continue;
       const sx = c * TILE - cam.x, sy = r * TILE - cam.y;
-      if (sx < -TILE || sx > VW || sy < -TILE || sy > VH) continue;
       // rock body + bevel
       ctx.fillStyle = "#6c6f79";
       ctx.fillRect(sx, sy, TILE, TILE);
@@ -1821,6 +1829,7 @@ export class Game {
           ctx.fillStyle = "#fff"; ctx.fillText(m.name.slice(0, 2), cx, cy);
           ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
         }
+      }
       }
     }
   }

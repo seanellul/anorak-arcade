@@ -5,8 +5,8 @@ import {
   TILE, COLS, ROWS, GROUND_ROW, T, MINERALS, MINERAL_KEYS, dirtShade,
   stratumAt, ARTIFACTS, TREASURE,
   ASTEROID_MIN_ROWS, ASTEROID_MAX_ROWS, ASTEROID_ORES,
-} from "./config.js?v=49";
-import { BUILDINGS } from "./shops.js?v=49";
+} from "./config.js?v=50";
+import { BUILDINGS } from "./shops.js?v=50";
 
 // Small seeded RNG so worlds are reproducible per seed (helps testing/saves)
 function makeRng(seed) {
@@ -432,7 +432,9 @@ export class World {
   generateAsteroids() {
     const rng = makeRng((this.seed ^ 0x5a17ed) >>> 0);
     const span = ASTEROID_MAX_ROWS - ASTEROID_MIN_ROWS;
-    const N = 150;
+    // Scale cluster count with the band height so density stays roughly constant
+    // as the belt grows (≈1 cluster per ~5 rows of band).
+    const N = Math.round(span / 5);
     for (let a = 0; a < N; a++) {
       const cc = 2 + Math.floor(rng() * (COLS - 4));
       const rr = -(ASTEROID_MIN_ROWS + Math.floor(rng() * span)); // negative row
