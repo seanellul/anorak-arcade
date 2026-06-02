@@ -2,10 +2,10 @@
 //  Buildings & shop transactions
 // ============================================================
 import {
-  TILE, COLS, GROUND_ROW, SPAWN_COL, UPGRADES, UPGRADE_KEYS, CONSUMABLES,
+  TILE, COLS, GROUND_ROW, SPAWN_COL, UPGRADES, UPGRADE_KEYS, CONSUMABLES, consumableCost,
   FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, MINERALS, RECIPES, BASE_UPGRADES, FUEL_SUBSIDY_RATE, DIFFICULTIES,
   upgradeTier, upgradeCost, upgradeIsMax,
-} from "./config.js?v=47";
+} from "./config.js?v=49";
 
 // Effective fuel price after any owned base subsidies.
 export function fuelPrice(state) {
@@ -31,9 +31,10 @@ export const BUILDINGS = [
 
 // Which building (if any) is the player currently standing over on the surface?
 export function buildingAt(player) {
-  // Only when at/near the surface
+  // Only when at/near the surface — not buried below, and NOT high above it
+  // (resting on an asteroid in the sky must never pop a surface building).
   const row = Math.floor(player.centerY / TILE);
-  if (row > GROUND_ROW + 0.5) return null;
+  if (row > GROUND_ROW + 0.5 || row < GROUND_ROW - 2) return null;
   const col = player.centerX / TILE;
   for (const b of BUILDINGS) {
     if (col >= b.col && col <= b.col + b.width) return b;
@@ -129,11 +130,13 @@ export function buyUpgrade(state, key) {
 
 export function buyConsumable(state, key) {
   const def = CONSUMABLES[key];
-  if (state.money < def.cost) return { ok: false, msg: "Not enough money" };
-  state.money -= def.cost;
+  const owned = key === "dynamite" ? state.player.dynamite : state.player.teleporters;
+  const cost = consumableCost(key, owned); // pricier the more you already carry
+  if (state.money < cost) return { ok: false, msg: "Not enough money" };
+  state.money -= cost;
   if (key === "dynamite") state.player.dynamite++;
   if (key === "teleporter") state.player.teleporters++;
-  return { ok: true, msg: `Bought ${def.name}` };
+  return { ok: true, msg: `Bought ${def.name} ($${cost.toLocaleString()})` };
 }
 
 // Restock Bay (Outpost): top each consumable up to `target`, buying the

@@ -44,12 +44,13 @@ export const SPACE_ALT = 1000;         // metres of altitude where space (low-g 
 export const ASTEROID_MIN_ROWS = 500;  // tiles above ground the asteroid field starts (~1000m)
 export const ASTEROID_MAX_ROWS = 1320; // tiles above ground it extends to (~2640m)
 export const SKY_LAYERS = [            // named bands for the altitude readout
-  { name: "Lower Sky",    start: 0 },
-  { name: "Open Sky",     start: 90 },
-  { name: "Stratosphere", start: 280 },
-  { name: "Mesosphere",   start: 600 },
-  { name: "Space",        start: 1000 },
-  { name: "Asteroid Belt", start: 1100 },
+  // `col` tints the altitude band on the right-edge navigator (surface → space).
+  { name: "Lower Sky",    start: 0,    col: [120, 124, 150] },
+  { name: "Open Sky",     start: 90,   col: [92, 132, 198] },
+  { name: "Stratosphere", start: 280,  col: [58, 92, 168] },
+  { name: "Mesosphere",   start: 600,  col: [40, 50, 118] },
+  { name: "Space",        start: 1000, col: [14, 16, 40] },
+  { name: "Asteroid Belt", start: 1100, col: [78, 72, 86] },
 ];
 export function skyLayerAt(altM) {
   let n = SKY_LAYERS[0].name;
@@ -541,6 +542,23 @@ export const UPGRADES = {
       { name: "Orbital Drive", value: 5.5, fuel: 0.4,  cost: 160000 },
     ],
   },
+  reverseDrill: {
+    label: "Reverse Drill",
+    desc: "Bore UPWARD — but only out in space. Carve into asteroids from below.",
+    tiers: [
+      { name: "None",        value: 0, cost: 0 },
+      { name: "Reverse Bit", value: 1, cost: 90000 },
+    ],
+  },
+  blastRadius: {
+    label: "Blast Charge",
+    desc: "Bigger dynamite blast radius (value = radius multiplier)",
+    tiers: [
+      { name: "Standard Charge",   value: 1.0, cost: 0 },
+      { name: "Shaped Charge",     value: 1.5, cost: 3000 },
+      { name: "Demolition Charge", value: 2.0, cost: 12000 },
+    ],
+  },
 };
 
 // Buried treasure chests — pure bonus payouts that reward exploration.
@@ -648,8 +666,23 @@ export const BASE_UPGRADE_KEYS = Object.keys(BASE_UPGRADES);
 export const FUEL_SUBSIDY_RATE = 0.7; // multiplier on fuel price when the Fuel Contract is owned
 export const RESTOCK_TARGET = 2;      // consumables the Restock Bay keeps on hand
 
-// Consumables sold at the parts store
+// Consumables sold at the parts store. `cost` is the BASE price; each one you
+// already hold makes the next pricier (see consumableCost) — stacking is dear.
 export const CONSUMABLES = {
-  dynamite: { name: "Dynamite", desc: "Blast a 3x3 area instantly (key: B)", cost: 200 },
+  dynamite: { name: "Dynamite", desc: "Throw it (key: B) — blows a wide hole after 3s. DESTROYS any ore it hits, and hurts you up close.", cost: 200 },
   teleporter: { name: "Teleporter", desc: "Instantly return to the surface (key: T)", cost: 500 },
 };
+
+// Holding a stack of consumables ramps the price of the next one (compounding
+// per item currently carried), so you can't cheaply hoard them.
+export const CONSUMABLE_ESCALATION = 1.4;
+export function consumableCost(key, owned = 0) {
+  return Math.round(CONSUMABLES[key].cost * Math.pow(CONSUMABLE_ESCALATION, Math.max(0, owned)));
+}
+
+// Dynamite tuning. Thrown sticks arc out, fuse for DYN_FUSE seconds, then clear
+// a circular blast of DYN_BASE_RADIUS tiles (scaled by the Blast Charge upgrade).
+// Anything inside the inner half of the radius takes hull damage — so move away.
+export const DYN_BASE_RADIUS = 2.5;   // blast radius in tiles, before upgrades
+export const DYN_FUSE = 3.0;          // seconds from throw to detonation
+export const DYN_MAX_SELF_DMG = 70;   // point-blank hull damage (fades to 0 at the inner-radius edge)

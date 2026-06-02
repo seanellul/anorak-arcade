@@ -196,6 +196,9 @@ export class AudioManager {
       case "explosion":
         this._noiseBurst(t, 0.45, 0.5, 1200, 80);
         this._tone(120, "sawtooth", t, 0.01, 0.4, 0.3, 40); break;
+      case "throw":
+        this._noiseBurst(t, 0.14, 0.14, 1900, 500);
+        this._tone(300, "triangle", t, 0.005, 0.1, 0.1, 620); break;
       case "lava":
         this._noiseBurst(t, 0.3, 0.3, 600, 120); break;
       case "alarm":

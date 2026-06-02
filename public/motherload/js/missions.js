@@ -1,7 +1,7 @@
 // ============================================================
 //  Missions — the campaign spine + repeatable side contracts
 // ============================================================
-import { MINERALS } from "./config.js?v=47";
+import { MINERALS } from "./config.js?v=49";
 
 // Main story campaign. Completing one unlocks the next.
 // types: "collect" (gather N of a mineral), "depth" (reach D meters)

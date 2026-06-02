@@ -7,11 +7,11 @@ import {
   MAX_FALL, MAX_RISE, MAX_HSPEED, DRAG_X, SKY_CEILING_ROWS, SPACE_ALT,
   FALL_DAMAGE_THRESHOLD, FALL_DAMAGE_SCALE,
   FUEL_THRUST_UP, FUEL_THRUST_SIDE, FUEL_DRILL, FUEL_IDLE,
-  MINERALS, UPGRADES, upgradeTier, ARTIFACTS, stratumAt, CORE_DRILL_LEVEL,
+  MINERALS, UPGRADES, upgradeTier, ARTIFACTS, stratumAt, CORE_DRILL_LEVEL, DYN_BASE_RADIUS, DYN_FUSE,
   HEAT_MAX, HEAT_BASE_COOL, HEAT_RADIATOR_COOL, HEAT_AMBIENT_SCALE,
   HEAT_LAVA_RADIANT, HEAT_DAMAGE_THRESHOLD, HEAT_DAMAGE_SCALE,
   PRESSURE_DAMAGE_SCALE,
-} from "./config.js?v=47";
+} from "./config.js?v=49";
 
 export class Player {
   constructor(world) {
@@ -35,7 +35,7 @@ export class Player {
     this.tier = {
       fuelTank: 0, drill: 0, cargo: 0, hull: 0, engine: 0, radiator: 0,
       fuelReactor: 0, dampers: 0, nanobots: 0, drillWidth: 0, scanner: 0,
-      headlight: 0, sensor: 0, booster: 0,
+      headlight: 0, sensor: 0, booster: 0, reverseDrill: 0, blastRadius: 0,
     };
 
     // Resources
@@ -64,6 +64,7 @@ export class Player {
     this.onCoreBreak = null;     // () => {}  win trigger
     this.onSfx = null;           // (name)=>{}
     this.onTreasure = null;      // (value, x, y)=>{}
+    this.onThrowDynamite = null; // (x, y, vx, vy, fuse, radius)=>{}  game spawns the stick
   }
 
   // -------- derived stats from upgrades --------
@@ -80,6 +81,12 @@ export class Player {
   get sensorRange() { return upgradeTier("sensor", this.tier.sensor || 0).value; }
   get riseMult() { return upgradeTier("booster", this.tier.booster || 0).value; }
   get climbFuelMult() { return upgradeTier("booster", this.tier.booster || 0).fuel ?? 1; }
+  // High enough above the surface to be in the low-g / asteroid band.
+  get inSpace() { return this.altitudeMeters >= SPACE_ALT; }
+  // Reverse Drill lets you bore upward — but only once you're out in space.
+  get canDrillUp() { return this.inSpace && (this.tier.reverseDrill || 0) > 0; }
+  // Dynamite blast radius (tiles), scaled by the Blast Charge upgrade.
+  get dynamiteRadius() { return DYN_BASE_RADIUS * upgradeTier("blastRadius", this.tier.blastRadius || 0).value; }
   // Metres above the surface (0 on/under the ground).
   get altitudeMeters() { return Math.max(0, (GROUND_ROW - this.centerY / TILE) * 2); }
 
@@ -170,39 +177,53 @@ export class Player {
     if (!horizThrusting) ax = 0;
 
     // In space (high above the surface) gravity nearly vanishes and the pod
-    // drifts — low-g floaty handling with much less drag.
+    // drifts — low-g handling. Drag is firmer than true vacuum so the pod stays
+    // controllable while threading the asteroid belt instead of skating away.
     const inSpace = this.altitudeMeters >= SPACE_ALT;
     const gScale = inSpace ? 0.16 : 1;
-    const dragMul = inSpace ? 0.12 : 1;
+    const dragMul = inSpace ? 0.5 : 1;
 
     this.vx += ax * dt;
-    // Horizontal drag when not actively thrusting (barely any in space → drift)
+    // Horizontal drag when not actively thrusting (gentle in space → light drift)
     if (!horizThrusting) {
       const sign = Math.sign(this.vx);
       this.vx -= sign * Math.min(Math.abs(this.vx), DRAG_X * dragMul * 60 * dt);
     }
-    const hCap = MAX_HSPEED * this.engineMult; // Engine upgrade raises top speed
+    // Engine upgrade raises top speed; the belt caps it lower for tight control.
+    let hCap = MAX_HSPEED * this.engineMult;
+    if (inSpace) hCap *= 0.6;
     this.vx = clamp(this.vx, -hCap, hCap);
 
     // ----- Vertical: gravity + up thrust (Vertical Booster lifts the rise cap) -----
     this.vy += GRAVITY * gScale * dt;
-    let upThrusting = false;
+    let upThrusting = false, downThrusting = false;
     if (wantUp) {
       this.vy -= THRUST_UP * this.engineMult * (this.thrustMul || 1) * dt;
       upThrusting = true;
+    } else if (wantDown && inSpace && !outOfFuel) {
+      // In the low-g belt ↓ fires downward maneuvering thrust (on/near the
+      // surface ↓ still means "drill", handled by updateDrilling).
+      this.vy += THRUST_UP * 0.7 * this.engineMult * (this.thrustMul || 1) * dt;
+      downThrusting = true;
     }
-    this.vy = clamp(this.vy, -MAX_RISE * this.riseMult, MAX_FALL);
+    // In space, vertical speed is held to a gentle drift in both directions so
+    // you can hover & line up on asteroids. Below the belt, full gravity takes
+    // over and a drop accelerates to a genuinely deadly terminal velocity.
+    const riseCap = inSpace ? Math.min(MAX_RISE * this.riseMult, 900) : MAX_RISE * this.riseMult;
+    const fallCap = inSpace ? 900 : MAX_FALL;
+    this.vy = clamp(this.vy, -riseCap, fallCap);
 
     // ----- Fuel burn (reduced by Fuel Reactor; climbing reduced by Booster) -----
     let burn = FUEL_IDLE;
     if (upThrusting) burn += FUEL_THRUST_UP * this.climbFuelMult;
+    if (downThrusting) burn += FUEL_THRUST_UP * 0.7;
     if (horizThrusting) burn += FUEL_THRUST_SIDE;
     // Reserve mode: below 5% the engine sips fuel, giving you a forgiving limp home
     const reserve = this.fuel <= this.maxFuel * 0.05 ? 0.55 : 1;
     this.fuel = Math.max(0, this.fuel - burn * this.fuelMult * reserve * (this.diffFuel || 1) * dt);
 
     // ----- Move + collide (drilling handled on contact) -----
-    this.moveAndCollide(dt, { wantLeft, wantRight, wantDown }, input);
+    this.moveAndCollide(dt, { wantLeft, wantRight, wantDown, wantUp }, input);
 
     // ----- Heat & pressure (environmental hazards) -----
     this.updateHazards(dt);
@@ -239,10 +260,19 @@ export class Player {
     // Energy-based: damage ∝ (impact speed)², so it grows ≈ linearly with the
     // distance fallen — a long plunge from space reaches the lethal 1000+ range.
     if (hitFloor && prevVy > FALL_DAMAGE_THRESHOLD && !this.noFallDamage) {
-      const over = prevVy * prevVy - FALL_DAMAGE_THRESHOLD * FALL_DAMAGE_THRESHOLD;
-      const dmg = over * FALL_DAMAGE_SCALE * (1 - this.damperResist);
+      const v = prevVy;
+      const over = v * v - FALL_DAMAGE_THRESHOLD * FALL_DAMAGE_THRESHOLD;
+      let dmg = over * FALL_DAMAGE_SCALE;
+      // Impact Dampers fully cushion ordinary mining drops (≤1200 px/s), but
+      // their effectiveness fades as speed climbs and is gone by terminal — a
+      // plunge from the sky overwhelms any cushioning.
+      const damperFade = Math.max(0, Math.min(1, 1 - (v - 1200) / 2000));
+      dmg *= (1 - this.damperResist * damperFade);
+      // Past high speed the energy ramps super-linearly, so a dive from space
+      // is near-lethal no matter how armoured you are.
+      if (v > 1800) dmg *= 1 + Math.pow((v - 1800) / 1600, 2);
       this.damage(dmg, "impact");
-      if (this.onParticles) this.onParticles(this.centerX, this.y + this.h, "#caa", 10);
+      if (this.onParticles) this.onParticles(this.centerX, this.y + this.h, "#caa", Math.min(40, 10 + dmg / 6));
       if (dmg > 4 && this.onToast) this.onToast(`Crash! -${Math.round(dmg)} hull`, "bad");
     }
 
@@ -383,6 +413,13 @@ export class Player {
       const below = { c: col, r: Math.floor((this.y + this.h + 1) / TILE) };
       if (world.isDrillable(below.c, below.r) && this.isAligned("down", below)) {
         target = below; dir = "down";
+      }
+    }
+    // Upward drilling — only with the Reverse Drill upgrade AND out in space.
+    if (!target && intent.wantUp && this.canDrillUp) {
+      const above = { c: col, r: Math.floor((this.y - 1) / TILE) };
+      if (world.isDrillable(above.c, above.r) && this.isAligned("up", above)) {
+        target = above; dir = "up";
       }
     }
     if (!target && intent.wantLeft) {
@@ -579,27 +616,24 @@ export class Player {
     return Math.max(1, count);
   }
 
-  // Dynamite: clear a 3x3 area around the tile below/in front of the pod
+  // Dynamite: lob a fused stick in the direction the pod faces. It arcs out,
+  // ticks down DYN_FUSE seconds, then detonates (handled by the game so it can
+  // tear through the world, destroy ore, and hurt the pod). NOT a mining tool —
+  // any ore caught in the blast is wrecked, never collected.
   useDynamite() {
     if (this.dynamite <= 0) {
       if (this.onToast) this.onToast("No dynamite", "bad");
       return false;
     }
     this.dynamite--;
-    const col = Math.floor(this.centerX / TILE);
-    const row = Math.floor((this.y + this.h + TILE) / TILE);
-    for (let dr = -1; dr <= 1; dr++) {
-      for (let dc = -1; dc <= 1; dc++) {
-        const c = col + dc, r = row + dr;
-        if (this.world.getType(c, r) === T.BEDROCK || this.world.getType(c, r) === T.BOULDER) continue;
-        const m = this.world.getMineral(c, r);
-        if (m && !this.cargoFull) { this.addMineral(m); if (this.onMineralCollected) this.onMineralCollected(m); }
-        this.world.clearTile(c, r);
-      }
-    }
-    if (this.onParticles) this.onParticles(col * TILE + TILE / 2, row * TILE + TILE / 2, "#ffcf3f", 30);
-    if (this.onSfx) this.onSfx("explosion");
-    if (this.onToast) this.onToast("Boom!", "good");
+    const dirX = this.facing || 1;
+    const x = this.centerX + dirX * (this.w * 0.5 + 4);
+    const y = this.centerY;
+    const vx = dirX * 240 + this.vx * 0.5;
+    const vy = -160 + this.vy * 0.3;
+    if (this.onThrowDynamite) this.onThrowDynamite(x, y, vx, vy, DYN_FUSE, this.dynamiteRadius);
+    if (this.onSfx) this.onSfx("throw");
+    if (this.onToast) this.onToast("Dynamite away — clear the blast!", "good");
     return true;
   }
 

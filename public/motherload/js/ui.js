@@ -1,10 +1,10 @@
 // ============================================================
 //  UI — DOM-based HUD, toasts, prompts, and shop modals
 // ============================================================
-import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION } from "./config.js?v=47";
-import * as Shop from "./shops.js?v=47";
-import { CAMPAIGN } from "./missions.js?v=47";
-import { ARTIFACTS, ENDINGS } from "./config.js?v=47";
+import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, consumableCost, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION } from "./config.js?v=49";
+import * as Shop from "./shops.js?v=49";
+import { CAMPAIGN } from "./missions.js?v=49";
+import { ARTIFACTS, ENDINGS } from "./config.js?v=49";
 
 const el = (id) => document.getElementById(id);
 
@@ -584,8 +584,9 @@ export const UI = {
     for (const key in CONSUMABLES) {
       const def = CONSUMABLES[key];
       const owned = key === "dynamite" ? p.dynamite : p.teleporters;
+      const cost = consumableCost(key, owned); // climbs with how many you hold
       const row = this.shopRow(
-        `${def.name} (have ${owned})`, def.desc, `$${def.cost}`, state.money >= def.cost,
+        `${def.name} (have ${owned})`, def.desc, `$${cost.toLocaleString()}`, state.money >= cost,
         () => { this.flash(Shop.buyConsumable(state, key)); this._refresh(state, { id: "upgrade" }); }
       );
       body.appendChild(row);

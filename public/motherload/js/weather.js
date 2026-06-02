@@ -92,9 +92,10 @@ export class WeatherManager {
   // Daylight dimming factor (0..1) so storms darken the sky.
   dim() { return 1 - this.def.skyDim * this.intensity; }
 
-  // Additive sky haze over the sky region.
-  drawSkyTint(ctx, VW, VH, horizon) {
-    const a = this.intensity;
+  // Additive sky haze over the sky region. `vis` (0..1) fades the whole effect
+  // out as the pod climbs — there's no weather once you leave the atmosphere.
+  drawSkyTint(ctx, VW, VH, horizon, vis = 1) {
+    const a = this.intensity * vis;
     if (a < 0.02 || !this.def.tint) return;
     const [r, g, b] = this.def.tint;
     const strength = (this.type === "dust" ? 0.5 : this.type === "cloudy" ? 0.4 : 0.28) * a;
@@ -104,8 +105,9 @@ export class WeatherManager {
 
   // Blown particle field. Drawn over the surface scene; fades below the
   // horizon so it reads as weather in the sky/over the base, not underground.
-  drawParticles(ctx, t, VW, VH, horizon) {
-    const a = this.intensity;
+  // `vis` (0..1) fades it out with altitude so storms don't follow you to space.
+  drawParticles(ctx, t, VW, VH, horizon, vis = 1) {
+    const a = this.intensity * vis;
     if (a < 0.04) return;
     if (this.type === "dust") this._drawDust(ctx, t, VW, VH, horizon, a);
     else if (this.type === "cloudy") this._drawDust(ctx, t, VW, VH, horizon, a * 0.25);

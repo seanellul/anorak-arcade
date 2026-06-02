@@ -5,8 +5,8 @@ import {
   TILE, COLS, ROWS, GROUND_ROW, T, MINERALS, MINERAL_KEYS, dirtShade,
   stratumAt, ARTIFACTS, TREASURE,
   ASTEROID_MIN_ROWS, ASTEROID_MAX_ROWS, ASTEROID_ORES,
-} from "./config.js?v=47";
-import { BUILDINGS } from "./shops.js?v=47";
+} from "./config.js?v=49";
+import { BUILDINGS } from "./shops.js?v=49";
 
 // Small seeded RNG so worlds are reproducible per seed (helps testing/saves)
 function makeRng(seed) {

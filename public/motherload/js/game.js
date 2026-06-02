@@ -3,25 +3,25 @@
 // ============================================================
 import {
   TILE, COLS, ROWS, GROUND_ROW, VIEW_W, VIEW_H, WORLD_W, WORLD_H,
-  T, MINERALS, START_MONEY, FUEL_PRICE, stratumAt, STRATA, SPAWN_COL, SPACE_ALT, ASTEROID_MIN_ROWS,
+  T, MINERALS, START_MONEY, FUEL_PRICE, stratumAt, STRATA, SKY_LAYERS, SPAWN_COL, SPACE_ALT, ASTEROID_MIN_ROWS, ASTEROID_MAX_ROWS, DYN_MAX_SELF_DMG,
   POD_SKINS, SKIN_KEY, DIFFICULTIES, DIFFICULTY_KEYS,
   MUTATORS, MUTATOR_KEYS, resolveMutators,
   PERKS, PERK_BRANCH_KEYS, resolvePerks, perkPointsEarned,
   ENDINGS, RESTOCK_TARGET,
-} from "./config.js?v=47";
-import { World, tileColor } from "./world.js?v=47";
-import { Player } from "./player.js?v=47";
-import { Camera } from "./camera.js?v=47";
-import { Input } from "./input.js?v=47";
-import { UI } from "./ui.js?v=47";
-import { BUILDINGS, buildingAt, sellAll, buyFullFuel, autoRestock } from "./shops.js?v=47";
-import { MissionManager } from "./missions.js?v=47";
-import { AudioManager } from "./audio.js?v=47";
-import { NavManager } from "./nav.js?v=47";
-import { WeatherManager } from "./weather.js?v=47";
-import { MarketManager } from "./market.js?v=47";
-import { AchievementManager, ACHIEVEMENTS } from "./achievements.js?v=47";
-import { RadioManager } from "./radio.js?v=47";
+} from "./config.js?v=49";
+import { World, tileColor } from "./world.js?v=49";
+import { Player } from "./player.js?v=49";
+import { Camera } from "./camera.js?v=49";
+import { Input } from "./input.js?v=49";
+import { UI } from "./ui.js?v=49";
+import { BUILDINGS, buildingAt, sellAll, buyFullFuel, autoRestock } from "./shops.js?v=49";
+import { MissionManager } from "./missions.js?v=49";
+import { AudioManager } from "./audio.js?v=49";
+import { NavManager } from "./nav.js?v=49";
+import { WeatherManager } from "./weather.js?v=49";
+import { MarketManager } from "./market.js?v=49";
+import { AchievementManager, ACHIEVEMENTS } from "./achievements.js?v=49";
+import { RadioManager } from "./radio.js?v=49";
 
 const SAVE_KEY = "motherload_save_v1";
 
@@ -36,6 +36,7 @@ export class Game {
     this._prevHull = 0;
     this.particles = [];
     this.floaters = [];     // floating value/damage text
+    this.thrownDynamite = []; // live fused dynamite sticks in the world
     this.hitStop = 0;       // brief freeze-frame on impactful events
     this.cine = null;       // active cinematic moment (letterbox + slow-mo + title)
     this.comboCount = 0;    // ore mined in quick succession
@@ -405,9 +406,11 @@ export class Game {
     this._regions = new Set([0]); // surface crust known from the start
     this._gaugeFlashT = 0;
     this._gaugeScale = null;      // navigator scale (eased); inits on first draw
+    this._gaugeSkyScale = null;   // sky/altitude scale (eased); inits on first draw
     this._prevHull = player.hull;
     this.particles = [];
     this.floaters = [];
+    this.thrownDynamite = [];
     this.camera.follow(player, true);
     this.mode = "playing";
     this.achievements.recordRun();
@@ -491,6 +494,9 @@ export class Game {
     };
     player.onCoreBreak = () => this.showEndingChoice();
     player.onSfx = (name) => this.audio.sfx(name);
+    player.onThrowDynamite = (x, y, vx, vy, fuse, radius) => {
+      this.thrownDynamite.push({ x, y, vx, vy, fuse, maxFuse: fuse, radius, onGround: false });
+    };
     player.onTreasure = (value, x, y) => {
       const s = this.state;
       if (!s) return;
@@ -797,6 +803,7 @@ export class Game {
     this.stranded = false;
     this._gaugeFlashT = 0;
     this._gaugeScale = null;
+    this._gaugeSkyScale = null;
     // Pre-mark regions/milestones already reached so they don't re-announce
     this._regions = new Set([0]);
     this._milestones = new Set();
@@ -806,6 +813,7 @@ export class Game {
     this._prevHull = player.hull;
     this.particles = [];
     this.floaters = [];
+    this.thrownDynamite = [];
     this.camera.follow(player, true);
     this.mode = "playing";
     UI.hideStart();
@@ -1049,9 +1057,11 @@ export class Game {
 
     // ----- Radio transmissions queue -----
     this.radio.update(dt);
-    // Wind nudges the pod while it's at/near the surface; tapers off below.
-    if (p.depthRow < 12 && !p.onGround) {
-      p.vx += this.weather.windForce() * (1 - p.depthRow / 12) * dt;
+    // Wind nudges the pod while it's at/near the surface; tapers off below
+    // ground AND with altitude (the upper sky / space has no wind to shove you).
+    const windAltFade = Math.max(0, 1 - p.altitudeMeters / 300);
+    if (p.depthRow < 12 && !p.onGround && windAltFade > 0) {
+      p.vx += this.weather.windForce() * (1 - p.depthRow / 12) * windAltFade * dt;
     }
 
     // Reaching space the first time unlocks the Outpost launch pad.
@@ -1154,13 +1164,16 @@ export class Game {
     // Camera
     this.camera.follow(s.player, false, dt);
 
-    // Particles + floaters
+    // Particles + floaters + live dynamite
     this.updateParticles(dt);
     this.updateFloaters(dt);
+    this.updateThrownDynamite(dt);
 
     // Stats + mission depth tracking + depth milestones
     const prevMax = s.stats.maxDepth;
     s.stats.maxDepth = Math.max(s.stats.maxDepth, s.player.depthMeters);
+    // Highest altitude ever reached — drives the sky bands on the navigator.
+    s.stats.maxAlt = Math.max(s.stats.maxAlt || 0, Math.round(s.player.altitudeMeters));
     if (s.missions) {
       s.missions.onDepth(s.stats.maxDepth);
       if (s.stats.maxDepth !== prevMax) UI.updateObjective(s);
@@ -1351,6 +1364,88 @@ export class Game {
     }
   }
 
+  // ---------------- thrown dynamite ----------------
+  updateThrownDynamite(dt) {
+    const w = this.state.world;
+    const grav = this.state.player.inSpace ? 150 : 900; // floats more in low-g
+    for (let i = this.thrownDynamite.length - 1; i >= 0; i--) {
+      const d = this.thrownDynamite[i];
+      d.fuse -= dt;
+      d.vy += grav * dt;
+      // Per-axis tile collision so it rests on ledges instead of tunnelling.
+      const nx = d.x + d.vx * dt;
+      if (w.isSolid(Math.floor(nx / TILE), Math.floor(d.y / TILE))) d.vx *= -0.35;
+      else d.x = nx;
+      const ny = d.y + d.vy * dt;
+      if (w.isSolid(Math.floor(d.x / TILE), Math.floor(ny / TILE))) {
+        if (d.vy > 0) d.onGround = true;
+        d.vy = 0; d.vx *= 0.7; // friction once it's down
+      } else { d.y = ny; d.onGround = false; }
+      // sparking fuse trail
+      if (Math.random() < 0.6) this.spawnParticles(d.x, d.y - 4, "#ffcf5a", 1);
+      if (d.fuse <= 0) {
+        this.explodeDynamite(d.x, d.y, d.radius);
+        this.thrownDynamite.splice(i, 1);
+      }
+    }
+  }
+
+  // Detonate a stick: carve a circular blast, DESTROY any ore inside it (never
+  // collected — dynamite is not a mining tool), and hurt anything within the
+  // inner half of the radius so the pilot has to back off before it blows.
+  explodeDynamite(x, y, radius) {
+    const w = this.state.world, p = this.state.player;
+    const cc = Math.floor(x / TILE), cr = Math.floor(y / TILE);
+    const R = Math.ceil(radius);
+    for (let dr = -R; dr <= R; dr++) {
+      for (let dc = -R; dc <= R; dc++) {
+        if (dc * dc + dr * dr > radius * radius) continue;
+        const c = cc + dc, r = cr + dr;
+        const t = w.getType(c, r);
+        if (t === T.EMPTY || t === T.BEDROCK || t === T.BOULDER || t === T.PLATFORM || t === T.CORE) continue;
+        const m = w.getMineral(c, r);
+        if (m) this.spawnParticles(c * TILE + TILE / 2, r * TILE + TILE / 2, MINERALS[m].color, 4); // ore wasted
+        w.clearTile(c, r);
+      }
+    }
+    // Self-damage: only inside the inner half of the blast, fading with distance.
+    const innerR = radius * 0.5 * TILE;
+    const dist = Math.hypot(p.centerX - x, p.centerY - y);
+    if (dist < innerR) {
+      const dmg = DYN_MAX_SELF_DMG * (1 - dist / innerR);
+      if (dmg > 1) {
+        p.damage(dmg, "blast");
+        UI.toast(`Caught in the blast! -${Math.round(dmg)} hull`, "bad");
+      }
+    }
+    // FX
+    this.spawnParticles(x, y, "#ffcf3f", 40);
+    this.spawnParticles(x, y, "#ff7a1a", 26);
+    this.audio.sfx("explosion");
+    this.shake(16);
+    this.freeze(0.05);
+  }
+
+  drawThrownDynamite(ctx, cam) {
+    for (const d of this.thrownDynamite) {
+      const sx = d.x - cam.x, sy = d.y - cam.y;
+      // red stick
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.fillStyle = "#c0392b";
+      ctx.fillRect(-3, -7, 6, 14);
+      ctx.fillStyle = "#7a241b";
+      ctx.fillRect(-3, -7, 6, 2);
+      // blinking fuse spark — faster as it's about to blow
+      const rate = 6 + (1 - d.fuse / d.maxFuse) * 22;
+      if (Math.sin(this.accumBlink * rate) > 0) {
+        ctx.fillStyle = "#fff3b0";
+        ctx.beginPath(); ctx.arc(0, -9, 2.4, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
   // ---------------- rendering ----------------
   render() {
     const ctx = this.ctx;
@@ -1399,16 +1494,21 @@ export class Game {
     // Player
     this.drawPlayer(ctx, player, cam);
 
+    // Live dynamite sticks (under the particle bursts)
+    this.drawThrownDynamite(ctx, cam);
+
     // Particles
     this.drawParticles(ctx, cam);
 
     // Floating value/damage text (above world, below vignette)
     this.drawFloaters(ctx, cam);
 
-    // Surface weather (blowing dust / meteors) — only when the surface is in view
+    // Surface weather (blowing dust / meteors) — only when the surface is in
+    // view, and fading out with altitude so storms don't follow you into space.
     if (this.weather) {
       const horizonY = GROUND_ROW * TILE - cam.y;
-      if (horizonY > -80) this.weather.drawParticles(ctx, this.accumBlink, VW, VH, horizonY);
+      const wvis = Math.max(0, 1 - player.altitudeMeters / 350);
+      if (horizonY > -80 && wvis > 0.01) this.weather.drawParticles(ctx, this.accumBlink, VW, VH, horizonY, wvis);
     }
 
     // Heat vignette
@@ -1495,12 +1595,13 @@ export class Game {
   // regions you've discovered, so the discovered biomes always fill the bar —
   // masking how much world remains below. It "zooms out" as you find more.
   drawDepthGauge(ctx, player) {
-    const x = this.viewW - 16, y = 56, h = this.viewH - 110, w = 9;
+    const x = this.viewW - 16, w = 9;
+    const yTop = 56, hTotal = this.viewH - 110;
     const totalRows = ROWS - GROUND_ROW;
     const maxRows = this.state.stats.maxDepth / 2;
     const flash = this._gaugeFlashT || 0;
 
-    // Deepest discovered region → the bar maps 0..(end of that region).
+    // Deepest discovered region → the strata bar maps 0..(end of that region).
     let deepest = 0;
     if (this._regions) for (const i of this._regions) if (i > deepest) deepest = i;
     const fullyDiscovered = deepest >= STRATA.length - 1;
@@ -1509,9 +1610,42 @@ export class Game {
     if (this._gaugeScale == null) this._gaugeScale = targetScale;
     this._gaugeScale += (targetScale - this._gaugeScale) * 0.1;
     const scale = Math.max(1, this._gaugeScale);
-    const rowToY = (rows) => y + Math.min(1, Math.max(0, rows / scale)) * h;
 
-    // Discovered biome bands
+    // Sky/space: the bar grows an upward section once you've left the ground.
+    // Its span is the highest altitude ever reached (in rows; 2m per row),
+    // capped at the top of the asteroid belt, eased so it zooms in smoothly.
+    const maxAltRows = Math.min(ASTEROID_MAX_ROWS, (this.state.stats.maxAlt || 0) / 2);
+    if (this._gaugeSkyScale == null) this._gaugeSkyScale = maxAltRows;
+    this._gaugeSkyScale += (maxAltRows - this._gaugeSkyScale) * 0.1;
+    const skyScale = Math.max(0, this._gaugeSkyScale);
+
+    // Split the bar height between sky (above) and strata (below) by extent.
+    const split = skyScale > 1 ? skyScale / (skyScale + scale) : 0;
+    const skyH = Math.round(hTotal * split);
+    const y = yTop + skyH;            // surface line — top of the strata bar
+    const h = hTotal - skyH;          // strata bar height
+    const rowToY = (rows) => y + Math.min(1, Math.max(0, rows / scale)) * h;
+    // Altitude (rows above ground) → screen-Y in the sky section (0 at surface).
+    const altToY = (rows) => y - Math.min(1, Math.max(0, rows / Math.max(1, skyScale))) * skyH;
+
+    // ---- sky bands (only the layers you've actually climbed into) ----
+    if (skyH > 2) {
+      const maxAltM = this.state.stats.maxAlt || 0;
+      for (let i = 0; i < SKY_LAYERS.length; i++) {
+        const ly = SKY_LAYERS[i];
+        if (ly.start > maxAltM) break;
+        const next = SKY_LAYERS[i + 1];
+        const bandTopRows = (next ? Math.min(next.start, maxAltM) : maxAltM) / 2; // higher
+        const bandBotRows = ly.start / 2;                                         // lower
+        const top = altToY(bandTopRows);
+        const bot = altToY(bandBotRows);
+        const c = ly.col;
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(x, top, w, Math.max(1, bot - top));
+      }
+    }
+
+    // ---- discovered biome bands (below ground) ----
     for (let i = 0; i <= deepest && i < STRATA.length; i++) {
       const st = STRATA[i];
       const next = STRATA[i + 1];
@@ -1525,27 +1659,38 @@ export class Game {
         ctx.fillRect(x, top, w, Math.max(1, bot - top));
       }
     }
-    // frame
+    // frame around the whole navigator (sky + strata)
     ctx.strokeStyle = "rgba(0,0,0,0.7)";
     ctx.lineWidth = 1;
-    ctx.strokeRect(x - 0.5, y - 0.5, w + 1, h + 1);
-    // explored-frontier tick
+    ctx.strokeRect(x - 0.5, yTop - 0.5, w + 1, hTotal + 1);
+    // surface line — the boundary between sky and underground
+    if (skyH > 2) {
+      ctx.strokeStyle = "rgba(255,255,255,0.65)";
+      ctx.beginPath(); ctx.moveTo(x - 2, y); ctx.lineTo(x + w + 2, y); ctx.stroke();
+      // altitude-frontier tick (highest you've been)
+      const ay = altToY((this.state.stats.maxAlt || 0) / 2);
+      ctx.strokeStyle = "rgba(150,220,255,0.6)";
+      ctx.beginPath(); ctx.moveTo(x - 3, ay); ctx.lineTo(x + w + 3, ay); ctx.stroke();
+    }
+    // explored-frontier tick (deepest you've been)
     const my = rowToY(maxRows);
     ctx.strokeStyle = "rgba(255,255,255,0.4)";
     ctx.beginPath(); ctx.moveTo(x - 3, my); ctx.lineTo(x + w + 3, my); ctx.stroke();
     // bottom of the bar: the core (once found) or a faint "unknown below" hint
     if (fullyDiscovered) {
       ctx.fillStyle = "#ff3a8a";
-      ctx.fillRect(x - 2, y + h - 2, w + 4, 4);
+      ctx.fillRect(x - 2, yTop + hTotal - 2, w + 4, 4);
     } else {
-      const cy = y + h + 7 + Math.sin(this.accumBlink * 3) * 2;
+      const cy = yTop + hTotal + 7 + Math.sin(this.accumBlink * 3) * 2;
       ctx.fillStyle = "rgba(150,140,160,0.5)";
       ctx.beginPath();
       ctx.moveTo(x + w / 2 - 5, cy); ctx.lineTo(x + w / 2 + 5, cy); ctx.lineTo(x + w / 2, cy + 6);
       ctx.closePath(); ctx.fill();
     }
-    // player marker
-    const py = rowToY(player.depthRow);
+    // player marker — in the sky section when airborne, else in the strata
+    const py = player.altitudeMeters > 0 && skyH > 2
+      ? altToY(player.altitudeMeters / 2)
+      : rowToY(player.depthRow);
     ctx.fillStyle = "#fff";
     ctx.beginPath();
     ctx.moveTo(x - 5, py); ctx.lineTo(x - 11, py - 4); ctx.lineTo(x - 11, py + 4);
@@ -1637,7 +1782,8 @@ export class Game {
     ctx.restore();
 
     // ---- weather haze over the whole sky (overcast / dust storm tint) ----
-    if (this.weather) this.weather.drawSkyTint(ctx, VW, VH, horizon);
+    // Fades out with altitude (no atmosphere to haze once you near space).
+    if (this.weather) this.weather.drawSkyTint(ctx, VW, VH, horizon, Math.max(0, 1 - space * 1.5));
   }
 
   // Floating asteroids in the sky/space band (negative rows, sparse sky map).
