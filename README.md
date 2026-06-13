@@ -26,6 +26,8 @@ public/                 ← the deployable static site (Cloudflare Pages output 
   cinder.html  shift.html  conduit.html  homeostat.html
   motherload/             featured full game — SYNCED from the motherload repo (don't hand-edit)
     arcade-track.js         arcade glue: desktop-only gate + playtime tracking (lives here, not in the game)
+  ecotone/                featured full game — BUILT from ~/Code/games/ecotone (Vite/TS; don't hand-edit)
+    arcade-track.js         arcade glue: desktop-only gate + playtime tracking (preserved across rebuilds)
   site.css  site.js        shared shell (nav, styling, Markdown renderer, TOC, back-to-top)
   stats.js                playtime + leaderboard client (localStorage + optional sync)
   research/               the research dossier (Markdown, rendered in-site)
@@ -33,6 +35,7 @@ api/                    ← Cloudflare Worker + D1 leaderboard / data API
   worker.js  schema.sql  wrangler.toml  README.md
 tools/
   sync-motherload.sh      pull the latest Motherload web build into public/motherload
+  sync-ecotone.sh         rebuild Ecotone (vite build --base=./) into public/ecotone, re-inject glue
 ```
 
 ## Updating Motherload (automatic)

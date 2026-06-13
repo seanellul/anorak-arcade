@@ -185,6 +185,17 @@ a.card.v2.feature .body p{max-width:560px}
         </div>
       </div>
     </a>
+    <a class="card v2 feature reveal" href="ecotone/" style="--c:#7fc24a">
+      <span class="demo"><canvas data-demo="ecotone"></canvas><span class="verb">FULL GAME</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <div>
+          <h2>ECOTONE</h2>
+          <div class="tag">creature collector · the world remembers</div>
+          <p>A Gen-3-style monster RPG built on a living world: populations grow, crash and migrate as you hunt; seasons and weather repaint the region; your footsteps wear paths into the grass; and every creature evolves into a bespoke form shaped by how you actually raised it. Emergence is the feature.</p>
+          <div class="pill">keyboard · 💻 desktop only (for now) · seeded sim</div>
+        </div>
+      </div>
+    </a>
   </div>
 
   <!-- ============ PROTOTYPES ============ -->
@@ -307,8 +318,8 @@ a.card.v2.feature .body p{max-width:560px}
    playtime panel (unchanged from prod)
    ===================================================================== */
 (()=>{
-  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a'};
-  const ORDER=['MOTHERLOAD','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE'];
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a',ECOTONE:'#7fc24a'};
+  const ORDER=['MOTHERLOAD','ECOTONE','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE'];
   function render(){
     if(!window.GameStats) return;
     const all=GameStats.all(); const map={}; all.forEach(a=>map[a.game]=a);
@@ -793,7 +804,57 @@ a.card.v2.feature .body p{max-width:560px}
     }, onResize:reset};
   }
 
-  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,weave,pulse,motherload};
+  /* ---------- ECOTONE: a living meadow — seasons turn, a creature roams, weather drifts ---------- */
+  function ecotone(g){
+    const {ctx}=g; let t=0;
+    // four seasonal grass/blade pairs, cycled slowly
+    const SEASON=[['#7fae62','#3a6e2a'],['#8fb35a','#34701f'],['#a8a45e','#5c6128'],['#9aa893','#52645a']];
+    let tufts,creature,paths,drops,weather,wT;
+    function reset(){
+      tufts=[]; for(let i=0;i<26;i++) tufts.push({x:Math.random()*g.w,y:Math.random()*g.h,p:Math.random()*6});
+      creature={x:g.w*0.5,y:g.h*0.6,a:Math.random()*6.28,hop:0};
+      paths=[]; drops=[]; weather=0; wT=0;
+    }
+    reset();
+    return {step(dt){ t+=dt; wT+=dt; const w=g.w,h=g.h;
+      const phase=(t/9000)%4, si=phase|0, mix=phase-si;
+      const lerp=(a,b)=>{ const pa=parseInt(a.slice(1),16),pb=parseInt(b.slice(1),16);
+        const c=(s)=>Math.round(((pa>>s)&255)+(((pb>>s)&255)-((pa>>s)&255))*mix);
+        return 'rgb('+c(16)+','+c(8)+','+c(0)+')'; };
+      const grass=lerp(SEASON[si][0],SEASON[(si+1)%4][0]);
+      const blade=lerp(SEASON[si][1],SEASON[(si+1)%4][1]);
+      // weather cycles: dry → rain → dry
+      if(wT>6000){ wT=0; weather=weather?0:1; if(weather){ drops=[]; for(let i=0;i<40;i++) drops.push({x:Math.random()*w,y:Math.random()*h,s:1+Math.random()*2}); } }
+      ctx.clearRect(0,0,w,h);
+      ctx.fillStyle=grass; ctx.fillRect(0,0,w,h);
+      // desire path the creature wears in
+      for(const p of paths){ ctx.globalAlpha=p.t*0.5; ctx.fillStyle='#cdbb8e'; ctx.fillRect(p.x-2,p.y-1,4,3); p.t-=dt/9000; }
+      paths=paths.filter(p=>p.t>0); ctx.globalAlpha=1;
+      // tall-grass tufts (blades sway)
+      for(const tf of tufts){ for(let b=0;b<3;b++){ const sx=tf.x+b*3-3, sw=Math.sin(t/600+tf.p+b)*1.2;
+        ctx.fillStyle=blade; ctx.fillRect(sx+sw, tf.y, 2, 7); } }
+      // the creature wanders, hops, leaves a path
+      creature.a+=(Math.random()-0.5)*0.5; creature.hop+=dt/220;
+      creature.x+=Math.cos(creature.a)*dt*0.012; creature.y+=Math.sin(creature.a)*dt*0.012;
+      if(creature.x<10||creature.x>w-10) creature.a=Math.PI-creature.a;
+      if(creature.y<14||creature.y>h-8) creature.a=-creature.a;
+      creature.x=Math.max(10,Math.min(w-10,creature.x)); creature.y=Math.max(14,Math.min(h-8,creature.y));
+      if(Math.random()<0.1) paths.push({x:creature.x,y:creature.y+6,t:1});
+      const by=creature.y-Math.abs(Math.sin(creature.hop))*3;
+      ctx.fillStyle='rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(creature.x,creature.y+6,7,2.5,0,0,6.28); ctx.fill();
+      ctx.fillStyle='#5aa7e0'; ctx.beginPath(); ctx.ellipse(creature.x,by,7,6,0,0,6.28); ctx.fill();
+      ctx.fillStyle='#1565c0'; ctx.fillRect(creature.x-6,by-1,3,4); ctx.fillRect(creature.x+3,by-1,3,4);
+      ctx.fillStyle='#fff'; ctx.fillRect(creature.x-3,by-2,2,2); ctx.fillRect(creature.x+1,by-2,2,2);
+      ctx.fillStyle='#202020'; ctx.fillRect(creature.x-2,by-2,1,1); ctx.fillRect(creature.x+2,by-2,1,1);
+      // weather: rain streaks + cool tint
+      if(weather){ ctx.strokeStyle='rgba(190,215,255,0.5)'; ctx.lineWidth=1; ctx.beginPath();
+        for(const d of drops){ d.y+=dt*0.35*d.s; d.x+=dt*0.05; if(d.y>h){d.y=-4;d.x=Math.random()*w;}
+          ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-2,d.y+6); } ctx.stroke();
+        ctx.fillStyle='rgba(40,60,110,0.14)'; ctx.fillRect(0,0,w,h); }
+    }, onResize:reset};
+  }
+
+  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,weave,pulse,motherload,ecotone};
 
   /* boot every demo canvas; share one rAF; pause off-screen */
   document.querySelectorAll('canvas[data-demo]').forEach(cv=>{
