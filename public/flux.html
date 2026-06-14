@@ -200,7 +200,9 @@
   window.addEventListener('mouseup',release);
   cv.addEventListener('touchstart',e=>{ e.preventDefault(); grab(P(e)); },{passive:false});
   cv.addEventListener('touchmove',e=>{ e.preventDefault(); if(held) moveHeld(P(e)); },{passive:false});
-  window.addEventListener('touchend',e=>{ e.preventDefault(); release(); },{passive:false});
+  // only swallow the touch while actually dragging a pole — otherwise preventDefault on a
+  // window-level touchend kills the synthesized click on EVERY tap (start/pause/all buttons).
+  window.addEventListener('touchend',e=>{ if(held){ e.preventDefault(); release(); } },{passive:false});
   window.addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
     if(k==='enter'&&state==='dead') start();
     else if(k==='p'&&(state==='play'||state==='paused')){ state=state==='play'?'paused':'play'; document.getElementById('paused').style.display=state==='paused'?'flex':'none'; if(state==='play') last=performance.now(); }
