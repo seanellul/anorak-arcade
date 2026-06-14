@@ -1,0 +1,12 @@
+{
+  "appId": "xyz.tqlabs.anorak",
+  "appName": "Anorak Arcade",
+  "webDir": "../public",
+  "server": {
+    "iosScheme": "anorak"
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0a0e14"
+  }
+}

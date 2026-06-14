@@ -87,6 +87,14 @@
     .ctrls button{padding:13px}
   }
 </style>
+<style>
+  /* touch vs desktop control hints */
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
+  #overHome{ display:inline-block; margin-top:12px; color:#9fb0c9; text-decoration:none;
+    border:1px solid #2a3447; border-radius:9px; padding:10px 24px; font-size:13px; letter-spacing:.12em; font-weight:700; }
+  #overHome:hover{ color:#e7ecf5; border-color:#3a4660; }
+</style>
 <link rel="stylesheet" href="cabinet.css">
 </head>
 <body data-game="CINDER">
@@ -112,15 +120,17 @@
     <p>A fire spreads across the grid. <b style="color:#e7ecf5">Drag to build walls</b> and seal it into a closed pocket — sealed fire <b style="color:#e7ecf5">suffocates</b>, and you score for every ember trapped.</p>
     <p>Small seals are safe points. <b style="color:#ffd23f">Letting a fire grow before you trap it pays far more</b> — but one careless second and it overruns you. New fires are <b style="color:#e7ecf5">telegraphed</b> before they ignite; mind the <b style="color:#e7ecf5">wind</b>.</p>
     <button id="startBtn">IGNITE ▶</button>
-    <div class="statline"><span class="key">drag</span> wall &nbsp; <span class="key">right-drag</span> erase &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-desktop"><span class="key">drag</span> wall &nbsp; <span class="key">right-drag</span> erase &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">drag</span> to build &nbsp; <span class="key">✎ / ⌫</span> toggle erase &nbsp; <span class="key">⏸</span> pause</div>
   </div>
   <div class="overlay" id="over" style="display:none">
     <h2 class="bad">OVERRUN</h2>
     <div class="big" id="finalScore">0</div>
     <div class="statline" id="finalStats"></div>
     <button id="again">REKINDLE ⏎</button>
+    <a id="overHome" href="index.html">⌂ HOME</a>
   </div>
-  <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p>press <span class="key">P</span> to resume</p></div>
+  <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p><span class="d-desktop">press <span class="key">P</span> to resume</span><span class="d-touch">tap <span class="key">⏸</span> to resume</span></p></div>
 </div>
 <div class="ctrls"><button id="btnErase" type="button">✎ BUILD</button></div>
 <div class="foot">

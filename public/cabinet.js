@@ -8,6 +8,8 @@
 (() => {
   const GAME = (document.body && document.body.dataset && document.body.dataset.game || '').toUpperCase();
   if (!GAME) return;
+  // Native app (Capacitor) shell: collapse the action bar into one ⚙ menu (the app sets .aa-native at document-start).
+  const NATIVE = document.documentElement.classList.contains('aa-native');
 
   const COLORS = { CINDER:'#ff6a3d', SHIFT:'#5ad1ff', CONDUIT:'#b98cff', HOMEOSTAT:'#36d399', MOTHERLOAD:'#e8a13a' };
   const ACC = COLORS[GAME] || '#ffb13d';
@@ -59,20 +61,28 @@
   /* ---------- mute toggle (wraps Juice.tone — all sfx route through it) ---------- */
   const MKEY = 'aa.muted';
   let muted = false; try { muted = localStorage.getItem(MKEY) === '1'; } catch (e) {}
+  let drawerSound = null;   // set in NATIVE mode: the sound control inside the menu drawer
   function applyMute() {
     soundBtn.querySelector('.ic').textContent = muted ? '🔇' : '🔊';
     soundBtn.style.color = muted ? 'var(--cab-dim)' : 'var(--cab-acc)';
     soundBtn.style.borderColor = muted ? '' : 'color-mix(in srgb,var(--cab-acc) 40%,var(--cab-line))';
+    if (drawerSound) {
+      drawerSound.querySelector('.ic').textContent = muted ? '🔇' : '🔊';
+      drawerSound.classList.toggle('off', muted);
+      const lbl = drawerSound.querySelector('.lbl'); if (lbl) lbl.textContent = muted ? 'MUTED' : 'SOUND';
+    }
+  }
+  function toggleMute() {
+    muted = !muted; try { localStorage.setItem(MKEY, muted ? '1' : '0'); } catch (e) {}
+    if (!muted && window.Juice && Juice.unlock) Juice.unlock();
+    if (window.Feel) Feel.tap();
+    applyMute();
   }
   if (window.Juice && typeof Juice.tone === 'function') {
     const realTone = Juice.tone;
     Juice.tone = function () { if (muted) return; return realTone.apply(Juice, arguments); };
   }
-  soundBtn.onclick = () => {
-    muted = !muted; try { localStorage.setItem(MKEY, muted ? '1' : '0'); } catch (e) {}
-    if (!muted && window.Juice && Juice.unlock) Juice.unlock();
-    applyMute();
-  };
+  soundBtn.onclick = toggleMute;
   applyMute();
 
   /* ---------- fullscreen ---------- */
@@ -133,7 +143,7 @@
         rows.map((r, i) => rowHTML(i + 1, r.name, r.score, r.name && r.name.toLowerCase() === me)).join('') + '</table>';
     }).catch(() => { boardEl.innerHTML = '<div class="cab-empty">Couldn’t reach the leaderboard.</div>'; });
   }
-  function openDrawer() { open = true; scrim.classList.add('open'); scoresBtn.classList.remove('flash'); refresh(); }
+  function openDrawer() { open = true; if (window.Feel) Feel.select(); scrim.classList.add('open'); scoresBtn.classList.remove('flash'); refresh(); }
   function closeDrawer() { open = false; scrim.classList.remove('open'); }
 
   scoresBtn.onclick = openDrawer;
@@ -161,11 +171,32 @@
       const sc = Math.max(0, Math.round(s || 0));
       if (sc > 0 && sc > prev && String(g).toUpperCase() === GAME) {
         showToast('★ NEW BEST · ' + sc.toLocaleString());
+        if (window.Feel) Feel.success();
         scoresBtn.classList.add('flash');
         if (open) setTimeout(refresh, 600);
       }
       return r;
     };
+  }
+
+  /* ---------- native app shell: one ⚙ menu instead of the 4-button bar ---------- */
+  if (NATIVE) {
+    // turn the SCORES button into the single menu opener
+    scoresBtn.querySelector('.ic').textContent = '⚙';
+    scoresBtn.setAttribute('title', 'Menu — scores, sound, leaderboard');
+    const lbl = scoresBtn.querySelector('.lbl'); if (lbl) lbl.textContent = 'MENU';
+    // fold sound / global / back-to-arcade into the drawer as an options row (CSS hides the bar buttons)
+    const opts = document.createElement('div');
+    opts.className = 'cab-opts';
+    opts.innerHTML =
+      '<button type="button" class="cab-opt cab-opt-sound"><span class="ic">🔊</span><span class="lbl">SOUND</span></button>' +
+      '<a class="cab-opt" href="leaderboard.html"><span class="ic">🌐</span><span class="lbl">GLOBAL</span></a>' +
+      '<a class="cab-opt" href="index.html"><span class="ic">◂</span><span class="lbl">ARCADE</span></a>';
+    const drawer = scrim.querySelector('.cab-drawer');
+    drawer.insertBefore(opts, scrim.querySelector('#cabBoard'));
+    drawerSound = opts.querySelector('.cab-opt-sound');
+    drawerSound.onclick = toggleMute;
+    applyMute();
   }
 
   renderYou();

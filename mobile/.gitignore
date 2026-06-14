@@ -1,0 +1,15 @@
+# Capacitor / Node
+node_modules/
+
+# Web assets are copied in from ../public on `cap sync` — not source
+ios/App/App/public/
+
+# CocoaPods (restored via `pod install`)
+ios/App/Pods/
+ios/App/Podfile.lock
+
+# Xcode
+ios/App/build/
+ios/App/DerivedData/
+*.xcuserstate
+xcuserdata/

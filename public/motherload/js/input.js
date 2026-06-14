@@ -23,8 +23,8 @@ export class Input {
   handleDown(e) {
     const k = this.normalize(e);
     if (k == null) return;
-    // Prevent page scroll for game keys
-    if (["up", "down", "left", "right", "space"].includes(k)) e.preventDefault();
+    // Prevent page scroll / focus-cycling for game keys
+    if (["up", "down", "left", "right", "space", "cargo"].includes(k)) e.preventDefault();
     if (!this.keys.has(k)) this.pressed.add(k);
     this.keys.add(k);
   }
@@ -51,6 +51,7 @@ export class Input {
       case "KeyC": return "codex";
       case "KeyM": return "map";
       case "KeyP": return "mute";
+      case "Tab": return "cargo";
       default: return null;
     }
   }

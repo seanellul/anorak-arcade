@@ -140,3 +140,28 @@ table.cab-lb tr.me{ background:color-mix(in srgb,var(--cab-acc) 10%,transparent)
   .cab-toast{ transition:none; }
   .cab-btn.cab-scores.flash .badge{ animation:none; }
 }
+
+/* =====================================================================
+   Native app shell (Capacitor) — set by the app via <html class="aa-native">.
+   Collapse the 4-button bar into a single ⚙ menu; sound / global / back move
+   into the drawer. Inert on the web (the class is only ever set in the app).
+   ===================================================================== */
+/* the whole cabinet action bar is hidden in-app — pause/menu lives in the
+   native pause overlay (Resume / Scores / Settings / Home) instead. */
+html.aa-native .cab-bar{ display:none !important; }
+html.aa-native .cab-bar .cab-scores .lbl{ display:none; }  /* icon-only */
+
+/* options row inside the menu drawer */
+html.aa-native .cab-opts{ display:flex; gap:8px; margin:2px 0 14px; }
+html.aa-native .cab-opt{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:5px;
+  background:var(--cab-bg); border:1px solid var(--cab-line); color:var(--cab-dim);
+  font-family:inherit; font-size:10px; letter-spacing:.12em; line-height:1;
+  padding:12px 6px; border-radius:11px; cursor:pointer; text-decoration:none;
+}
+html.aa-native .cab-opt .ic{ font-size:18px; }
+html.aa-native .cab-opt:hover,
+html.aa-native .cab-opt:active{ color:var(--cab-ink); border-color:var(--cab-line2); }
+html.aa-native .cab-opt.cab-opt-sound:not(.off){
+  color:var(--cab-acc); border-color:color-mix(in srgb,var(--cab-acc) 40%,var(--cab-line));
+}

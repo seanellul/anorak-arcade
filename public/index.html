@@ -160,7 +160,7 @@ a.card.v2.feature .body p{max-width:560px}
     <p class="lede2">A <b>love letter to a bygone era</b>. Each prototype aims to test a specific game loop, built around <span class="rotor" id="rotor">containment</span> as a theme.</p>
     <p class="lede2 thanks">If you're here: <b>thank you</b>. Thank you for playing my game(s).</p>
     <div class="cta">
-      <a class="btn" href="motherload/">▶ PLAY MOTHERLOAD</a>
+      <a class="btn" href="motherload/index.html">▶ PLAY MOTHERLOAD</a>
       <a class="btn ghost" href="#prototypes">EXPLORE PROTOTYPES</a>
     </div>
     <div class="metarow">
@@ -174,7 +174,7 @@ a.card.v2.feature .body p{max-width:560px}
   <!-- ============ FEATURED ============ -->
   <h2 class="section-h v2">★ FEATURED</h2>
   <div class="grid">
-    <a class="card v2 feature reveal" href="motherload/" style="--c:#e8a13a">
+    <a class="card v2 feature reveal" href="motherload/index.html" style="--c:#e8a13a">
       <span class="demo"><canvas data-demo="motherload"></canvas><span class="verb">FULL GAME</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
       <div class="body">
         <div>
@@ -185,7 +185,7 @@ a.card.v2.feature .body p{max-width:560px}
         </div>
       </div>
     </a>
-    <a class="card v2 feature reveal" href="ecotone/" style="--c:#7fc24a">
+    <a class="card v2 feature reveal" href="ecotone/index.html" style="--c:#7fc24a">
       <span class="demo"><canvas data-demo="ecotone"></canvas><span class="verb">FULL GAME</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
       <div class="body">
         <div>
@@ -863,6 +863,15 @@ a.card.v2.feature .body p{max-width:560px}
   });
   const vio=new IntersectionObserver(es=>{ for(const e of es){ const d=demos.find(d=>d.el===e.target); if(d)d.visible=e.isIntersecting; } },{threshold:.05});
   demos.forEach(d=>vio.observe(d.el));
+
+  /* expose the demo engine so the native app can paint live previews on its cards */
+  window.AABootDemo=function(cv,slug){
+    if(!cv||!FACTORY[slug]) return null;
+    const g=setup(cv); const inst=FACTORY[slug](g);
+    const d={inst,visible:true,el:cv}; demos.push(d); vio.observe(cv);
+    if(reduce) inst.step(16);
+    return d;
+  };
 
   if(reduce){ // draw one static frame, no loop
     demos.forEach(d=>d.inst.step(16));

@@ -5,9 +5,12 @@
   // ===== set this to your deployed Worker URL to enable global leaderboards =====
   const API = 'https://anorak-arcade-api.sean-ellul.workers.dev';   // deployed Worker (leaderboard API)
   // ==============================================================================
-  // Never WRITE to the live leaderboard from local dev (localhost / file://) — only
-  // the real domain syncs. Prevents test runs from polluting production. Reads still work.
-  const LOCAL = location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|.*\.local)$/i.test(location.hostname);
+  // Never WRITE to the live leaderboard from local dev (localhost / file://) — only the real
+  // domain + the native app sync. The app runs on capacitor://localhost / anorak://localhost,
+  // which is NOT dev and MUST submit scores (anonymous included).
+  const NATIVE = !!(window.Capacitor && (typeof Capacitor.isNativePlatform !== 'function' || Capacitor.isNativePlatform()))
+    || /^(capacitor|anorak):$/i.test(location.protocol);
+  const LOCAL = !NATIVE && (location.protocol === 'file:' || /^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]|.*\.local)$/i.test(location.hostname));
   if (API && LOCAL) try { console.info('[GameStats] local dev — leaderboard writes disabled (reads still live).'); } catch (e) {}
   const SKEY='aa.stats', CKEY='aa.clientId', NKEY='aa.name';
   const GAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','MOTHERLOAD','MOTHERLOAD_CASH'];
@@ -24,12 +27,45 @@
   const cleanName=v=>String(v||'').replace(/\s+/g,' ').trim().slice(0,16);
 
   // ---- server outbox ----
+  const VER='2026-06-13';   // client build tag, stamped on scores for provenance
   const pending={};
   function pend(g){ if(!pending[g]) pending[g]={addMs:0,plays:0,score:0,force:false}; return pending[g]; }
   let lastFlush=Date.now(), lastPing={}, lastSave=Date.now(), promptedThisLoad=false;
 
+  // ---- score integrity: server-issued play session per game, signed final score ----
+  // Each run starts a session bound to (clientId, game, seed[, user]); we sign the
+  // best score with the session secret so the Worker can stamp it 'verified'. All of
+  // this is best-effort — if the network or crypto is unavailable, scores still flow
+  // through the legacy /api/sync path exactly as before.
+  const sess={};                 // game -> {id, secret, seed} | 'pending'
+  function token(){ return lget('aa.token')||''; }
+  function ensureSession(game, seed){
+    if(!API || LOCAL || !game) return;
+    if(sess[game]) return;       // already have one (or one in flight)
+    sess[game]='pending';
+    const h={'Content-Type':'application/json'}; if(token()) h.Authorization='Bearer '+token();
+    fetch(API+'/api/session/start',{method:'POST',headers:h,body:JSON.stringify({clientId,game,seed:seed||'',clientVersion:VER})})
+      .then(r=>r.json()).then(d=>{ sess[game]=(d&&d.sessionId&&d.secret)?{id:d.sessionId,secret:d.secret,seed:d.seed||''}:null; })
+      .catch(()=>{ sess[game]=null; });
+  }
+  async function hmacHex(secret,msg){
+    const enc=new TextEncoder();
+    const k=await crypto.subtle.importKey('raw',enc.encode(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+    const s=await crypto.subtle.sign('HMAC',k,enc.encode(msg));
+    const a=new Uint8Array(s); let out=''; for(let i=0;i<a.length;i++) out+=a[i].toString(16).padStart(2,'0'); return out;
+  }
+  function signScore(game,score){
+    const s=sess[game]; if(!s||s==='pending'||!s.secret) return;
+    if(!(window.crypto&&crypto.subtle)) return;
+    const nonce=uuid(), seed=s.seed||'', sid=s.id;
+    hmacHex(s.secret, sid+'.'+game+'.'+score+'.'+seed+'.'+nonce).then(sig=>{
+      const p=pend(game); p.sig=sig; p.nonce=nonce; p.sigScore=score; p.sid=sid; p.seed=seed;
+    }).catch(()=>{});
+  }
+
   function ping(game, ms){ if(!game||!(ms>0)) return; const now=Date.now(); const e=ensure(game);
     if(!lastPing[game]||now-lastPing[game]>30000) e.sessions++;
+    ensureSession(game);   // begin an integrity session the moment a run is active
     lastPing[game]=now; e.last=now; ms=Math.min(ms,2000); e.ms+=ms; pend(game).addMs+=ms;
     if(now-lastSave>1000){ save(); lastSave=now; }
     if(now-lastFlush>20000) flush(false);
@@ -40,7 +76,9 @@
     score=Math.max(0,Math.round(score||0)); const e=ensure(game);
     const newBest = score>e.best;
     if(newBest) e.best=score;
+    ensureSession(game);
     const p=pend(game); if(countPlay) p.plays+=1; p.score=Math.max(p.score,score); save();
+    if(score>0) signScore(game, score);   // precompute the HMAC so flush can attach it
     // nudge for a name on every new personal best while still anonymous (openNameModal self-guards against stacking)
     if(!name && score>0 && newBest) openNameModal(()=>flush(false));
     setTimeout(()=>flush(false),250);
@@ -50,8 +88,13 @@
     const games=Object.keys(pending).filter(g=>{ const p=pending[g]; return p&&(p.addMs>0||p.plays>0||p.score>0||p.force); });
     if(!games.length) return;
     for(const g of games){ const p=pending[g];
-      const body=JSON.stringify({clientId,name,game:g,addMs:Math.round(p.addMs),plays:p.plays,score:p.score});
+      const sb={clientId,name,game:g,addMs:Math.round(p.addMs),plays:p.plays,score:p.score,clientVersion:VER};
+      // attach the signed-score proof only when it matches the exact score we're sending
+      const signed = p.sig && p.sid && p.sigScore===p.score && p.score>0;
+      if(signed){ sb.sessionId=p.sid; sb.sig=p.sig; sb.nonce=p.nonce; if(p.seed) sb.seed=p.seed; }
+      const body=JSON.stringify(sb);
       pending[g]={addMs:0,plays:0,score:0,force:false};
+      if(signed) sess[g]=null;   // session is single-use; next best starts a fresh one
       if(!API || LOCAL) continue;  // local-only mode / never write from local dev
       try{
         if(useBeacon && navigator.sendBeacon){ navigator.sendBeacon(API+'/api/sync', new Blob([body],{type:'application/json'})); }
@@ -64,6 +107,15 @@
     for(const g of GAMES){ const e=data[g]; if(e&&(e.ms>0||e.best>0)){ const p=pend(g); p.force=true; p.score=Math.max(p.score, e.best||0); } }
     flush(false);
   }
+  // claim a globally-unique, profanity-screened name. resolves {ok, name} or {ok:false, reason}.
+  function claimName(v){
+    v=cleanName(v);
+    if(!v) return Promise.resolve({ok:false,reason:'Enter a name'});
+    if(!API || LOCAL) return Promise.resolve({ok:true,name:v});   // dev/offline → accept locally
+    const h={'Content-Type':'application/json'}; if(token()) h.Authorization='Bearer '+token();
+    return fetch(API+'/api/name',{method:'POST',headers:h,body:JSON.stringify({name:v,clientId})})
+      .then(r=>r.json()).catch(()=>({ok:true,name:v}));            // network fail → accept locally
+  }
 
   // ---- name modal (injected; inline styles so it works on any page, incl. games) ----
   function openNameModal(cb){
@@ -75,7 +127,8 @@
       +'<div style="color:#7d8aa0;font-size:12px;margin-bottom:14px;line-height:1.5">for the leaderboard &mdash; pick anything</div>'
       +'<input id="aa-name-in" maxlength="16" placeholder="HANDLE" autocomplete="off" '
       +'style="width:100%;box-sizing:border-box;background:#0a0e14;border:1px solid #2a3447;border-radius:8px;color:#e7ecf5;font-family:inherit;font-size:16px;padding:11px;text-align:center;letter-spacing:.12em;outline:none">'
-      +'<div style="display:flex;gap:8px;margin-top:14px">'
+      +'<div id="aa-name-err" style="color:#ff6a6a;font-size:11px;min-height:13px;margin-top:7px;letter-spacing:.06em"></div>'
+      +'<div style="display:flex;gap:8px;margin-top:8px">'
       +'<button id="aa-name-skip" style="flex:1;background:none;border:1px solid #2a3447;color:#7d8aa0;font-family:inherit;padding:10px;border-radius:8px;cursor:pointer">Skip</button>'
       +'<button id="aa-name-ok" style="flex:2;background:#ffb13d;border:0;color:#1a0d06;font-family:inherit;font-weight:700;padding:10px;border-radius:8px;cursor:pointer;letter-spacing:.1em">Save</button>'
       +'</div></div>';
@@ -83,8 +136,17 @@
     const inp=w.querySelector('#aa-name-in'); inp.value=name; setTimeout(()=>inp.focus(),30);
     const done=cb||function(){};
     const close=()=>w.remove();
-    const ok=()=>{ const v=cleanName(inp.value); if(v) setName(v); close(); done(); };
-    w.querySelector('#aa-name-ok').onclick=ok;
+    const errEl=w.querySelector('#aa-name-err');
+    const okBtn=w.querySelector('#aa-name-ok');
+    const ok=()=>{ const v=cleanName(inp.value);
+      if(!v){ close(); done(); return; }
+      errEl.textContent=''; okBtn.disabled=true; okBtn.style.opacity='.6'; okBtn.textContent='…';
+      claimName(v).then(res=>{
+        if(res && res.ok!==false){ setName(res.name||v); close(); done(); }
+        else { errEl.textContent=(res&&res.reason)||'Try another name'; okBtn.disabled=false; okBtn.style.opacity=''; okBtn.textContent='Save'; inp.focus(); }
+      });
+    };
+    okBtn.onclick=ok;
     w.querySelector('#aa-name-skip').onclick=()=>{ close(); done(); };
     w.addEventListener('mousedown',e=>{ if(e.target===w){ close(); done(); } });
     inp.addEventListener('keydown',e=>{ if(e.key==='Enter') ok(); else if(e.key==='Escape'){ close(); done(); } });
@@ -92,6 +154,26 @@
 
   window.addEventListener('beforeunload',()=>flush(true));
   document.addEventListener('visibilitychange',()=>{ if(document.hidden) flush(true); });
+
+  // ---- first-visit onboarding: ask new players for a leaderboard name (once) ----
+  // Only on game pages — never the landing/info pages — so newcomers enjoy the arcade
+  // first and get asked when they actually open a game. This also catches Motherload
+  // players who quit a dig mid-run and otherwise never hit the on-new-best name nudge.
+  const AKEY='aa.nameAsked';
+  function onGamePage(){
+    return !!(document.body && document.body.dataset && document.body.dataset.game)  // cabinet games
+        || !!window.Juice                                                            // juice-based games
+        || /\/motherload(\/|$)/i.test(location.pathname);                            // Motherload
+  }
+  function firstRunNamePrompt(){
+    if(name || !onGamePage()) return;   // already named, or not actually in a game
+    lset(AKEY,'1');                     // ask at most once per browser, even if they skip
+    openNameModal(()=>flush(false));
+  }
+  if(!name && !lget(AKEY)){
+    const arm=()=>setTimeout(firstRunNamePrompt,1600);   // let the title / start screen settle first
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',arm); else arm();
+  }
 
   window.GameStats={
     ping, submitScore, flush, setName, getName:()=>name, promptName:openNameModal, clientId, hasAPI:!!API,
