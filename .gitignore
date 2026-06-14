@@ -27,3 +27,6 @@ api/.admin-key.txt
 
 # but DO ship the public image assets
 !public/*.png
+
+# local D1 backups
+backup-*.sql

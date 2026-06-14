@@ -162,8 +162,11 @@
     if (nm) api('GET', '/api/profile?name=' + encodeURIComponent(nm)).then(function (d) {
       var box = b.querySelector('#aaCompete'); if (!box || !d || !d.games) return;
       var lead = d.worldNo1 || 0;
+      var arcade = d.arcadeScore || 0;
+      var division = d.division || '';
       var top = d.games.slice(0, 6);
       box.innerHTML =
+        (arcade > 0 ? '<div class="aa-arcade"><span class="lab">ARCADE SCORE</span><span class="val">' + Number(arcade).toLocaleString() + '</span><span class="sub">' + (division ? '<span class="aa-div div-' + division.toLowerCase() + '">' + esc(division) + '</span> · ' : '') + 'across ' + top.length + ' game' + (top.length > 1 ? 's' : '') + '</span></div>' : '') +
         (lead > 0 ? '<div class="aa-crown">👑 World #1 in <b>' + lead + '</b> game' + (lead > 1 ? 's' : '') + '</div>' : '') +
         '<h3 style="margin-top:18px;font-size:12px;letter-spacing:.18em;color:var(--aa-dim)">YOUR RANKS</h3>' +
         (top.length ? '<div class="aa-list">' + top.map(function (g) {
@@ -206,6 +209,8 @@
       '<div class="aa-row" style="gap:8px"><input class="aa-input" id="aaAddF" placeholder="add by handle"/>' +
         '<button class="aa-btn" style="width:auto;padding:0 16px" id="aaAddBtn">ADD</button></div>' +
       '<div class="aa-list" id="aaFList"><div class="aa-empty">Loading…</div></div>' +
+      '<h3 style="margin-top:18px;font-size:12px;letter-spacing:.18em;color:var(--aa-dim)">ACTIVITY</h3>' +
+      '<div class="aa-feed" id="aaFeed"><div class="aa-empty">Loading…</div></div>' +
       '<button class="aa-btn ghost" id="aaInvite" style="margin-top:14px">Invite a friend</button>';
     b.querySelector('#aaInvite').onclick = shareInvite;
     b.querySelector('#aaAddBtn').onclick = function () {
@@ -220,6 +225,25 @@
         return '<div class="li"><span class="rk">' + (i + 1) + '</span><span class="nm">' + esc(f.handle) + '</span><span class="sc">' + (f.ms ? fmtTime(f.ms) : '') + '</span></div>';
       }).join('');
     });
+    renderFeed(b.querySelector('#aaFeed'));
+  }
+  // turn raw events into a human activity line ("Kai passed you in CINDER")
+  function feedLine(e) {
+    var pay = {}; try { pay = JSON.parse(e.payload || '{}'); } catch (x) {}
+    var g = esc(e.game || ''), who = esc(e.actor || 'someone'), sc = pay.score ? Number(pay.score).toLocaleString() : '';
+    if (e.own && e.kind === 'overtaken') return '<span class="ic">⚔</span><span class="tx"><b>' + who + '</b> passed you in <b>' + g + '</b> — defend your spot</span>';
+    if (e.own && e.kind === 'no1') return '<span class="ic">👑</span><span class="tx">You took <b>#1</b> in <b>' + g + '</b></span>';
+    if (!e.own && e.kind === 'no1') return '<span class="ic">👑</span><span class="tx"><b>' + who + '</b> is <b>#1</b> in <b>' + g + '</b></span>';
+    if (!e.own && e.kind === 'best') return '<span class="ic">▲</span><span class="tx"><b>' + who + '</b> set a new <b>' + g + '</b> best' + (sc ? ' · ' + sc : '') + '</span>';
+    return '';
+  }
+  function renderFeed(box) {
+    if (!box) return;
+    api('GET', '/api/feed').then(function (d) {
+      var evs = ((d && d.events) || []).filter(function (e) { return !(e.own && e.kind === 'best'); });   // own bests are noise
+      var lines = evs.map(feedLine).filter(Boolean);
+      box.innerHTML = lines.length ? lines.map(function (l) { return '<div class="fi">' + l + '</div>'; }).join('') : '<div class="aa-empty">No activity yet — play a game or add friends.</div>';
+    }).catch(function () { box.innerHTML = '<div class="aa-empty">Couldn’t load activity.</div>'; });
   }
   function shareInvite() {
     feel('tap');
@@ -372,6 +396,16 @@
   function gameId() { return (document.body && document.body.dataset && document.body.dataset.game) || path.replace(/\.html$/, '').toUpperCase(); }
   function pauseGame() { try { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'p' })); } catch (e) {} }
   var pauseEl;
+  // Every game's game-over screen is `#over` with an `#again` restart button — give them
+  // all a consistent HOME button right after it (no per-game edits needed).
+  function wireGameOverHome() {
+    var again = document.getElementById('again');
+    if (!again || again.parentNode.querySelector('.aa-overhome')) return;
+    var home = document.createElement('a');
+    home.className = 'aa-overhome'; home.href = 'index.html'; home.textContent = '⌂ HOME';
+    home.onclick = function () { feel('select'); showVeil('#e8a13a', ''); };
+    again.parentNode.insertBefore(home, again.nextSibling);
+  }
   function buildPause() {
     var btn = document.createElement('button'); btn.className = 'aa-pausebtn'; btn.innerHTML = '❙❙'; btn.setAttribute('aria-label', 'Pause');
     btn.onclick = openPause; document.body.appendChild(btn);
@@ -402,36 +436,75 @@
     settingsSheet.open();
   }
   /* ---- per-game scores sheet with time filters + daily (reused by pause) ---- */
-  var scoresSheet, _sc = { gid: '', period: 'all' };
+  var scoresSheet, _sc = { gid: '', period: 'all', scope: 'global' };
   var PERIODS = [['today', 'TODAY'], ['week', 'WEEK'], ['month', 'MONTH'], ['all', 'ALL']];
+  var SCOPES = [['global', 'GLOBAL'], ['near', 'NEAR ME'], ['friends', 'FRIENDS']];
   function openScores(gid) {
     if (!scoresSheet) scoresSheet = makeSheet('HIGH SCORES', '');
-    _sc.gid = gid; _sc.period = 'all';
+    _sc.gid = gid; _sc.period = 'all'; _sc.scope = 'global';
     scoresSheet.el.querySelector('h3').textContent = gid + ' · HIGH SCORES';
     scoresSheet.body.innerHTML =
+      '<div class="aa-scope">' +
+        SCOPES.map(function (s) { return '<button data-s="' + s[0] + '" class="' + (s[0] === 'global' ? 'on' : '') + '">' + s[1] + '</button>'; }).join('') +
+      '</div>' +
       '<div class="aa-period">' +
         PERIODS.map(function (p) { return '<button data-p="' + p[0] + '" class="' + (p[0] === 'all' ? 'on' : '') + '">' + p[1] + '</button>'; }).join('') +
+        '<button data-p="season" class="daily">◆ SEASON</button>' +
         '<button data-p="daily" class="daily">★ DAILY</button>' +
       '</div><div id="aaBoard"><div class="aa-empty">Loading…</div></div>';
+    scoresSheet.body.querySelectorAll('.aa-scope button').forEach(function (b) {
+      b.onclick = function () { feel('tap'); _sc.scope = b.getAttribute('data-s');
+        if (_sc.scope !== 'global' && (_sc.period === 'daily' || _sc.period === 'season')) _sc.period = 'all';   // daily/season are global-only
+        scoresSheet.body.querySelectorAll('.aa-scope button').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on');
+        scoresSheet.body.querySelectorAll('.aa-period button').forEach(function (x) { x.classList.toggle('on', x.getAttribute('data-p') === _sc.period); });
+        renderScores(); };
+    });
     scoresSheet.body.querySelectorAll('.aa-period button').forEach(function (b) {
-      b.onclick = function () { feel('tap'); _sc.period = b.getAttribute('data-p'); scoresSheet.body.querySelectorAll('.aa-period button').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on'); renderScores(); };
+      b.onclick = function () { feel('tap'); _sc.period = b.getAttribute('data-p');
+        if (b.getAttribute('data-p') === 'daily' || b.getAttribute('data-p') === 'season') _sc.scope = 'global';   // daily/season imply global
+        scoresSheet.body.querySelectorAll('.aa-period button').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on');
+        scoresSheet.body.querySelectorAll('.aa-scope button').forEach(function (x) { x.classList.toggle('on', x.getAttribute('data-s') === _sc.scope); });
+        renderScores(); };
     });
     scoresSheet.open(); renderScores();
+  }
+  function boardRow(name, score, rank, meLc) {
+    var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+    return '<div class="li' + (name && name.toLowerCase() === meLc ? ' me' : '') + '"><span class="rk">' + medal + '</span><span class="nm">' + esc(name) + '</span><span class="sc">' + Number(score).toLocaleString() + '</span></div>';
   }
   function renderScores() {
     var board = scoresSheet.body.querySelector('#aaBoard'); if (!board) return;
     board.innerHTML = '<div class="aa-empty">Loading…</div>';
     var me = (lget('aa.name') || '').toLowerCase();
-    var p = _sc.period, daily = p === 'daily';
-    var url = daily ? '/api/daily/leaderboard' : '/api/leaderboard?game=' + encodeURIComponent(_sc.gid) + '&period=' + p + '&limit=25';
+    var p = _sc.period, daily = p === 'daily', season = p === 'season', scope = _sc.scope;
+    // NEAR ME and FRIENDS need an identity / sign-in respectively
+    if (scope === 'near' && !me) { board.innerHTML = '<div class="aa-empty">Set a name to see who’s right above and below you.</div>'; return; }
+    if (scope === 'friends' && !token()) { board.innerHTML = '<div class="aa-empty">Sign in to race your friends’ scores.</div>'; return; }
+    var url;
+    if (daily) url = '/api/daily/leaderboard';
+    else if (season) url = '/api/season/standings?game=' + encodeURIComponent(_sc.gid) + '&limit=25';
+    else if (scope === 'near') url = '/api/leaderboard?game=' + encodeURIComponent(_sc.gid) + '&around=' + encodeURIComponent(lget('aa.name') || '') + '&period=' + p;
+    else if (scope === 'friends') url = '/api/leaderboard?game=' + encodeURIComponent(_sc.gid) + '&scope=friends&period=' + p + '&limit=25';
+    else url = '/api/leaderboard?game=' + encodeURIComponent(_sc.gid) + '&period=' + p + '&limit=25';
     api('GET', url).then(function (d) {
+      if (season && d && d.season) {
+        var rows = d.top || [];
+        var ends = d.season.ends_at ? Math.max(0, Math.ceil((d.season.ends_at - Date.now()) / 86400000)) : 0;
+        board.innerHTML = '<div class="aa-empty" style="padding:6px 2px 12px"><b style="color:var(--aa-brand)">' + esc(d.season.title || 'Season') + '</b> · ' + ends + ' day' + (ends === 1 ? '' : 's') + ' left · top 10 ranked</div>' +
+          (rows.length ? '<div class="aa-list">' + rows.map(function (r, i) { return boardRow(r.name, r.score, i + 1, me); }).join('') + '</div>' : '<div class="aa-empty">No season scores yet — be first.</div>');
+        return;
+      }
+      if (scope === 'near' && d && d.you) {
+        var rows = d.rows || [], from = d.from || 1;
+        board.innerHTML = '<div class="aa-empty" style="padding:6px 2px 12px">You’re <b style="color:var(--aa-brand)">#' + d.you.rank + '</b> · ' + Number(d.you.score).toLocaleString() + '</div>' +
+          (rows.length ? '<div class="aa-list">' + rows.map(function (r, i) { return boardRow(r.name, r.score, from + i, me); }).join('') + '</div>' : '');
+        return;
+      }
       var rows = (d && d.top) || [];
       var note = daily && d && d.game ? '<div class="aa-empty" style="padding:6px 2px 12px">Today’s daily · <b style="color:var(--aa-brand)">' + esc(d.game) + '</b></div>' : '';
       board.innerHTML = note + (rows.length
-        ? '<div class="aa-list">' + rows.map(function (r, i) {
-            return '<div class="li' + (r.name && r.name.toLowerCase() === me ? ' me' : '') + '"><span class="rk">' + (i + 1) + '</span><span class="nm">' + esc(r.name) + '</span><span class="sc">' + Number(r.score).toLocaleString() + '</span></div>';
-          }).join('') + '</div>'
-        : '<div class="aa-empty">' + (daily ? 'No daily scores yet — be first.' : 'No scores in this window yet — be first.') + '</div>');
+        ? '<div class="aa-list">' + rows.map(function (r, i) { return boardRow(r.name, r.score, i + 1, me); }).join('') + '</div>'
+        : '<div class="aa-empty">' + (scope === 'friends' ? 'No friends on this board yet — add some.' : daily ? 'No daily scores yet — be first.' : 'No scores in this window yet — be first.') + '</div>');
     }).catch(function () { board.innerHTML = '<div class="aa-empty">Couldn’t reach the leaderboard.</div>'; });
   }
 
@@ -544,7 +617,7 @@
       var K = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Keyboard;
       if (K && K.setAccessoryBarVisible) K.setAccessoryBarVisible({ isVisible: false });
     } catch (e) {}
-    if (isGame) { wireUniversalJuice(); buildPause(); }
+    if (isGame) { wireUniversalJuice(); buildPause(); wireGameOverHome(); }
     else {
       buildTabBar();
       if (path === 'index.html' || path === '') buildHome();

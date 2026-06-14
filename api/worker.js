@@ -46,7 +46,7 @@ export default {
     try {
       if (request.method === 'POST' && path === '/api/sync')        return await sync(request, env);
       if (request.method === 'POST' && path === '/api/session/start') return await sessionStart(request, env);
-      if (request.method === 'GET'  && path === '/api/leaderboard') return await leaderboard(url, env);
+      if (request.method === 'GET'  && path === '/api/leaderboard') return await leaderboard(url, env, request);
       if (request.method === 'GET'  && path === '/api/stats')       return await stats(env);
       if (request.method === 'GET'  && path === '/api/admin')       return await admin(url, env);
       if (request.method === 'GET'  && path === '/api/health')      return json({ ok: true });
@@ -66,6 +66,11 @@ export default {
       if (request.method === 'GET'  && path === '/api/daily/leaderboard') return await dailyBoard(env);
       if (request.method === 'GET'  && path === '/api/rank')        return await rank(url, env);
       if (request.method === 'GET'  && path === '/api/profile')     return await profile(url, env);
+      if (request.method === 'GET'  && path === '/api/players')     return await players(url, env);
+      if (request.method === 'GET'  && path === '/api/feed')        return await feed(request, env);
+      if (request.method === 'GET'  && path === '/api/seasons')     return await seasons(env);
+      if (request.method === 'GET'  && path === '/api/season/standings') return await seasonStandings(url, env);
+      if (request.method === 'POST' && path === '/api/push/register') return await pushRegister(request, env);
       if (request.method === 'POST' && path === '/api/name')        return await claimName(request, env);
       if (request.method === 'GET'  && path === '/api/friends')     return await listFriends(request, env);
       if (request.method === 'POST' && path === '/api/friends/add') return await addFriend(request, env);
@@ -74,7 +79,31 @@ export default {
     }
     return json({ error: 'not found' }, 404);
   },
+
+  // Nightly cron (see wrangler.toml [triggers]): freeze per-game standings so we can
+  // show rank deltas ("climbed 14 spots this week") and, later, season-end top-N.
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil((async () => { await snapshotRanks(env); await rolloverSeasons(env); })());
+  },
 };
+
+// Top-100 per game → rank_snapshots, stamped with one captured_at per run.
+async function snapshotRanks(env) {
+  const now = Date.now();
+  for (const g of GAMES) {
+    const r = await env.DB.prepare(
+      "WITH best AS (SELECT LOWER(name) AS pkey, MAX(name) AS name, MAX(user_id) AS user_id, MAX(score) AS score " +
+      "  FROM scores WHERE game = ?1 AND score > 0 AND name <> '' GROUP BY LOWER(name)) " +
+      "SELECT name, user_id, score, RANK() OVER (ORDER BY score DESC) AS rk FROM best ORDER BY rk LIMIT 100"
+    ).bind(g).all();
+    for (const row of (r.results || [])) {
+      await env.DB.prepare(
+        "INSERT INTO rank_snapshots (scope, season_id, game, user_id, name, rank, score, captured_at) " +
+        "VALUES ('global','',?1,?2,?3,?4,?5,?6)"
+      ).bind(g, row.user_id || null, row.name, row.rk, row.score, now).run();
+    }
+  }
+}
 
 async function sync(request, env) {
   let b;
@@ -128,10 +157,22 @@ async function sync(request, env) {
       integrity = sanityOk(game, score) ? signed.integrity : 'flagged';
       if (signed.userId) scoreUser = signed.userId;
     }
+    // prior best for this named player (before we log the new row) → detect a true new best
+    let prevBest = 0;
+    if (scoreUser && canon) {
+      const pb = await env.DB.prepare(
+        "SELECT MAX(score) AS m FROM scores WHERE game = ?1 AND LOWER(name) = ?2 AND score > 0"
+      ).bind(game, canon.toLowerCase()).first();
+      prevBest = (pb && pb.m) || 0;
+    }
     await env.DB.prepare(
       "INSERT INTO scores (game, name, client_id, user_id, score, seed, created_at, session_id, integrity, client_version) " +
       "VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)"
     ).bind(game, canon, clientId, scoreUser, score, seed, now, sessionId, integrity, clientVersion).run();
+    // feed: only on a signed-in player's genuine new personal best, and never for flagged scores
+    if (scoreUser && canon && integrity !== 'flagged' && score > prevBest) {
+      try { await recordScoreEvents(env, { game, score, prevBest, actorUserId: scoreUser, actorName: canon, now }); } catch (e) {}
+    }
   }
 
   return json({ ok: true });
@@ -217,13 +258,29 @@ const LB_GROUP = "CASE WHEN name <> '' THEN LOWER(name) ELSE client_id END";
 // payout-eligible view. Default shows every score (the fun, all-comers board).
 const VERIFIED_FILTER = " AND integrity = 'verified'";
 
-async function leaderboard(url, env) {
+async function leaderboard(url, env, request) {
   const limit = clampInt(url.searchParams.get('limit') || 20, 1, 100);
   const game = String(url.searchParams.get('game') || '').toUpperCase();
   const period = String(url.searchParams.get('period') || 'all');
   const cutoff = periodCutoff(period);
   const verified = url.searchParams.get('verified') === '1' ? VERIFIED_FILTER : '';
+  const scope = String(url.searchParams.get('scope') || 'global');
+  const around = cleanName(url.searchParams.get('around') || '');
   if (game && GAMES.indexOf(game) >= 0) {
+    // near-me view: the ±span window around a player's rank (the most motivating board)
+    if (around) return await aroundBoard(env, game, around, cutoff, verified);
+    // friends scope: only this user's friends (+ self) — requires a session
+    if (scope === 'friends') {
+      const uid = request && await currentUserId(request, env);
+      if (!uid) return json({ error: 'unauthorized' }, 401);
+      const r = await env.DB.prepare(
+        "SELECT CASE WHEN name <> '' THEN name ELSE 'anon' END AS name, MAX(score) AS score FROM scores " +
+        "WHERE game = ?1 AND score > 0 AND created_at >= ?2" + verified +
+        " AND user_id IN (SELECT friend_id FROM friendships WHERE user_id = ?3 UNION SELECT ?3) " +
+        "GROUP BY user_id ORDER BY score DESC LIMIT ?4"
+      ).bind(game, cutoff, uid, limit).all();
+      return json({ game, period, scope: 'friends', verified: !!verified, top: r.results || [] });
+    }
     const r = await env.DB.prepare(
       "SELECT CASE WHEN name <> '' THEN name ELSE 'anon' END AS name, MAX(score) AS score FROM scores " +
       "WHERE game = ?1 AND score > 0 AND created_at >= ?2" + verified + " GROUP BY " + LB_GROUP + " ORDER BY score DESC LIMIT ?3"
@@ -487,16 +544,198 @@ async function profile(url, env) {
   ).bind(lc).all();
   const games = [];
   let worldNo1 = 0;
+  let arcadeScore = 0;   // cross-game composite: Σ(101 − rank) over top-100 placements
   for (const row of (bests.results || [])) {
     const higher = await env.DB.prepare(
       "SELECT COUNT(*) AS n FROM (SELECT MAX(score) m FROM scores WHERE game = ?1 AND score > 0 GROUP BY " + LB_GROUP + " HAVING m > ?2)"
     ).bind(row.game, row.best).first();
     const rk = ((higher && higher.n) || 0) + 1;
     if (rk === 1) worldNo1++;
+    if (rk <= 100) arcadeScore += (101 - rk);
     games.push({ game: row.game, best: row.best, rank: rk });
   }
   games.sort((a, b) => a.rank - b.rank || b.best - a.best);
-  return json({ name: nm, worldNo1, games });
+  return json({ name: nm, worldNo1, arcadeScore, division: divisionFor(arcadeScore), games });
+}
+
+// ===========================================================================
+// Arcade Score — the cross-game meta-leaderboard. Points reward beating people:
+// a player earns (101 − rank) for every game they sit in the top 100 of, so the
+// global #1 of a game is worth 100 and #100 is worth 1. This is the ladder a
+// future revenue split rewards ("top 10–100 players"). Named players only.
+// ===========================================================================
+async function players(url, env) {
+  const limit = clampInt(url.searchParams.get('limit') || 50, 1, 100);
+  const r = await env.DB.prepare(
+    "WITH best AS (" +
+    "  SELECT game, LOWER(name) AS pkey, MAX(name) AS name, MAX(score) AS score" +
+    "  FROM scores WHERE score > 0 AND name <> '' GROUP BY game, LOWER(name)" +
+    "), ranked AS (" +
+    "  SELECT pkey, name, RANK() OVER (PARTITION BY game ORDER BY score DESC) AS rk FROM best" +
+    ") " +
+    "SELECT MAX(name) AS name, SUM(101 - rk) AS arcade, COUNT(*) AS games, MIN(rk) AS bestRank " +
+    "FROM ranked WHERE rk <= 100 GROUP BY pkey ORDER BY arcade DESC LIMIT ?1"
+  ).bind(limit).all();
+  return json({ players: r.results || [] });
+}
+
+// near-me board: the ±span window around a player's rank in one game.
+async function aroundBoard(env, game, name, cutoff, verified) {
+  const lc = name.toLowerCase();
+  const span = 4;
+  const pb = await env.DB.prepare(
+    "SELECT MAX(score) AS s FROM scores WHERE game = ?1 AND LOWER(name) = ?2 AND score > 0 AND created_at >= ?3" + verified
+  ).bind(game, lc, cutoff).first();
+  if (!pb || !pb.s) return json({ game, you: null, from: 0, rows: [] });
+  const higher = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM (SELECT MAX(score) m FROM scores WHERE game = ?1 AND score > 0 AND created_at >= ?2" + verified + " GROUP BY " + LB_GROUP + " HAVING m > ?3)"
+  ).bind(game, cutoff, pb.s).first();
+  const myRank = ((higher && higher.n) || 0) + 1;
+  const from = Math.max(1, myRank - span);
+  const r = await env.DB.prepare(
+    "SELECT CASE WHEN name <> '' THEN name ELSE 'anon' END AS name, MAX(score) AS score FROM scores " +
+    "WHERE game = ?1 AND score > 0 AND created_at >= ?2" + verified + " GROUP BY " + LB_GROUP + " ORDER BY score DESC LIMIT ?3 OFFSET ?4"
+  ).bind(game, cutoff, span * 2 + 1, from - 1).all();
+  return json({ game, you: { name, score: pb.s, rank: myRank }, from, rows: r.results || [] });
+}
+
+// ---- activity feed (events) ----
+async function insertEvent(env, userId, kind, subjectUserId, game, payload, now) {
+  if (!userId) return;
+  await env.DB.prepare(
+    "INSERT INTO events (user_id, kind, subject_user_id, game, payload, created_at) VALUES (?1,?2,?3,?4,?5,?6)"
+  ).bind(userId, kind, subjectUserId || null, game || '', JSON.stringify(payload || {}), now).run();
+}
+// Called from sync on a signed-in player's *new* personal best. Cheap: a couple of
+// extra queries only when there's something worth telling the feed about.
+async function recordScoreEvents(env, { game, score, prevBest, actorUserId, actorName, now }) {
+  const higher = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM (SELECT MAX(score) m FROM scores WHERE game = ?1 AND score > 0 GROUP BY " + LB_GROUP + " HAVING m > ?2)"
+  ).bind(game, score).first();
+  const rk = ((higher && higher.n) || 0) + 1;
+  await insertEvent(env, actorUserId, rk === 1 ? 'no1' : 'best', null, game, { score, rank: rk }, now);
+  // a genuinely leapfrogged player: their best sat above my old score and now below my new
+  // one ("defend your spot"). Skip anyone I was already ahead of.
+  const below = await env.DB.prepare(
+    "SELECT user_id, MAX(score) AS s FROM scores WHERE game = ?1 AND score > 0 AND user_id IS NOT NULL AND user_id <> ?3 " +
+    "GROUP BY user_id HAVING s < ?2 AND s > ?4 ORDER BY s DESC LIMIT 1"
+  ).bind(game, score, actorUserId, prevBest || 0).first();
+  if (below && below.user_id) await insertEvent(env, below.user_id, 'overtaken', actorUserId, game, { by: actorName, score, rank: rk }, now);
+}
+async function feed(request, env) {
+  const { uid, error } = await requireUser(request, env);
+  if (error) return error;
+  // your own events (incl. being overtaken) + friends' bests / world-#1s
+  const mine = await env.DB.prepare(
+    "SELECT e.kind, e.game, e.payload, e.created_at, u.handle AS actor FROM events e " +
+    "LEFT JOIN users u ON u.id = e.subject_user_id WHERE e.user_id = ?1 ORDER BY e.created_at DESC LIMIT 40"
+  ).bind(uid).all();
+  const friends = await env.DB.prepare(
+    "SELECT e.kind, e.game, e.payload, e.created_at, u.handle AS actor FROM events e " +
+    "JOIN friendships f ON f.friend_id = e.user_id AND f.user_id = ?1 " +
+    "JOIN users u ON u.id = e.user_id WHERE e.kind IN ('best','no1') ORDER BY e.created_at DESC LIMIT 40"
+  ).bind(uid).all();
+  const merge = []
+    .concat((mine.results || []).map(r => ({ ...r, own: true })))
+    .concat((friends.results || []).map(r => ({ ...r, own: false })))
+    .sort((a, b) => b.created_at - a.created_at).slice(0, 50);
+  return json({ events: merge });
+}
+
+// ===========================================================================
+// Seasons — the economic primitive. An arcade-wide calendar-month window; the
+// frozen top-N at season close is exactly who a revenue split would reward.
+// Seasons self-manage (lazy create current month; cron closes + freezes ended).
+// ===========================================================================
+function monthWindow(ts) {
+  const d = new Date(ts);
+  const start = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  const end = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) - 1;   // last ms of the month
+  const title = d.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return { start, end, title };
+}
+async function currentSeason(env) {
+  const now = Date.now();
+  let s = await env.DB.prepare(
+    "SELECT * FROM seasons WHERE game IS NULL AND status = 'active' AND starts_at <= ?1 AND ends_at >= ?1 ORDER BY ends_at DESC LIMIT 1"
+  ).bind(now).first();
+  if (s) return s;
+  const w = monthWindow(now);
+  const id = crypto.randomUUID();
+  await env.DB.prepare(
+    "INSERT INTO seasons (id, game, title, starts_at, ends_at, status, created_at) VALUES (?1, NULL, ?2, ?3, ?4, 'active', ?5)"
+  ).bind(id, 'Season · ' + w.title, w.start, w.end, now).run();
+  return { id, game: null, title: 'Season · ' + w.title, starts_at: w.start, ends_at: w.end, status: 'active', created_at: now };
+}
+async function seasons(env) {
+  const cur = await currentSeason(env);
+  const past = await env.DB.prepare(
+    "SELECT id, title, starts_at, ends_at FROM seasons WHERE status = 'closed' ORDER BY ends_at DESC LIMIT 6"
+  ).all();
+  const daysLeft = Math.max(0, Math.ceil((cur.ends_at - Date.now()) / 86400000));
+  return json({ current: { id: cur.id, title: cur.title, starts_at: cur.starts_at, ends_at: cur.ends_at, daysLeft }, past: past.results || [] });
+}
+// Top-N of the active season for one game (the "top 10 gets rewarded" framing).
+async function seasonStandings(url, env) {
+  const game = String(url.searchParams.get('game') || '').toUpperCase();
+  if (GAMES.indexOf(game) < 0) return json({ error: 'bad game' }, 400);
+  const limit = clampInt(url.searchParams.get('limit') || 20, 1, 100);
+  const cur = await currentSeason(env);
+  const r = await env.DB.prepare(
+    "SELECT CASE WHEN name <> '' THEN name ELSE 'anon' END AS name, MAX(score) AS score FROM scores " +
+    "WHERE game = ?1 AND score > 0 AND created_at BETWEEN ?2 AND ?3 GROUP BY " + LB_GROUP + " ORDER BY score DESC LIMIT ?4"
+  ).bind(game, cur.starts_at, cur.ends_at, limit).all();
+  return json({ game, season: { id: cur.id, title: cur.title, ends_at: cur.ends_at }, top: r.results || [] });
+}
+// Nightly: close any season whose window has passed, freezing its top-100 per game
+// into rank_snapshots (scope='season'). The next month's season is created on demand.
+async function rolloverSeasons(env) {
+  const now = Date.now();
+  const ended = await env.DB.prepare(
+    "SELECT id, starts_at, ends_at FROM seasons WHERE status = 'active' AND ends_at < ?1"
+  ).bind(now).all();
+  for (const s of (ended.results || [])) {
+    for (const g of GAMES) {
+      const r = await env.DB.prepare(
+        "WITH best AS (SELECT LOWER(name) AS pkey, MAX(name) AS name, MAX(user_id) AS user_id, MAX(score) AS score " +
+        "  FROM scores WHERE game = ?1 AND score > 0 AND name <> '' AND created_at BETWEEN ?2 AND ?3 GROUP BY LOWER(name)) " +
+        "SELECT name, user_id, score, RANK() OVER (ORDER BY score DESC) AS rk FROM best ORDER BY rk LIMIT 100"
+      ).bind(g, s.starts_at, s.ends_at).all();
+      for (const row of (r.results || [])) {
+        await env.DB.prepare(
+          "INSERT INTO rank_snapshots (scope, season_id, game, user_id, name, rank, score, captured_at) VALUES ('season',?1,?2,?3,?4,?5,?6,?7)"
+        ).bind(s.id, g, row.user_id || null, row.name, row.rk, row.score, now).run();
+      }
+    }
+    await env.DB.prepare("UPDATE seasons SET status = 'closed' WHERE id = ?1").bind(s.id).run();
+  }
+  await currentSeason(env);   // ensure the new month's season exists
+}
+
+// ---- competitive division from Arcade Score (peers compete with peers) ----
+function divisionFor(arcadeScore) {
+  const a = arcadeScore || 0;
+  if (a >= 700) return 'Diamond';
+  if (a >= 400) return 'Platinum';
+  if (a >= 200) return 'Gold';
+  if (a >= 75)  return 'Silver';
+  if (a > 0)    return 'Bronze';
+  return '';
+}
+
+// ---- push token registration (sending needs an APNs key — see docs) ----
+async function pushRegister(request, env) {
+  const { uid, error } = await requireUser(request, env);
+  if (error) return error;
+  let b; try { b = await request.json(); } catch (e) { return json({ error: 'bad json' }, 400); }
+  const tok = String(b.token || '').slice(0, 400);
+  const platform = String(b.platform || 'ios').slice(0, 16);
+  if (!tok) return json({ error: 'token required' }, 400);
+  await env.DB.prepare(
+    "INSERT INTO push_tokens (user_id, token, platform, created_at) VALUES (?1,?2,?3,?4) " +
+    "ON CONFLICT(token) DO UPDATE SET user_id = excluded.user_id"
+  ).bind(uid, tok, platform, Date.now()).run();
+  return json({ ok: true });
 }
 
 // ---- unique, profanity-screened display names ----
