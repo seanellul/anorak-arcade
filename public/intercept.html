@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="Threats rain down toward your sites. Finite interceptors, more targets than you can save — tap to detonate a blast and choose what lives. A study in triage under pressure.">
+<meta name="theme-color" content="#0a0e14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Anorak Arcade">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Anorak Arcade">
+<meta property="og:title" content="INTERCEPT — triage">
+<meta property="og:description" content="Threats rain down toward your sites. Finite interceptors, more targets than you can save — tap to detonate and choose what lives.">
+<meta property="og:image" content="https://anorak-arcade.pages.dev/og-intercept.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="INTERCEPT — triage">
+<meta name="twitter:description" content="Finite interceptors, more targets than you can save. A love letter to a bygone era — original browser prototypes.">
+
+<title>INTERCEPT — triage</title>
+<style>
+  :root{ --bg:#0a0e14; --panel:#15111a; --ink:#eef2fb; --dim:#8590a8; --acc:#ff4747; --friend:#46d6c0; --hot:#ffd23f; --good:#36d399; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  html,body{overscroll-behavior:none}
+  body{margin:0;background:radial-gradient(1100px 760px at 50% -8%,#2a1016,#0a0e14 62%);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  header{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.34em;margin:0;font-weight:700}h1 .v{color:var(--acc)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:520px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #241a26;border-radius:8px;padding:8px 10px;position:relative;overflow:hidden}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}
+  .stat .val{font-size:21px;font-weight:700;margin-top:2px;transition:transform .08s}
+  .stat .val.bump{transform:scale(1.2)}
+  #sites{color:var(--friend)}
+  .bars{width:100%;max-width:520px;padding:0 8px;display:flex;flex-direction:column;gap:6px}
+  .bar{height:13px;background:#0c0a12;border:1px solid #241a26;border-radius:7px;overflow:hidden;position:relative}
+  .bar>i{display:block;height:100%;width:0;transition:width .1s linear}
+  .bar .lab{position:absolute;left:8px;top:0;font-size:9px;letter-spacing:.2em;line-height:13px;color:#cdd6e6;mix-blend-mode:difference;pointer-events:none}
+  .bar.danger{animation:pulseb .42s infinite}
+  @keyframes pulseb{50%{box-shadow:0 0 14px rgba(255,77,109,.8)}}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#05060c;border:1px solid #241a26;border-radius:12px;display:block;max-width:100%;height:auto;cursor:crosshair;touch-action:none}
+  .foot{max-width:520px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#1b1622;border:1px solid #2c2433;border-radius:5px;padding:1px 7px;font-size:11px}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(7,6,12,.92);border-radius:12px;text-align:center;padding:24px}
+  .overlay h2{margin:0 0 4px;letter-spacing:.18em;font-size:26px}
+  .overlay h2.bad{color:var(--bad)} .overlay h2.title{color:var(--acc)}
+  .overlay p{color:var(--dim);margin:6px 0;max-width:430px;line-height:1.6;font-size:13px}
+  .overlay .big{font-size:40px;font-weight:700;color:var(--hot);margin:8px 0}
+  button{background:linear-gradient(180deg,#ff7a7a,#ff3a3a);color:#2a0707;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:13px 30px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:14px;box-shadow:0 6px 22px rgba(255,71,71,.4)}
+  button:hover{filter:brightness(1.08)}
+  .modes{display:flex;gap:8px;justify-content:center;margin-top:8px}
+  .modes button{background:#1b1622;border:1px solid #2c2433;color:var(--dim);font-weight:700;letter-spacing:.1em;padding:8px 18px;border-radius:8px;font-size:12px;margin:0;box-shadow:none}
+  .modes button.on{background:#241a26;border-color:var(--acc);color:var(--hot)}
+  .modes button:hover{filter:none}
+  .seedline{color:var(--dim);font-size:11px;letter-spacing:.14em;margin-top:9px;min-height:14px}
+  .statline{color:var(--dim);font-size:12px;margin-top:10px;letter-spacing:.06em}
+  .statline b{color:var(--ink)}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}a.back:hover{color:var(--ink)}
+  @media(max-width:560px){
+    body{justify-content:flex-start}
+    a.back{position:static;display:block;margin:7px 0 0 10px;font-size:11px}
+    header{padding:2px 10px 0}
+    header h1{font-size:14px}
+    header .sub{display:none}
+    .hud{gap:6px;padding:4px 8px}
+    .hud .stat{background:none;border:0;padding:2px 5px;overflow:visible}
+    .hud .stat .k{font-size:8px;letter-spacing:.08em}
+    .hud .stat .val{font-size:16px;margin-top:0}
+    .bars{gap:3px}
+    .bar{height:8px;margin:2px 8px}
+    .bar .lab{font-size:7px;line-height:8px}
+    #wrap{margin:5px 0}
+    .foot{display:none}
+  }
+  /* touch vs desktop control hints */
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← arcade</a>
+<header>
+  <div><h1>INTER<span class="v">CEPT</span></h1><div class="sub">TRIAGE · choose what lives</div></div>
+</header>
+<div class="hud">
+  <div class="stat"><div class="k">SCORE</div><div class="val" id="score">0</div></div>
+  <div class="stat"><div class="k">WAVE</div><div class="val" id="wave">1</div></div>
+  <div class="stat"><div class="k">AMMO</div><div class="val" id="ammo">0</div></div>
+  <div class="stat"><div class="k">SITES</div><div class="val" id="sites">5</div></div>
+</div>
+<div class="bars">
+  <div class="bar"><i id="ammobar" style="background:linear-gradient(90deg,#2f9c8c,#46d6c0,#9af2e6)"></i><span class="lab">AMMO</span></div>
+  <div class="bar" id="waveWrap"><i id="wavebar" style="background:linear-gradient(90deg,#ffd23f,#ff7a3a,#ff4747)"></i><span class="lab" id="waveLab">WAVE 1</span></div>
+</div>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="title">
+    <h2 class="title">INTER<span style="color:#ff4747">CEPT</span></h2>
+    <p>Threats rain down toward your <b style="color:#46d6c0">sites</b>. <b style="color:#eef2fb">Tap anywhere</b> to launch an interceptor — it flies there and detonates into a blast that kills anything caught in the ring.</p>
+    <p>You never have enough shells. <b style="color:#ffd23f">Time one blast to catch several at once</b> for a multi-kill bonus — but a wasted shot is a site you can't save. The barrage escalates every wave; the run ends when your last site falls.</p>
+    <div class="modes">
+      <button id="mDaily" class="on" type="button">DAILY</button>
+      <button id="mFree" type="button">FREE</button>
+    </div>
+    <div class="seedline" id="seedline"></div>
+    <button id="startBtn">DEFEND ▶</button>
+    <div class="statline d-desktop"><span class="key">click</span> intercept &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">tap</span> intercept &nbsp; <span class="key">❙❙</span> pause</div>
+  </div>
+  <div class="overlay" id="over" style="display:none">
+    <h2 class="bad">OVERRUN</h2>
+    <div class="big" id="finalScore">0</div>
+    <div class="statline" id="finalStats"></div>
+    <button id="again">RE-ARM ⏎</button>
+  </div>
+  <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p><span class="d-desktop">press <span class="key">P</span> to resume</span><span class="d-touch">tap <span class="key">❙❙</span> to resume</span></p></div>
+</div>
+<div class="foot">
+  Each interceptor costs an <b style="color:#46d6c0">ammo</b> shell; shells trickle back slowly and refill between waves. Catch <b style="color:#ffd23f">2+ threats in one blast</b> for an escalating multi-kill bonus — the heart of a high score. Unused ammo and surviving sites pay an end-of-wave bonus. <b style="color:#ff4747">Splitters</b> fork as they fall; <b style="color:#ff4747">seekers</b> chase your sites.
+</div>
+<script src="seed.js"></script>
+<script src="juice.js"></script>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const MOBILE = window.matchMedia('(max-width:560px)').matches;
+  const W = MOBILE?380:460, H = MOBILE?640:600;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  const J=window.Juice; const fx=J.layer();
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- geometry ----
+  const GROUND = H - 46;
+  const NSITES = 5;
+  const SITE_R = MOBILE?12:14;
+  const BAT = { x:W/2, y:H-20 };
+  const siteXs = [];
+  for(let i=0;i<NSITES;i++) siteXs.push(W*(0.5+i)/NSITES);
+
+  // ---- tuning ----
+  const AMMO_MAX = 14;
+  const RELOAD_MS = 1500;          // a shell trickles back this often during a wave
+  const INT_SPD = 600;             // interceptor px/s
+  const BLAST_RMAX = MOBILE?44:50;
+  const BLAST_GROW = 0.16;         // s to reach full radius
+  const BLAST_LIFE = 0.62;         // s the ring stays lethal
+  const MAX_INFLIGHT = 4;
+  const threatSpd = w => Math.min(150, 40*(1+0.11*(w-1)));
+  const threatCount = w => 4 + 2*w;
+  const waveDur = w => Math.max(6500, 12000 - w*420);
+
+  // ---- state ----
+  let sites, sitesAlive, threats, ints, blasts, score, dispScore, ammo, reloadAcc,
+      wave, waveN, waveResolved, schedule, spawnIdx, waveClock, phase, betweenT,
+      danger, last, state, mode, rng, marker, noAmmoT, gestured=false;
+  const FRIEND='#46d6c0', ACC='#ff4747';
+
+  function newRng(){ return mode==='daily' ? AASeed.daily('INTERCEPT') : AASeed.free('INTERCEPT'); }
+
+  function buildWave(w){
+    const n = threatCount(w), dur = waveDur(w);
+    const times=[]; for(let i=0;i<n;i++) times.push(rng.range(500, dur)); times.sort((a,b)=>a-b);
+    const sp = times.map(t=>{
+      const x = rng.range(W*0.08, W*0.92);
+      const gx = siteXs[rng.int(0,NSITES-1)] + rng.range(-8,8);
+      let type='straight'; const rr=rng();
+      if(w>=4 && rr<0.22) type='seeker';
+      else if(w>=2 && rr<0.5) type='splitter';
+      return { t, x, gx, type, splitY: GROUND*rng.range(0.34,0.5), spawned:false };
+    });
+    return { n, dur, sp };
+  }
+
+  function startWave(w){
+    const wv = buildWave(w);
+    schedule = wv.sp; waveN = wv.n; waveResolved = 0; spawnIdx = 0; waveClock = 0; phase='spawning';
+    ammo = AMMO_MAX; reloadAcc = 0;
+    if(!REDUCE) fx.float(W/2, H*0.34, 'WAVE '+w, w>=4?ACC:'#ffd23f', {size:30, sub: w>=4?'SEEKERS INBOUND':(w>=2?'SPLITTERS INBOUND':'INCOMING'), decay:0.012, vy:-0.25});
+    haptic('select');
+  }
+
+  function reset(showTitle){
+    sites = siteXs.map(x=>({x, alive:true})); sitesAlive=NSITES;
+    threats=[]; ints=[]; blasts=[]; score=0; dispScore=0; danger=0; marker=null; noAmmoT=0;
+    wave=1; rng=newRng();
+    startWave(1);
+    document.getElementById('over').style.display='none';
+    document.getElementById('paused').style.display='none';
+    document.getElementById('title').style.display=showTitle?'flex':'none';
+    state = showTitle?'title':'play';
+    updateSeedline();
+    updateHUD();
+  }
+  function start(){ gestured=true; J.unlock(); reset(false); last=performance.now(); }
+
+  // ---- spawning ----
+  function spawnThreat(s, ox, oy, gx){
+    const sx = ox!=null?ox:s.x, sy = oy!=null?oy:-12;
+    const tgx = gx!=null?gx:s.gx, ty = GROUND;
+    const ang = Math.atan2(ty-sy, tgx-sx), spd = threatSpd(wave);
+    threats.push({ x:sx, y:sy, ox:sx, oy:sy, vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
+      type:s?s.type:'straight', splitY:s?s.splitY:0, split:false, dead:false });
+  }
+  function nearestLiveSiteX(x){
+    let best=null, bd=1e9;
+    for(const st of sites){ if(!st.alive) continue; const d=Math.abs(st.x-x); if(d<bd){ bd=d; best=st.x; } }
+    return best;
+  }
+  function doSplit(t){
+    t.split=true; t.dead=true;
+    for(let k=0;k<2;k++){
+      const gx = siteXs[(Math.random()*NSITES)|0];   // cosmetic fan; outcome already seeded by parent path
+      spawnThreat({type:'straight',splitY:0}, t.x, t.y, gx + (k? 18:-18));
+    }
+    fx.burst(t.x,t.y, ACC, 8, {spread:2.2, up:0, decay:0.05, r:2});
+    J.tone(420,0.08,'square',0.04); J.tone(300,0.1,'square',0.03,0.03);
+  }
+
+  // ---- combat ----
+  function fireAt(px,py){
+    gestured=true;
+    if(state!=='play') return;
+    py = Math.max(24, Math.min(GROUND-6, py));
+    if(ammo<=0){ noAmmoT=0.4; J.tone(120,0.08,'square',0.05); haptic('warn'); return; }
+    if(ints.length>=MAX_INFLIGHT) return;
+    ammo--;
+    const ang=Math.atan2(py-BAT.y, px-BAT.x);
+    ints.push({ x:BAT.x, y:BAT.y, ox:BAT.x, oy:BAT.y, tx:px, ty:py, vx:Math.cos(ang)*INT_SPD, vy:Math.sin(ang)*INT_SPD });
+    marker={ x:px, y:py, t:0.5 };
+    J.tone(660,0.06,'triangle',0.045); J.tone(990,0.05,'sine',0.03,0.03);
+    fx.burst(BAT.x,BAT.y, FRIEND, 5, {spread:1.4, up:1.2, decay:0.07, r:1.6});
+    haptic('commit');
+    updateHUD();
+  }
+  function detonate(x,y){
+    blasts.push({ x, y, r:0, t:0, kills:0 });
+    fx.ring(x,y, BLAST_RMAX*0.9, '#ffffff', {lw:3, decay:0.05});
+    fx.burst(x,y, FRIEND, 10, {spread:2.6, up:0, decay:0.045, r:2});
+    J.tone(180,0.18,'sine',0.07); J.tone(90,0.3,'sine',0.05,0.02);
+    if(!REDUCE) fx.shake(3);
+  }
+  function killThreat(t, b){
+    t.dead=true; b.kills++;
+    const gain = 25*wave; score += gain;
+    fx.burst(t.x,t.y, ACC, 9, {spread:2.4, up:0, decay:0.04, r:2});
+    J.tone(520+Math.random()*60,0.09,'triangle',0.05);
+    bump('score');
+  }
+  function expireBlast(b){
+    if(b.kills>=2){
+      const bonus = 50*(b.kills-1)*(b.kills-1);
+      score += bonus;
+      fx.float(b.x, b.y-10, '+'+bonus, b.kills>=4?'#ffffff':'#ffd23f', {size: 22+Math.min(14,(b.kills-2)*4), sub:'×'+b.kills+' MULTI-KILL'});
+      fx.ring(b.x,b.y, BLAST_RMAX*1.3, '#ffd23f', {lw:2, decay:0.05});
+      if(!REDUCE) fx.shake(4+Math.min(10,b.kills*2));
+      haptic('heavy'); bump('score');
+    }
+  }
+  function impactGround(t){
+    t.dead=true; waveResolved++;
+    let hit=null, bd=SITE_R*1.7;
+    for(const st of sites){ if(!st.alive) continue; const d=Math.abs(st.x-t.x); if(d<bd){ bd=d; hit=st; } }
+    if(hit){
+      hit.alive=false; sitesAlive--;
+      fx.burst(hit.x, GROUND, ACC, 22, {spread:4, up:0.3, decay:0.03, r:3});
+      fx.ring(hit.x, GROUND, 40, ACC, {lw:3, decay:0.04});
+      J.tone(140,0.5,'sawtooth',0.12); J.tone(70,0.7,'sine',0.1,0.04);
+      if(!REDUCE) fx.shake(14);
+      haptic('warn');
+      if(sitesAlive<=0){ gameOver(); return; }
+    } else {
+      fx.burst(t.x, GROUND, '#7a5a3a', 8, {spread:2, up:0.2, decay:0.05, r:2});
+      J.tone(120,0.12,'sine',0.04);
+    }
+  }
+
+  // ---- input ----
+  function P(e){ const r=cv.getBoundingClientRect(), t=e.touches?e.touches[0]:e;
+    return { x:(t.clientX-r.left)*(W/r.width), y:(t.clientY-r.top)*(H/r.height) }; }
+  cv.addEventListener('mousedown',e=>{ if(state!=='play') return; const p=P(e); fireAt(p.x,p.y); });
+  cv.addEventListener('touchstart',e=>{ if(state!=='play') return; e.preventDefault(); const p=P(e); fireAt(p.x,p.y); },{passive:false});
+  cv.addEventListener('touchmove',e=>{ e.preventDefault(); },{passive:false});
+  window.addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
+    if(k==='enter'&&state==='dead') start();
+    else if(k==='p'&&(state==='play'||state==='paused')){ togglePause(); }
+  });
+  function togglePause(){ if(state==='play'){ state='paused'; document.getElementById('paused').style.display='flex'; }
+    else if(state==='paused'){ state='play'; document.getElementById('paused').style.display='none'; last=performance.now(); } }
+  document.getElementById('startBtn').onclick=start;
+  document.getElementById('again').onclick=start;
+  const mD=document.getElementById('mDaily'), mF=document.getElementById('mFree');
+  mode='daily';
+  mD.onclick=()=>{ gestured=true; mode='daily'; mD.classList.add('on'); mF.classList.remove('on'); updateSeedline(); haptic('tap'); };
+  mF.onclick=()=>{ gestured=true; mode='free'; mF.classList.add('on'); mD.classList.remove('on'); updateSeedline(); haptic('tap'); };
+  window.addEventListener('blur',()=>{ if(state==='play') togglePause(); });
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden && state==='play') togglePause(); });
+
+  function haptic(verb){ try{
+    if(window.Feel && Feel[verb]) Feel[verb]();
+    else if(gestured && navigator.vibrate){ const m={tap:6,select:8,commit:10,heavy:[14,22,14],warn:24,success:[10,28,10],fail:[30,40,30]}[verb]; if(m) navigator.vibrate(m); }
+  }catch(e){} }
+
+  function updateSeedline(){ const el=document.getElementById('seedline');
+    el.textContent = mode==='daily' ? ('TODAY · '+AASeed.dailyKey()) : 'ENDLESS · random board'; }
+
+  // ---- HUD ----
+  function bump(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'),100); }
+  function updateHUD(){
+    document.getElementById('score').textContent=Math.round(dispScore);
+    document.getElementById('wave').textContent=wave;
+    document.getElementById('ammo').textContent=ammo;
+    document.getElementById('sites').textContent=sitesAlive;
+    document.getElementById('ammobar').style.width=(ammo/AMMO_MAX*100)+'%';
+    const prog = waveN? Math.min(100, waveResolved/waveN*100) : 0;
+    document.getElementById('wavebar').style.width=prog+'%';
+    document.getElementById('waveLab').textContent='WAVE '+wave;
+    document.getElementById('waveWrap').classList.toggle('danger', sitesAlive<=2);
+  }
+
+  function gameOver(){ state='dead'; J.tone(150,0.6,'sawtooth',0.12); J.tone(70,0.9,'sine',0.1,0.05); if(!REDUCE) fx.shake(22);
+    haptic('fail');
+    if(window.GameStats) GameStats.submitScore('INTERCEPT', score);
+    document.getElementById('finalScore').textContent=Math.round(score);
+    document.getElementById('finalStats').innerHTML='reached <b>wave '+wave+'</b> &nbsp;·&nbsp; held <b>'+sitesAlive+'</b> site'+(sitesAlive===1?'':'s');
+    document.getElementById('over').style.display='flex'; }
+
+  // ---- loop ----
+  function loop(now){ let dt=Math.min(48, now-last); last=now; const ds=dt/1000;
+    if(state==='play'){
+      if(window.GameStats) GameStats.ping('INTERCEPT', dt);
+
+      // ammo trickle
+      reloadAcc+=dt; while(reloadAcc>=RELOAD_MS && ammo<AMMO_MAX){ ammo++; reloadAcc-=RELOAD_MS; }
+
+      // wave pacing
+      if(phase==='spawning'){
+        waveClock+=dt;
+        while(spawnIdx<schedule.length && schedule[spawnIdx].t<=waveClock){ spawnThreat(schedule[spawnIdx]); spawnIdx++; }
+        if(spawnIdx>=schedule.length && threats.length===0){ // wave cleared
+          const bonus = 100*ammo + 250*sitesAlive;
+          score += bonus;
+          fx.float(W/2, H*0.4, 'WAVE '+wave+' CLEARED', '#46d6c0', {size:24, sub:'+'+bonus+'  ('+ammo+' ammo · '+sitesAlive+' sites)', decay:0.01, vy:-0.2});
+          J.tone(523,0.12,'triangle',0.05); J.tone(659,0.12,'triangle',0.05,0.06); J.tone(784,0.16,'triangle',0.05,0.12);
+          haptic('success'); bump('score');
+          phase='between'; betweenT=1.5;
+        }
+      } else if(phase==='between'){
+        betweenT-=ds;
+        if(betweenT<=0){ wave++; startWave(wave); }
+      }
+
+      // threats
+      for(const t of threats){ if(t.dead) continue;
+        if(t.type==='seeker'){ const sx=nearestLiveSiteX(t.x);
+          if(sx!=null){ const ang=Math.atan2(GROUND-t.y, sx-t.x), spd=threatSpd(wave);
+            t.vx += (Math.cos(ang)*spd - t.vx)*Math.min(1,2.2*ds); t.vy += (Math.sin(ang)*spd - t.vy)*Math.min(1,2.2*ds); } }
+        t.x+=t.vx*ds; t.y+=t.vy*ds;
+        if(t.type==='splitter' && !t.split && t.y>=t.splitY){ doSplit(t); continue; }
+        if(t.y>=GROUND){ impactGround(t); if(state!=='play') break; }
+      }
+
+      // interceptors
+      for(const it of ints){ if(it.done) continue;
+        const dx=it.tx-it.x, dy=it.ty-it.y, step=INT_SPD*ds;
+        if(dx*dx+dy*dy <= step*step){ it.x=it.tx; it.y=it.ty; it.done=true; detonate(it.tx,it.ty); }
+        else { it.x+=it.vx*ds; it.y+=it.vy*ds; }
+      }
+
+      // blasts kill threats within radius
+      for(const b of blasts){ b.t+=ds; const g=Math.min(1,b.t/BLAST_GROW); b.r=BLAST_RMAX*(1-(1-g)*(1-g));
+        for(const t of threats){ if(t.dead) continue; const dx=t.x-b.x, dy=t.y-b.y;
+          if(dx*dx+dy*dy <= b.r*b.r){ killThreat(t,b); waveResolved++; } }
+      }
+      for(let i=blasts.length-1;i>=0;i--){ if(blasts[i].t>=BLAST_LIFE){ expireBlast(blasts[i]); blasts.splice(i,1); } }
+
+      // cull
+      threats = threats.filter(t=>!t.dead);
+      ints = ints.filter(it=>!it.done);
+
+      // danger meter (low sites / low altitude threats)
+      let near=0; for(const t of threats){ if(t.y>GROUND*0.62) near++; }
+      const want = Math.min(1, (3-sitesAlive)/3*0.6 + Math.min(0.5, near*0.12));
+      danger += (want-danger)*Math.min(1,3*ds);
+      if(marker){ marker.t-=ds; if(marker.t<=0) marker=null; }
+      if(noAmmoT>0) noAmmoT-=ds;
+    }
+
+    // anim
+    dispScore += (score-dispScore)*0.2; if(Math.abs(score-dispScore)<1) dispScore=score;
+    fx.update(dt);
+    draw();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- draw ----
+  function draw(){
+    ctx.save();
+    const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
+    ctx.clearRect(-40,-40,W+80,H+80);
+
+    // sky grid
+    ctx.strokeStyle='rgba(255,255,255,0.02)'; ctx.lineWidth=1; ctx.beginPath();
+    for(let x=0;x<=W;x+=40){ ctx.moveTo(x,0); ctx.lineTo(x,GROUND); }
+    for(let y=0;y<GROUND;y+=40){ ctx.moveTo(0,y); ctx.lineTo(W,y); }
+    ctx.stroke();
+
+    // ground + terrain
+    ctx.fillStyle='#0c0a12'; ctx.fillRect(0,GROUND,W,H-GROUND);
+    ctx.strokeStyle='rgba(70,214,192,0.25)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(0,GROUND); ctx.lineTo(W,GROUND); ctx.stroke();
+
+    // sites
+    for(const st of sites){
+      if(st.alive){
+        ctx.save();
+        const g=ctx.createRadialGradient(st.x,GROUND,2,st.x,GROUND,SITE_R*2.4);
+        g.addColorStop(0,'rgba(70,214,192,0.5)'); g.addColorStop(1,'rgba(70,214,192,0)');
+        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(st.x,GROUND,SITE_R*2.4,0,7); ctx.fill();
+        ctx.fillStyle=FRIEND; ctx.beginPath(); ctx.arc(st.x,GROUND,SITE_R,Math.PI,0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.beginPath(); ctx.arc(st.x-SITE_R*0.3,GROUND-SITE_R*0.3,SITE_R*0.22,0,7); ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.fillStyle='#33303a'; ctx.beginPath(); ctx.arc(st.x,GROUND,SITE_R*0.7,Math.PI,0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle='rgba(120,60,60,0.4)'; ctx.fillRect(st.x-SITE_R*0.7,GROUND-2,SITE_R*1.4,2);
+      }
+    }
+
+    // battery turret
+    ctx.fillStyle='#46d6c0'; ctx.beginPath(); ctx.moveTo(BAT.x-9,BAT.y+6); ctx.lineTo(BAT.x+9,BAT.y+6); ctx.lineTo(BAT.x,BAT.y-12); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.fillRect(BAT.x-1.5,BAT.y-14,3,8);
+
+    // interceptor tracks
+    ctx.globalCompositeOperation='lighter';
+    for(const it of ints){
+      ctx.strokeStyle='rgba(70,214,192,0.5)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(it.ox,it.oy); ctx.lineTo(it.x,it.y); ctx.stroke();
+      ctx.fillStyle='#bafff2'; ctx.beginPath(); ctx.arc(it.x,it.y,2.4,0,7); ctx.fill();
+      // target reticle
+      ctx.strokeStyle='rgba(70,214,192,0.35)'; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(it.tx,it.ty,4,0,7); ctx.stroke();
+    }
+    ctx.globalCompositeOperation='source-over';
+
+    // threats (incoming tracks + warheads)
+    const tt=performance.now();
+    for(const t of threats){
+      ctx.strokeStyle='rgba(255,71,71,0.35)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(t.ox,t.oy); ctx.lineTo(t.x,t.y); ctx.stroke();
+      const pl=0.6+0.4*Math.sin(tt/120 + t.x);
+      ctx.globalCompositeOperation='lighter';
+      const g=ctx.createRadialGradient(t.x,t.y,0,t.x,t.y,9);
+      g.addColorStop(0,'rgba(255,180,150,'+(0.7*pl)+')'); g.addColorStop(0.4,'rgba(255,71,71,'+(0.5*pl)+')'); g.addColorStop(1,'rgba(255,71,71,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(t.x,t.y,9,0,7); ctx.fill();
+      ctx.globalCompositeOperation='source-over';
+      ctx.fillStyle= t.type==='seeker'?'#ff9b3d':(t.type==='splitter'?'#ff6a8a':'#ff4747');
+      ctx.beginPath(); ctx.arc(t.x,t.y,3,0,7); ctx.fill();
+    }
+
+    // blasts
+    ctx.globalCompositeOperation='lighter';
+    for(const b of blasts){ const fade = b.t>BLAST_LIFE-0.25 ? Math.max(0,(BLAST_LIFE-b.t)/0.25) : 1;
+      const g=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,Math.max(1,b.r));
+      g.addColorStop(0,'rgba(255,255,255,'+(0.9*fade)+')');
+      g.addColorStop(0.55,'rgba(150,255,235,'+(0.5*fade)+')');
+      g.addColorStop(0.85,'rgba(70,214,192,'+(0.35*fade)+')');
+      g.addColorStop(1,'rgba(70,214,192,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(b.x,b.y,Math.max(1,b.r),0,7); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,'+(0.6*fade)+')'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.stroke();
+    }
+    ctx.globalCompositeOperation='source-over';
+
+    // tap marker
+    if(marker){ const a=Math.max(0,marker.t/0.5); ctx.strokeStyle='rgba(70,214,192,'+a+')'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(marker.x-6,marker.y); ctx.lineTo(marker.x+6,marker.y); ctx.moveTo(marker.x,marker.y-6); ctx.lineTo(marker.x,marker.y+6); ctx.stroke(); }
+
+    // fx
+    fx.render(ctx);
+    ctx.restore();
+
+    // danger vignette
+    if(danger>0.25){ const a=(danger-0.25)/0.75; J.vignette(ctx,W,H, a*0.6*(sitesAlive<=1?(0.7+0.3*Math.sin(performance.now()/90)):1), 'rgba(255,40,60,A)'); }
+    if(noAmmoT>0){ ctx.fillStyle='rgba(255,77,109,'+(noAmmoT*0.25)+')'; ctx.fillRect(0,0,W,H); }
+  }
+
+  // debug hook (inert in normal play)
+  window.__intercept={ get threats(){return threats;}, get blasts(){return blasts;}, get sites(){return sites;},
+    fireAt, detonate, getScore:()=>score, getWave:()=>wave, getState:()=>state, setState:v=>state=v,
+    getAmmo:()=>ammo, setAmmo:v=>ammo=v, getSites:()=>sitesAlive };
+
+  reset(true); last=performance.now(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

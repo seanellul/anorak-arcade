@@ -291,6 +291,15 @@ a.card.v2.feature .body p{max-width:560px}
         <div class="pill">order-by-timing · rhythm as the skill</div>
       </div>
     </a>
+    <a class="card v2 reveal" href="intercept.html" style="--c:#ff4747">
+      <span class="demo"><canvas data-demo="intercept"></canvas><span class="verb">TRIAGE</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>INTERCEPT</h2>
+        <div class="tag">triage · tap to intercept</div>
+        <p>Threats rain toward your sites. Finite interceptors, more targets than you can save — tap to detonate a blast and <i>choose what lives</i>. Catch several at once for an escalating multi-kill bonus.</p>
+        <div class="pill">finite-resource triage · multi-kill timing</div>
+      </div>
+    </a>
   </div>
 
   <section class="playtime reveal">
@@ -854,7 +863,48 @@ a.card.v2.feature .body p{max-width:560px}
     }, onResize:reset};
   }
 
-  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,weave,pulse,motherload,ecotone};
+  /* ---------- INTERCEPT: threats fall, an interceptor rises + detonates, blast clears them ---------- */
+  function intercept(g){
+    const {ctx}=g; let threats,ints,blasts,sites,t=0,spawnT=0,fireT=0;
+    function gy(){ return g.h-9; }
+    function reset(){ threats=[]; ints=[]; blasts=[]; sites=[]; const n=5; for(let i=0;i<n;i++) sites.push({x:g.w*(0.5+i)/n,alive:true}); t=0; spawnT=300; fireT=700; }
+    reset();
+    function spawn(){ const x=8+Math.random()*(g.w-16); const tx=sites[(Math.random()*sites.length)|0].x; const sp=0.012+Math.random()*0.006;
+      const a=Math.atan2(gy()+4,tx-x); threats.push({x,ox:x,oy:-2,y:-2,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp}); }
+    function fire(){ // aim at the lowest threat
+      let lo=null; for(const th of threats){ if(!lo||th.y>lo.y) lo=th; }
+      const tx = lo?lo.x:g.w/2, ty = lo?Math.max(14,lo.y):g.h*0.4;
+      const bx=g.w/2,by=gy(); const a=Math.atan2(ty-by,tx-bx); ints.push({x:bx,y:by,ox:bx,oy:by,tx,ty,vx:Math.cos(a)*0.16,vy:Math.sin(a)*0.16}); }
+    return {step(dt){ t+=dt; spawnT-=dt; fireT-=dt;
+      if(spawnT<=0){ spawn(); spawnT=620+Math.random()*420; }
+      if(fireT<=0 && threats.length){ fire(); fireT=560+Math.random()*260; }
+      ctx.clearRect(0,0,g.w,g.h);
+      // ground + sites
+      ctx.strokeStyle='rgba(70,214,192,0.3)'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(0,gy()+3); ctx.lineTo(g.w,gy()+3); ctx.stroke();
+      for(const s of sites){ ctx.fillStyle=s.alive?'#46d6c0':'#33303a'; ctx.beginPath(); ctx.arc(s.x,gy()+3,4,Math.PI,0); ctx.closePath(); ctx.fill(); }
+      // threats
+      for(const th of threats){ th.x+=th.vx*dt; th.y+=th.vy*dt;
+        ctx.strokeStyle='rgba(255,71,71,0.35)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(th.ox,th.oy); ctx.lineTo(th.x,th.y); ctx.stroke();
+        ctx.save(); ctx.shadowColor='#ff4747'; ctx.shadowBlur=8; ctx.fillStyle='#ff6a6a'; ctx.beginPath(); ctx.arc(th.x,th.y,2.4,0,6.28); ctx.fill(); ctx.restore(); }
+      // interceptors
+      for(let i=ints.length-1;i>=0;i--){ const it=ints[i]; const dx=it.tx-it.x,dy=it.ty-it.y;
+        if(dx*dx+dy*dy<16){ blasts.push({x:it.tx,y:it.ty,r:0}); ints.splice(i,1); continue; }
+        it.x+=it.vx*dt; it.y+=it.vy*dt;
+        ctx.strokeStyle='rgba(70,214,192,0.5)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(it.ox,it.oy); ctx.lineTo(it.x,it.y); ctx.stroke();
+        ctx.fillStyle='#bafff2'; ctx.beginPath(); ctx.arc(it.x,it.y,1.8,0,6.28); ctx.fill(); }
+      // blasts
+      for(let i=blasts.length-1;i>=0;i--){ const b=blasts[i]; b.r+=dt*0.06;
+        for(const th of threats){ const dx=th.x-b.x,dy=th.y-b.y; if(dx*dx+dy*dy<b.r*b.r) th._dead=true; }
+        ctx.save(); ctx.globalCompositeOperation='lighter'; const a=Math.max(0,1-b.r/22);
+        const grd=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,Math.max(1,b.r)); grd.addColorStop(0,'rgba(255,255,255,'+(0.8*a)+')'); grd.addColorStop(0.7,'rgba(70,214,192,'+(0.4*a)+')'); grd.addColorStop(1,'rgba(70,214,192,0)');
+        ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(b.x,b.y,Math.max(1,b.r),0,6.28); ctx.fill(); ctx.restore();
+        if(b.r>22) blasts.splice(i,1); }
+      threats=threats.filter(th=>!th._dead && th.y<gy()+4);
+      if(t>9000) reset();
+    }, onResize:reset};
+  }
+
+  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,weave,pulse,intercept,motherload,ecotone};
 
   /* boot every demo canvas; share one rAF; pause off-screen */
   document.querySelectorAll('canvas[data-demo]').forEach(cv=>{
