@@ -35,3 +35,4 @@ backup-*.sql
 *.p8
 AuthKey_*.p8
 appstore-key*
+.secrets/
