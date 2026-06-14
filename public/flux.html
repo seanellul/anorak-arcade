@@ -73,6 +73,9 @@
     #wrap{margin:5px 0}
     .foot{display:none}
   }
+  /* touch vs desktop control hints */
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
 </style>
 </head>
 <body>
@@ -97,7 +100,8 @@
     <p>Charged particles pour down the field. Each belongs in the <b style="color:#eaf0ff">collector of its own color</b> along the bottom.</p>
     <p><b style="color:#3fd6ff">Touch and hold</b> to drop a magnetic pole — it <b>bends</b> nearby particles toward it. Slide it to aim, lift to leave it (it fades). Bank a color streak for a <b style="color:#ff5edb">multiplier</b>. Too many wrong landings and the <b style="color:#ff4d6d">spill</b> overflows.</p>
     <button id="startBtn">CHARGE ▶</button>
-    <div class="statline"><span class="key">hold / drag</span> place &amp; aim a pole &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-desktop"><span class="key">hold / drag</span> place &amp; aim a pole &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">hold &amp; drag</span> to place a pole &nbsp; <span class="key">❙❙</span> pause</div>
   </div>
   <div class="overlay" id="over" style="display:none">
     <h2 class="bad">OVERFLOW</h2>

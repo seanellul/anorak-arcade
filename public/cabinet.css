@@ -165,3 +165,7 @@ html.aa-native .cab-opt:active{ color:var(--cab-ink); border-color:var(--cab-lin
 html.aa-native .cab-opt.cab-opt-sound:not(.off){
   color:var(--cab-acc); border-color:color-mix(in srgb,var(--cab-acc) 40%,var(--cab-line));
 }
+
+/* start-screen control hints: show the touch version on coarse pointers (app + mobile web) */
+.d-touch{ display:none; }
+@media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }

@@ -91,9 +91,6 @@
   /* touch vs desktop control hints */
   .d-touch{ display:none; }
   @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
-  #overHome{ display:inline-block; margin-top:12px; color:#9fb0c9; text-decoration:none;
-    border:1px solid #2a3447; border-radius:9px; padding:10px 24px; font-size:13px; letter-spacing:.12em; font-weight:700; }
-  #overHome:hover{ color:#e7ecf5; border-color:#3a4660; }
 </style>
 <link rel="stylesheet" href="cabinet.css">
 </head>
@@ -128,7 +125,6 @@
     <div class="big" id="finalScore">0</div>
     <div class="statline" id="finalStats"></div>
     <button id="again">REKINDLE ⏎</button>
-    <a id="overHome" href="index.html">⌂ HOME</a>
   </div>
   <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p><span class="d-desktop">press <span class="key">P</span> to resume</span><span class="d-touch">tap <span class="key">⏸</span> to resume</span></p></div>
 </div>

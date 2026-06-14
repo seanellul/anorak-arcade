@@ -73,6 +73,9 @@
     #wrap{margin:5px 0}
     .foot{display:none}
   }
+  /* touch vs desktop control hints */
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
 </style>
 </head>
 <body>
@@ -97,7 +100,8 @@
     <p>Motes spiral into the reactor core. The core <b style="color:#e9f2ff">throbs on a beat</b> — a ring closes in on each pulse.</p>
     <p><b style="color:#ff2e4d">Tap on the beat</b> to fire a shockwave that scours every mote it sweeps. Nail the rhythm to ride a <b style="color:#ffc24d">groove</b> — bigger waves, bigger pay. A mote that reaches the core <b style="color:#878da0">fuses into slag</b> that swells it, and the tempo <b style="color:#ff4d6d">only ever climbs</b>.</p>
     <button id="startBtn">PULSE ▶</button>
-    <div class="statline"><span class="key">tap / space</span> fire on the beat &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-desktop"><span class="key">tap / space</span> fire on the beat &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">tap</span> on the beat &nbsp; <span class="key">❙❙</span> pause</div>
   </div>
   <div class="overlay" id="over" style="display:none">
     <h2 class="bad">MELTDOWN</h2>

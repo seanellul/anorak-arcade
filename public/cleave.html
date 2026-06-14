@@ -75,6 +75,9 @@
     #wrap{margin:5px 0}
     .foot{display:none}
   }
+  /* touch vs desktop control hints */
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
 </style>
 </head>
 <body>
@@ -99,7 +102,8 @@
     <p>A crystal grows from below, one colored shard at a time. <b style="color:#e9f2ff">Swipe a line</b> to cleave straight through it.</p>
     <p>Any pure-color vein your cut crosses shatters for score — bigger veins pay <b style="color:#ffc24d">far</b> more. But a shard left too long <b style="color:#878da0">calcifies into stone</b> you can't cut; stone only crumbles when you shatter a vein beside it. Keep cutting, or it buries you to the <b style="color:#ff4d6d">ceiling</b>.</p>
     <button id="startBtn">CLEAVE ▶</button>
-    <div class="statline"><span class="key">swipe / drag</span> cut &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-desktop"><span class="key">swipe / drag</span> cut &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">swipe</span> to cut &nbsp; <span class="key">❙❙</span> pause</div>
   </div>
   <div class="overlay" id="over" style="display:none">
     <h2 class="bad">OVERRUN</h2>

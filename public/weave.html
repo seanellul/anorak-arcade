@@ -75,6 +75,9 @@
     #wrap{margin:5px 0}
     .foot{display:none}
   }
+  /* touch vs desktop control hints */
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
 </style>
 </head>
 <body>
@@ -99,7 +102,8 @@
     <p>Charged nodes rain into a pile. <b style="color:#e9f2ff">Drag one stroke</b> through touching nodes of the <b>same charge</b> to wire a circuit — diagonals count.</p>
     <p>Release to <b style="color:#d6f84a">discharge</b>: a current rips down the wire you drew and every node on it detonates. A longer snake pays <b style="color:#ffc24d">far</b> more. But a node left too long <b style="color:#878da0">oxidises into dead rust</b> that breaks your paths — it only crumbles when you discharge a wire beside it. Keep the circuit turning over, or the pile buries you to the <b style="color:#ff4d6d">ceiling</b>.</p>
     <button id="startBtn">WEAVE ▶</button>
-    <div class="statline"><span class="key">drag / trace</span> link &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-desktop"><span class="key">drag / trace</span> link &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">drag</span> to link &nbsp; <span class="key">❙❙</span> pause</div>
   </div>
   <div class="overlay" id="over" style="display:none">
     <h2 class="bad">OVERLOAD</h2>

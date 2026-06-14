@@ -77,6 +77,9 @@
     #wrap{margin:5px 0}
     .foot{display:none}
   }
+  /* touch vs desktop control hints */
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
 </style>
 </head>
 <body>
@@ -101,7 +104,8 @@
     <p>Drop glowing motes into the basin. <b style="color:#eae6ff">Two equal motes that touch fuse</b> into the next tier — bigger, brighter, worth more.</p>
     <p>Chain fusions for a <b style="color:#ffd23f">combo</b>. Climb the ladder all the way and a mote goes <b style="color:#b98cff">supernova</b> — a blast that clears the field <i>and</i> the sediment. But a small mote left stranded too long <b style="color:#6b7184">fossilizes into immovable floor</b>, and if the stack crests the <b style="color:#ff4d6d">rim line</b> it's over.</p>
     <button id="startBtn">IGNITE ▶</button>
-    <div class="statline"><span class="key">move</span> aim &nbsp; <span class="key">tap / click</span> drop &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-desktop"><span class="key">move</span> aim &nbsp; <span class="key">tap / click</span> drop &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">drag</span> aim &nbsp; <span class="key">tap</span> drop &nbsp; <span class="key">❙❙</span> pause</div>
   </div>
   <div class="overlay" id="over" style="display:none">
     <h2 class="bad">COLLAPSE</h2>

@@ -76,6 +76,9 @@
     #wrap{margin:5px 0}
     .foot{display:none}
   }
+  /* touch vs desktop control hints */
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
 </style>
 </head>
 <body>
@@ -100,7 +103,8 @@
     <p>Charged orbs drift in and pile up. When your <b style="color:#ffd23f">charge</b> is full, <b style="color:#eaf0ff">tap the field</b> to fire an arc — it rips through every orb in reach, and each one detonates its neighbours.</p>
     <p>A tight cluster makes a <b style="color:#5be8ff">screen-wide chain</b>. Wait for density — but an orb left too long <b style="color:#6b7184">burns out into a dead husk</b> (it flickers grey first) that blocks chains; only a long chain (×6+) clears them. Race the burnout, and don't pack past the <b style="color:#ff4d6d">limit</b>.</p>
     <button id="startBtn">CHARGE ▶</button>
-    <div class="statline"><span class="key">tap / click</span> detonate &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-desktop"><span class="key">tap / click</span> detonate &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">tap</span> to detonate &nbsp; <span class="key">❙❙</span> pause</div>
   </div>
   <div class="overlay" id="over" style="display:none">
     <h2 class="bad">OVERLOAD</h2>
