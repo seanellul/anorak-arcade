@@ -468,12 +468,21 @@
     });
     scoresSheet.open(); renderScores();
   }
-  function boardRow(name, score, rank, meLc) {
+  function boardRow(r, rank, meLc) {
+    var name = r.name, av = r.avatar || '';
     var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
-    return '<div class="li' + (name && name.toLowerCase() === meLc ? ' me' : '') + '"><span class="rk">' + medal + '</span><span class="nm">' + esc(name) + '</span><span class="sc">' + Number(score).toLocaleString() + '</span></div>';
+    var tap = (name && name !== 'anon') ? ' data-prof="' + esc(name) + '"' : '';
+    return '<div class="li' + (name && name.toLowerCase() === meLc ? ' me' : '') + '"' + tap + '>' +
+      '<span class="rk">' + medal + '</span>' + (av ? '<span class="av">' + av + '</span>' : '') +
+      '<span class="nm">' + esc(name) + '</span><span class="sc">' + Number(r.score).toLocaleString() + '</span></div>';
   }
   function renderScores() {
     var board = scoresSheet.body.querySelector('#aaBoard'); if (!board) return;
+    // tapping a player → their profile (delegated; survives innerHTML swaps)
+    board.onclick = function (e) {
+      var li = e.target.closest && e.target.closest('.li[data-prof]'); if (!li) return;
+      feel('tap'); showVeil('#e8a13a', ''); location.href = 'profile.html?name=' + encodeURIComponent(li.getAttribute('data-prof'));
+    };
     board.innerHTML = '<div class="aa-empty">Loading…</div>';
     var me = (lget('aa.name') || '').toLowerCase();
     var p = _sc.period, daily = p === 'daily', season = p === 'season', scope = _sc.scope;
@@ -491,19 +500,19 @@
         var rows = d.top || [];
         var ends = d.season.ends_at ? Math.max(0, Math.ceil((d.season.ends_at - Date.now()) / 86400000)) : 0;
         board.innerHTML = '<div class="aa-empty" style="padding:6px 2px 12px"><b style="color:var(--aa-brand)">' + esc(d.season.title || 'Season') + '</b> · ' + ends + ' day' + (ends === 1 ? '' : 's') + ' left · top 10 ranked</div>' +
-          (rows.length ? '<div class="aa-list">' + rows.map(function (r, i) { return boardRow(r.name, r.score, i + 1, me); }).join('') + '</div>' : '<div class="aa-empty">No season scores yet — be first.</div>');
+          (rows.length ? '<div class="aa-list">' + rows.map(function (r, i) { return boardRow(r, i + 1, me); }).join('') + '</div>' : '<div class="aa-empty">No season scores yet — be first.</div>');
         return;
       }
       if (scope === 'near' && d && d.you) {
         var rows = d.rows || [], from = d.from || 1;
         board.innerHTML = '<div class="aa-empty" style="padding:6px 2px 12px">You’re <b style="color:var(--aa-brand)">#' + d.you.rank + '</b> · ' + Number(d.you.score).toLocaleString() + '</div>' +
-          (rows.length ? '<div class="aa-list">' + rows.map(function (r, i) { return boardRow(r.name, r.score, from + i, me); }).join('') + '</div>' : '');
+          (rows.length ? '<div class="aa-list">' + rows.map(function (r, i) { return boardRow(r, from + i, me); }).join('') + '</div>' : '');
         return;
       }
       var rows = (d && d.top) || [];
       var note = daily && d && d.game ? '<div class="aa-empty" style="padding:6px 2px 12px">Today’s daily · <b style="color:var(--aa-brand)">' + esc(d.game) + '</b></div>' : '';
       board.innerHTML = note + (rows.length
-        ? '<div class="aa-list">' + rows.map(function (r, i) { return boardRow(r.name, r.score, i + 1, me); }).join('') + '</div>'
+        ? '<div class="aa-list">' + rows.map(function (r, i) { return boardRow(r, i + 1, me); }).join('') + '</div>'
         : '<div class="aa-empty">' + (scope === 'friends' ? 'No friends on this board yet — add some.' : daily ? 'No daily scores yet — be first.' : 'No scores in this window yet — be first.') + '</div>');
     }).catch(function () { board.innerHTML = '<div class="aa-empty">Couldn’t reach the leaderboard.</div>'; });
   }

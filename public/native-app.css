@@ -127,6 +127,9 @@ html.aa-native.aa-shell body{ padding-bottom:calc(var(--aa-tabh) + env(safe-area
 .aa-list .li .rk{ width:26px; color:var(--aa-dim); }
 .aa-list .li .nm{ flex:1; font-weight:700; letter-spacing:.03em; }
 .aa-list .li .sc{ font-variant-numeric:tabular-nums; color:var(--aa-dim); }
+.aa-list .li .av{ flex:0 0 auto; font-size:15px; line-height:1; }
+.aa-list .li[data-prof]{ cursor:pointer; }
+.aa-list .li[data-prof] .nm{ border-bottom:1px dotted color-mix(in srgb,var(--aa-dim) 45%,transparent); }
 .aa-list .li.me{ background:color-mix(in srgb,var(--aa-brand) 10%,transparent); border-radius:8px; }
 .aa-empty{ color:var(--aa-dim); font-size:12.5px; padding:16px 2px; text-align:center; }
 .aa-input{
