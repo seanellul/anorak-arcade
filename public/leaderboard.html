@@ -66,6 +66,9 @@
   .bcard h3 a{color:inherit;text-decoration:none}
   .bcard h3 a:hover{text-decoration:underline}
   .bcard .glow{position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;opacity:.16;filter:blur(18px)}
+  .divb{display:inline-block;padding:1px 8px;border-radius:99px;font-size:10px;font-weight:700;letter-spacing:.1em;color:#0a0e14}
+  table.lb.arcade .sc{color:var(--acc);font-weight:700}
+  table.lb.arcade .gm{text-align:right;color:var(--dim);font-size:11px;width:74px}
   .bcard .empty{padding:8px 0;font-size:12.5px}
 </style>
 </head>
@@ -99,6 +102,10 @@
     <button id="setName" class="magnetic">SET NAME</button>
   </div>
   <div id="banner" class="banner" style="display:none"></div>
+
+  <h2 class="section-h v2">🏆 TOP PLAYERS · ARCADE SCORE</h2>
+  <p class="note" style="margin:0 0 10px">One ranking across every game. You earn points for every game you sit in the top 100 of — the world #1 of a game is worth 100, #100 is worth 1. This is the global ladder.</p>
+  <div id="players" class="reveal"><div class="empty">Loading…</div></div>
 
   <h2 class="section-h v2">⏱ GLOBAL</h2>
   <div id="global" class="reveal"><div class="empty">Loading…</div></div>
@@ -195,7 +202,29 @@
     }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach global stats.</div>'; });
   }
 
-  function load(){ loadBoards(); loadGlobal(); }
+  // ---- TOP PLAYERS · ARCADE SCORE — the cross-game meta-leaderboard ----
+  const DIVCOL={Bronze:'#c87a3f',Silver:'#c6ced8',Gold:'#ffd23f',Platinum:'#9fe7e0',Diamond:'#7fd3ff'};
+  function divisionFor(a){ a=a||0; if(a>=700)return'Diamond'; if(a>=400)return'Platinum'; if(a>=200)return'Gold'; if(a>=75)return'Silver'; if(a>0)return'Bronze'; return''; }
+  function loadPlayers(){
+    const el=document.getElementById('players');
+    if(!GameStats.hasAPI){ el.innerHTML='<div class="empty">Global player ranking goes live with the API.</div>'; return; }
+    const me=(GameStats.getName()||'').toLowerCase();
+    el.innerHTML='<div class="empty">Loading…</div>';
+    GameStats.api('/api/players?limit=25').then(d=>{
+      const ps=(d&&d.players)||[];
+      if(!ps.length){ el.innerHTML='<div class="empty">No ranked players yet — set a name and play.</div>'; return; }
+      el.innerHTML='<table class="lb arcade"><tr><th class="rank">#</th><th>PLAYER</th><th>DIVISION</th><th class="sc">ARCADE</th><th class="gm">GAMES</th></tr>'+
+        ps.map((p,i)=>{ const div=divisionFor(p.arcade);
+          return '<tr class="'+(p.name&&p.name.toLowerCase()===me?'me':'')+'"><td class="rank">'+(i+1)+'</td>'+
+            '<td class="nm">'+esc(p.name)+'</td>'+
+            '<td>'+(div?'<span class="divb" style="background:'+(DIVCOL[div]||'#888')+'">'+div+'</span>':'')+'</td>'+
+            '<td class="sc">'+Number(p.arcade||0).toLocaleString()+'</td>'+
+            '<td class="gm">'+(p.games||0)+'</td></tr>';
+        }).join('')+'</table>';
+    }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach the player ranking.</div>'; });
+  }
+
+  function load(){ loadPlayers(); loadBoards(); loadGlobal(); }
 
   if(!GameStats.hasAPI){
     const b=document.getElementById('banner'); b.style.display='block';
