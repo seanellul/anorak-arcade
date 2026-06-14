@@ -157,6 +157,16 @@
       settingsBlock();
     wireSettings(b);
     var si = b.querySelector('#aaSignIn'); if (si) si.onclick = signInWithApple;
+    // signed in: the PLAYED/GAMES/RUNS tiles show the ACCOUNT totals (server), not just
+    // this device — otherwise a reinstall wrongly reads 0.
+    if (token()) api('GET', '/api/me').then(function (d) {
+      if (!d || !d.stats) return;
+      var grid = b.querySelector('.aa-stats'); if (!grid) return;
+      grid.innerHTML =
+        '<div class="aa-stat"><b>' + fmtTime(d.stats.ms || 0) + '</b><span>PLAYED</span></div>' +
+        '<div class="aa-stat"><b>' + (d.stats.games || 0) + '</b><span>GAMES</span></div>' +
+        '<div class="aa-stat"><b>' + (d.stats.plays || 0) + '</b><span>RUNS</span></div>';
+    });
     // competitive standing — world ranks per game + #games you lead
     var nm = lget('aa.name');
     if (nm) api('GET', '/api/profile?name=' + encodeURIComponent(nm)).then(function (d) {

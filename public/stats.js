@@ -97,8 +97,14 @@
       if(signed) sess[g]=null;   // session is single-use; next best starts a fresh one
       if(!API || LOCAL) continue;  // local-only mode / never write from local dev
       try{
-        if(useBeacon && navigator.sendBeacon){ navigator.sendBeacon(API+'/api/sync', new Blob([body],{type:'application/json'})); }
-        else fetch(API+'/api/sync',{method:'POST',headers:{'Content-Type':'application/json'},body,keepalive:true}).catch(()=>{});
+        // Score integrity: a signed-in account must ALWAYS claim its scores. Send the auth
+        // token so the server attributes by account, never by the locally-typed name.
+        // sendBeacon can't carry headers, so when authed we use keepalive fetch (also fires
+        // reliably on page-hide).
+        const tok=token();
+        const hdrs={'Content-Type':'application/json'}; if(tok) hdrs.Authorization='Bearer '+tok;
+        if(useBeacon && navigator.sendBeacon && !tok){ navigator.sendBeacon(API+'/api/sync', new Blob([body],{type:'application/json'})); }
+        else fetch(API+'/api/sync',{method:'POST',headers:hdrs,body,keepalive:true}).catch(()=>{});
       }catch(e){}
     }
   }
