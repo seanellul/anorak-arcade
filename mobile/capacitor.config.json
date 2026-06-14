@@ -1,5 +1,5 @@
 {
-  "appId": "xyz.tqlabs.anorak",
+  "appId": "com.seanellul.anorak",
   "appName": "Anorak Arcade",
   "webDir": "../public",
   "server": {

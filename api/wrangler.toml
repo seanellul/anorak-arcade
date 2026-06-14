@@ -12,7 +12,7 @@ database_id = "3000f69e-fdd4-4a85-9568-29fb2e1288aa"
 # Secrets — set via `wrangler secret put <NAME>`:
 #   ADMIN_KEY       -> guards /api/admin
 #   SESSION_SECRET  -> HMAC key for our session tokens (any long random string)
-#   APPLE_BUNDLE_ID -> the app's bundle id, e.g. xyz.tqlabs.anorak (verified as the token 'aud')
+#   APPLE_BUNDLE_ID -> the app's bundle id, e.g. com.seanellul.anorak (verified as the token 'aud')
 
 # Nightly rank snapshot (03:17 UTC) → powers rank deltas + frozen season standings.
 [triggers]
