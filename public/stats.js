@@ -116,6 +116,14 @@
     return fetch(API+'/api/name',{method:'POST',headers:h,body:JSON.stringify({name:v,clientId})})
       .then(r=>r.json()).catch(()=>({ok:true,name:v}));            // network fail → accept locally
   }
+  // set the chosen profile avatar (emoji). stored locally for instant display + synced.
+  const AKEY2='aa.avatar';
+  function setAvatar(av){ av=Array.from(String(av||'')).slice(0,4).join(''); lset(AKEY2,av);
+    if(!API || LOCAL) return Promise.resolve({ok:true,avatar:av});
+    const h={'Content-Type':'application/json'}; if(token()) h.Authorization='Bearer '+token();
+    return fetch(API+'/api/avatar',{method:'POST',headers:h,body:JSON.stringify({avatar:av,clientId})})
+      .then(r=>r.json()).catch(()=>({ok:true,avatar:av}));
+  }
 
   // ---- name modal (injected; inline styles so it works on any page, incl. games) ----
   function openNameModal(cb){
@@ -177,6 +185,7 @@
 
   window.GameStats={
     ping, submitScore, flush, setName, getName:()=>name, promptName:openNameModal, clientId, hasAPI:!!API,
+    setAvatar, getAvatar:()=>lget('aa.avatar')||'',
     all(){ save(); return Object.keys(data).map(g=>({game:g,ms:data[g].ms||0,sessions:data[g].sessions||0,last:data[g].last||0,best:data[g].best||0})).sort((a,b)=>b.ms-a.ms); },
     total(){ return Object.values(data).reduce((s,d)=>s+(d.ms||0),0); },
     localBest(g){ return (data[g]&&data[g].best)||0; },

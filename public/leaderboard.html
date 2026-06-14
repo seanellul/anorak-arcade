@@ -70,6 +70,29 @@
   table.lb.arcade .sc{color:var(--acc);font-weight:700}
   table.lb.arcade .gm{text-align:right;color:var(--dim);font-size:11px;width:74px}
   .bcard .empty{padding:8px 0;font-size:12.5px}
+  /* avatars + tappable names */
+  .yava{font-size:20px}
+  table.lb .av{width:26px;font-size:16px}
+  table.lb .nm a.plink{color:inherit;text-decoration:none;border-bottom:1px dotted transparent}
+  table.lb .nm a.plink:hover{border-bottom-color:currentColor}
+  .you button{background:none;border:1px solid var(--line2);color:var(--dim);font-family:inherit;font-size:11px;padding:5px 11px;border-radius:7px;cursor:pointer;letter-spacing:.1em}
+  .you button:hover{color:var(--ink);border-color:var(--ink)}
+  /* filter bar */
+  .lbfilter{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:6px 0 12px}
+  .lbfilter select{background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:12px;padding:7px 12px;border-radius:9px;letter-spacing:.06em}
+  .fper{display:flex;gap:6px;flex-wrap:wrap}
+  .fper button{background:var(--panel);border:1px solid var(--line);color:var(--dim);font-family:inherit;font-size:10px;letter-spacing:.12em;padding:7px 11px;border-radius:99px;cursor:pointer}
+  .fper button.on{color:#0a0e14;background:var(--acc);border-color:transparent;font-weight:700}
+  /* avatar picker modal */
+  #avawrap{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;background:rgba(5,7,12,.82)}
+  #avawrap.open{display:flex}
+  .avabox{background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:20px;width:330px;max-width:88vw;text-align:center;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .avabox h3{margin:0 0 4px;font-size:13px;letter-spacing:.2em;color:var(--acc)}
+  .avabox .ahint{color:var(--dim);font-size:12px;margin-bottom:14px}
+  .avagrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .avagrid button{font-size:24px;line-height:1;padding:8px 0;background:#0a0e14;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+  .avagrid button:hover{border-color:var(--acc)}
+  .avagrid button.on{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 16%,transparent)}
 </style>
 </head>
 <body class="v2">
@@ -98,8 +121,11 @@
   </header>
 
   <div class="you reveal">
-    <span class="lbl">YOU ARE</span> <span class="nm" id="youName">anonymous</span>
-    <button id="setName" class="magnetic">SET NAME</button>
+    <span class="lbl">YOU ARE</span> <span class="yava" id="youAva"></span><span class="nm" id="youName">anonymous</span>
+    <span style="margin-left:auto;display:flex;gap:8px">
+      <button id="setPic">PICTURE</button>
+      <button id="setName" class="magnetic">SET NAME</button>
+    </span>
   </div>
   <div id="banner" class="banner" style="display:none"></div>
 
@@ -110,11 +136,25 @@
   <h2 class="section-h v2">⏱ GLOBAL</h2>
   <div id="global" class="reveal"><div class="empty">Loading…</div></div>
 
-  <h2 class="section-h v2">▶ HIGH SCORES · ALL GAMES</h2>
+  <h2 class="section-h v2">▶ HIGH SCORES</h2>
+  <div class="lbfilter reveal">
+    <select id="fGame" aria-label="game"></select>
+    <span class="fper" id="fPeriod">
+      <button data-p="all" class="on">ALL TIME</button>
+      <button data-p="month">MONTH</button>
+      <button data-p="week">WEEK</button>
+      <button data-p="today">TODAY</button>
+    </span>
+  </div>
   <div id="boards" class="reveal"><div class="empty">Loading…</div></div>
 
   <p class="note">This page is the <b>global</b> view — every game at a glance. Each game window has its own full leaderboard you can open and climb mid-run. Names are whatever you type — old-arcade style. Your personal playtime lives in your browser and the <b>RESET</b> on the home page only clears your local copy; the global record stays. Scores are submitted by the client, so treat the board as friendly, not Fort Knox.</p>
 </div>
+<div id="avawrap"><div class="avabox">
+  <h3>CHOOSE YOUR ICON</h3>
+  <div class="ahint" id="ahint">Pick a profile picture — shows on every leaderboard.</div>
+  <div class="avagrid" id="avagrid"></div>
+</div></div>
 <div class="footer">Anorak Arcade · <a href="index.html">arcade</a> · <a href="about.html">about</a> · <a href="research.html">research</a> · <a href="https://github.com/seanellul/anorak-arcade" target="_blank" rel="noopener">source ↗</a> · built by <a class="byline" href="https://seanellul.com" target="_blank" rel="noopener">seanellul ↗</a></div>
 <script src="site.js"></script>
 <script src="stats.js"></script>
@@ -131,37 +171,81 @@
     if(g==='MOTHERLOAD') return s.toLocaleString()+'m';
     return s.toLocaleString(); }
 
-  function renderYou(){ const n=GameStats.getName(); document.getElementById('youName').textContent=n||'anonymous'; }
-  document.getElementById('setName').onclick=()=>GameStats.promptName(()=>{ renderYou(); load(); });
-  renderYou();
+  const AVATARS=['👾','🕹️','🎮','🛸','👑','🔥','⚡','💎','🌟','🎯','🦾','🐉','🤖','🦅','🧪','🎲','🧙','💀','🪄','🌌','🛡️','🚀','🍄','🎺'];
+  const DIVCOL={Bronze:'#c87a3f',Silver:'#c6ced8',Gold:'#ffd23f',Platinum:'#9fe7e0',Diamond:'#7fd3ff'};
+  const FALLBACK=['👾','🕹️','🎮','🛸','👑','🔥','⚡','💎','🌟','🎯','🦾','🐉','🤖','🦅','🧪','🎲'];
+  function fallbackAva(name){ let h=0,s=String(name||'anon'); for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0; return FALLBACK[h%FALLBACK.length]; }
 
   function esc(s){ return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
   function href(g){ return (g==='MOTHERLOAD'||g==='MOTHERLOAD_CASH') ? 'motherload/index.html' : g.toLowerCase()+'.html'; }
-  function row(rank, name, score, me, g){
-    return '<tr class="'+(me?'me':'')+'"><td class="rank">'+rank+'</td><td class="nm">'+esc(name)+'</td>'+
-           '<td class="sc">'+fmtScore(g, score)+'</td></tr>';
+  // tappable name → profile (anon stays plain)
+  function pname(name){ const n=esc(name); return (!name||name==='anon')?n:'<a class="plink" href="profile.html?name='+encodeURIComponent(name)+'">'+n+'</a>'; }
+
+  function renderYou(){ const n=GameStats.getName();
+    document.getElementById('youName').textContent=n||'anonymous';
+    document.getElementById('youAva').textContent = n ? (GameStats.getAvatar()||fallbackAva(n)) : '';
+  }
+  document.getElementById('setName').onclick=()=>GameStats.promptName(()=>{ renderYou(); load(); });
+  document.getElementById('setPic').onclick=()=>{ const n=GameStats.getName(); if(!n){ GameStats.promptName(()=>{ renderYou(); openPicker(); }); } else openPicker(); };
+  renderYou();
+
+  function row(rank, name, score, me, g, avatar){
+    return '<tr class="'+(me?'me':'')+'"><td class="rank">'+rank+'</td><td class="av">'+(avatar||fallbackAva(name))+'</td>'+
+           '<td class="nm">'+pname(name)+'</td><td class="sc">'+fmtScore(g, score)+'</td></tr>';
   }
   function card(g, body){ const c=COLORS[g]||'#888';
     return '<div class="bcard"><span class="glow" style="background:'+c+'"></span>'+
            '<h3 style="color:'+c+'"><a href="'+href(g)+'">'+label(g)+'</a></h3>'+body+'</div>';
   }
-  function table(rowsHTML){ return '<table class="lb"><tr><th class="rank">#</th><th>NAME</th><th class="sc">SCORE</th></tr>'+rowsHTML+'</table>'; }
+  function table(rowsHTML){ return '<table class="lb"><tr><th class="rank">#</th><th class="av"></th><th>NAME</th><th class="sc">SCORE</th></tr>'+rowsHTML+'</table>'; }
 
-  // ---- HIGH SCORES · ALL GAMES — one card per game (top 5 each) ----
+  // ---- avatar picker ----
+  function openPicker(){
+    const wrap=document.getElementById('avawrap'), grid=document.getElementById('avagrid'), cur=GameStats.getAvatar();
+    grid.innerHTML=AVATARS.map(a=>'<button data-a="'+a+'" class="'+(a===cur?'on':'')+'">'+a+'</button>').join('');
+    grid.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const a=b.getAttribute('data-a');
+      GameStats.setAvatar(a).then(()=>{ wrap.classList.remove('open'); renderYou(); load(); }); });
+    wrap.classList.add('open'); wrap.onclick=e=>{ if(e.target===wrap) wrap.classList.remove('open'); };
+  }
+
+  // ---- filtering state ----
+  let fGame='', fPeriod='all';
+  function initFilter(){
+    const sel=document.getElementById('fGame');
+    sel.innerHTML='<option value="">All games</option>'+GAMES.map(g=>'<option value="'+g+'">'+label(g)+'</option>').join('');
+    sel.onchange=()=>{ fGame=sel.value; loadBoards(); };
+    document.querySelectorAll('#fPeriod button').forEach(b=>b.onclick=()=>{
+      fPeriod=b.getAttribute('data-p');
+      document.querySelectorAll('#fPeriod button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
+      loadBoards();
+    });
+  }
+
+  // ---- HIGH SCORES — all games (top 5 cards) OR one game's full board, filtered by period ----
   function loadBoards(){
     const el=document.getElementById('boards');
     const me=(GameStats.getName()||'').toLowerCase();
+    const per=fPeriod==='all'?'':'&period='+fPeriod;
     if(!GameStats.hasAPI){
       el.innerHTML='<div class="boards-grid">'+GAMES.map(g=>{ const best=GameStats.localBest(g);
-        return card(g, best>0 ? table(row(1, GameStats.getName()||'you', best, true, g)) : '<div class="empty">No local score yet.</div>');
+        return card(g, best>0 ? table(row(1, GameStats.getName()||'you', best, true, g, GameStats.getAvatar())) : '<div class="empty">No local score yet.</div>');
       }).join('')+'</div>';
       return;
     }
     el.innerHTML='<div class="empty">Loading…</div>';
-    GameStats.api('/api/leaderboard').then(d=>{
+    if(fGame){
+      // single game → full top-25 board
+      GameStats.api('/api/leaderboard?game='+encodeURIComponent(fGame)+'&limit=25'+per).then(d=>{
+        const rows=d.top||[];
+        el.innerHTML=card(fGame, rows.length ? table(rows.map((r,i)=>row(i+1, r.name, r.score, r.name&&r.name.toLowerCase()===me, fGame, r.avatar)).join(''))
+                                              : '<div class="empty">No scores in this window yet — be the first.</div>');
+      }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach the leaderboard.</div>'; });
+      return;
+    }
+    GameStats.api('/api/leaderboard'+(per?('?'+per.slice(1)):'')).then(d=>{
       const boards=d.boards||{};
       el.innerHTML='<div class="boards-grid">'+GAMES.map(g=>{ const rows=boards[g]||[];
-        return card(g, rows.length ? table(rows.map((r,i)=>row(i+1, r.name, r.score, r.name&&r.name.toLowerCase()===me, g)).join(''))
+        return card(g, rows.length ? table(rows.map((r,i)=>row(i+1, r.name, r.score, r.name&&r.name.toLowerCase()===me, g, r.avatar)).join(''))
                                    : '<div class="empty">No scores yet — be the first.</div>');
       }).join('')+'</div>';
     }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach the leaderboards.</div>'; });
@@ -203,7 +287,6 @@
   }
 
   // ---- TOP PLAYERS · ARCADE SCORE — the cross-game meta-leaderboard ----
-  const DIVCOL={Bronze:'#c87a3f',Silver:'#c6ced8',Gold:'#ffd23f',Platinum:'#9fe7e0',Diamond:'#7fd3ff'};
   function divisionFor(a){ a=a||0; if(a>=700)return'Diamond'; if(a>=400)return'Platinum'; if(a>=200)return'Gold'; if(a>=75)return'Silver'; if(a>0)return'Bronze'; return''; }
   function loadPlayers(){
     const el=document.getElementById('players');
@@ -213,10 +296,11 @@
     GameStats.api('/api/players?limit=25').then(d=>{
       const ps=(d&&d.players)||[];
       if(!ps.length){ el.innerHTML='<div class="empty">No ranked players yet — set a name and play.</div>'; return; }
-      el.innerHTML='<table class="lb arcade"><tr><th class="rank">#</th><th>PLAYER</th><th>DIVISION</th><th class="sc">ARCADE</th><th class="gm">GAMES</th></tr>'+
+      el.innerHTML='<table class="lb arcade"><tr><th class="rank">#</th><th class="av"></th><th>PLAYER</th><th>DIVISION</th><th class="sc">ARCADE</th><th class="gm">GAMES</th></tr>'+
         ps.map((p,i)=>{ const div=divisionFor(p.arcade);
           return '<tr class="'+(p.name&&p.name.toLowerCase()===me?'me':'')+'"><td class="rank">'+(i+1)+'</td>'+
-            '<td class="nm">'+esc(p.name)+'</td>'+
+            '<td class="av">'+(p.avatar||fallbackAva(p.name))+'</td>'+
+            '<td class="nm">'+pname(p.name)+'</td>'+
             '<td>'+(div?'<span class="divb" style="background:'+(DIVCOL[div]||'#888')+'">'+div+'</span>':'')+'</td>'+
             '<td class="sc">'+Number(p.arcade||0).toLocaleString()+'</td>'+
             '<td class="gm">'+(p.games||0)+'</td></tr>';
@@ -225,6 +309,7 @@
   }
 
   function load(){ loadPlayers(); loadBoards(); loadGlobal(); }
+  initFilter();
 
   if(!GameStats.hasAPI){
     const b=document.getElementById('banner'); b.style.display='block';
