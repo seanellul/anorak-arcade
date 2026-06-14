@@ -275,14 +275,15 @@
   function signInWithApple() {
     feel('tap');
     var Cap = window.Capacitor, P = Cap && Cap.Plugins && Cap.Plugins.SignInWithApple;
-    if (!P) { alert('Sign-in needs the native app build.'); return; }
-    P.authorize({ requestedScopes: [0, 1] }).then(function (res) {
+    if (!P) { alert('Sign-in needs the native app build.'); return Promise.resolve(false); }
+    return P.authorize({ requestedScopes: [0, 1] }).then(function (res) {
       var r = res && res.response || {};
       var fullName = [r.givenName, r.familyName].filter(Boolean).join(' ');
       return api('POST', '/api/auth/apple', { identityToken: r.identityToken, fullName: fullName, clientId: lget('aa.clientId') || '' });
     }).then(function (d) {
-      if (d && d.token) { try { localStorage.setItem('aa.token', d.token); if (d.user && d.user.handle) localStorage.setItem('aa.name', d.user.handle); } catch (e) {} feel('success'); if (profileSheet) renderProfile(); if (friendsSheet) renderFriends(); }
-    }).catch(function () {});
+      if (d && d.token) { try { localStorage.setItem('aa.token', d.token); if (d.user && d.user.handle) localStorage.setItem('aa.name', d.user.handle); } catch (e) {} feel('success'); if (profileSheet) renderProfile(); if (friendsSheet) renderFriends(); return true; }
+      return false;
+    }).catch(function () { return false; });
   }
 
   function esc(s) { return String(s == null ? '' : s).replace(/[<>&]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]; }); }
@@ -304,10 +305,11 @@
     }
     var onHome = path === 'index.html' || path === '';
     var onBoard = path === 'leaderboard.html';
+    var onYou = path === 'profile.html';
     bar.appendChild(tab('◈', 'PLAY', onHome, null, 'index.html'));
     bar.appendChild(tab('🏆', 'BOARD', onBoard, null, 'leaderboard.html'));
     bar.appendChild(tab('👥', 'FRIENDS', false, openFriends));
-    bar.appendChild(tab('◐', 'YOU', false, openProfile));
+    bar.appendChild(tab('◐', 'YOU', onYou, null, 'profile.html'));   // dedicated profile page (self)
     document.body.appendChild(bar);
   }
   /* ---- favourites ---- */
@@ -643,7 +645,7 @@
       else if (path === 'leaderboard.html') leaderboardStagger();
     }
     // expose for in-game hooks
-    window.AnorakNative = { shareScore: shareScore, openProfile: openProfile, openFriends: openFriends, openSettings: openSettings, openScores: openScores };
+    window.AnorakNative = { shareScore: shareScore, openProfile: openProfile, openFriends: openFriends, openSettings: openSettings, openScores: openScores, signInWithApple: signInWithApple };
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else init();

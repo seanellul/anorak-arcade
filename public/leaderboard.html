@@ -37,9 +37,12 @@
   .tab{background:var(--panel);border:1px solid var(--line);color:var(--dim);font-family:inherit;font-size:12px;letter-spacing:.14em;padding:8px 14px;border-radius:9px;cursor:pointer}
   .tab:hover{color:var(--ink)}
   .tab.active{color:#0a0e14;font-weight:700;border-color:transparent}
-  table.lb{border-collapse:collapse;width:100%;font-size:13px}
-  table.lb th{color:var(--dim);text-align:left;font-size:10px;letter-spacing:.18em;padding:6px 10px;border-bottom:1px solid var(--line)}
-  table.lb td{padding:9px 10px;border-bottom:1px solid #161d2b}
+  html,body{overflow-x:hidden;max-width:100%}
+  table.lb{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed}
+  table.lb th{color:var(--dim);text-align:left;font-size:10px;letter-spacing:.16em;padding:6px 8px;border-bottom:1px solid var(--line)}
+  table.lb td{padding:9px 8px;border-bottom:1px solid #161d2b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  a.you{text-decoration:none;color:inherit}
+  .you .goprof{color:var(--dim);font-size:11px;letter-spacing:.1em}
   table.lb .rank{color:var(--dim);width:42px}
   table.lb tr:nth-child(1) .rank{color:#ffd23f} table.lb tr:nth-child(2) .rank{color:#cfd8e6} table.lb tr:nth-child(3) .rank{color:#e0975a}
   table.lb .nm{font-weight:700;letter-spacing:.04em}
@@ -72,7 +75,10 @@
   .bcard .empty{padding:8px 0;font-size:12.5px}
   /* avatars + tappable names */
   .yava{font-size:20px}
-  table.lb .av{width:26px;font-size:16px}
+  table.lb .av{width:28px;font-size:16px;text-align:center;padding-left:0;padding-right:2px}
+  table.lb .rank{width:38px}
+  table.lb .sc{width:86px}
+  table.lb.arcade td:nth-child(4),table.lb.arcade th:nth-child(4){width:62px}
   table.lb .nm a.plink{color:inherit;text-decoration:none;border-bottom:1px dotted transparent}
   table.lb .nm a.plink:hover{border-bottom-color:currentColor}
   .you button{background:none;border:1px solid var(--line2);color:var(--dim);font-family:inherit;font-size:11px;padding:5px 11px;border-radius:7px;cursor:pointer;letter-spacing:.1em}
@@ -120,13 +126,10 @@
     <p class="lede2">Every game's top players in one place, and the global clock ticking up as the world plays. Open any game to see and climb its full board, live.</p>
   </header>
 
-  <div class="you reveal">
+  <a class="you reveal" id="youCard" href="profile.html">
     <span class="lbl">YOU ARE</span> <span class="yava" id="youAva"></span><span class="nm" id="youName">anonymous</span>
-    <span style="margin-left:auto;display:flex;gap:8px">
-      <button id="setPic">PICTURE</button>
-      <button id="setName" class="magnetic">SET NAME</button>
-    </span>
-  </div>
+    <span class="goprof" style="margin-left:auto">YOUR PROFILE →</span>
+  </a>
   <div id="banner" class="banner" style="display:none"></div>
 
   <h2 class="section-h v2">🏆 TOP PLAYERS · ARCADE SCORE</h2>
@@ -185,8 +188,6 @@
     document.getElementById('youName').textContent=n||'anonymous';
     document.getElementById('youAva').textContent = n ? (GameStats.getAvatar()||fallbackAva(n)) : '';
   }
-  document.getElementById('setName').onclick=()=>GameStats.promptName(()=>{ renderYou(); load(); });
-  document.getElementById('setPic').onclick=()=>{ const n=GameStats.getName(); if(!n){ GameStats.promptName(()=>{ renderYou(); openPicker(); }); } else openPicker(); };
   renderYou();
 
   function row(rank, name, score, me, g, avatar){
@@ -198,15 +199,6 @@
            '<h3 style="color:'+c+'"><a href="'+href(g)+'">'+label(g)+'</a></h3>'+body+'</div>';
   }
   function table(rowsHTML){ return '<table class="lb"><tr><th class="rank">#</th><th class="av"></th><th>NAME</th><th class="sc">SCORE</th></tr>'+rowsHTML+'</table>'; }
-
-  // ---- avatar picker ----
-  function openPicker(){
-    const wrap=document.getElementById('avawrap'), grid=document.getElementById('avagrid'), cur=GameStats.getAvatar();
-    grid.innerHTML=AVATARS.map(a=>'<button data-a="'+a+'" class="'+(a===cur?'on':'')+'">'+a+'</button>').join('');
-    grid.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const a=b.getAttribute('data-a');
-      GameStats.setAvatar(a).then(()=>{ wrap.classList.remove('open'); renderYou(); load(); }); });
-    wrap.classList.add('open'); wrap.onclick=e=>{ if(e.target===wrap) wrap.classList.remove('open'); };
-  }
 
   // ---- filtering state ----
   let fGame='', fPeriod='all';
@@ -296,14 +288,13 @@
     GameStats.api('/api/players?limit=25').then(d=>{
       const ps=(d&&d.players)||[];
       if(!ps.length){ el.innerHTML='<div class="empty">No ranked players yet — set a name and play.</div>'; return; }
-      el.innerHTML='<table class="lb arcade"><tr><th class="rank">#</th><th class="av"></th><th>PLAYER</th><th>DIVISION</th><th class="sc">ARCADE</th><th class="gm">GAMES</th></tr>'+
+      el.innerHTML='<table class="lb arcade"><tr><th class="rank">#</th><th class="av"></th><th>PLAYER</th><th>DIV</th><th class="sc">ARCADE</th></tr>'+
         ps.map((p,i)=>{ const div=divisionFor(p.arcade);
           return '<tr class="'+(p.name&&p.name.toLowerCase()===me?'me':'')+'"><td class="rank">'+(i+1)+'</td>'+
             '<td class="av">'+(p.avatar||fallbackAva(p.name))+'</td>'+
             '<td class="nm">'+pname(p.name)+'</td>'+
-            '<td>'+(div?'<span class="divb" style="background:'+(DIVCOL[div]||'#888')+'">'+div+'</span>':'')+'</td>'+
-            '<td class="sc">'+Number(p.arcade||0).toLocaleString()+'</td>'+
-            '<td class="gm">'+(p.games||0)+'</td></tr>';
+            '<td>'+(div?'<span class="divb" style="background:'+(DIVCOL[div]||'#888')+'">'+esc(div)+'</span>':'')+'</td>'+
+            '<td class="sc">'+Number(p.arcade||0).toLocaleString()+'</td></tr>';
         }).join('')+'</table>';
     }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach the player ranking.</div>'; });
   }
