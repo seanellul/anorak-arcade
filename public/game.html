@@ -27,6 +27,11 @@
   .gcell{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 10px;text-align:center}
   .gcell .k{color:var(--dim);font-size:9px;letter-spacing:.16em}
   .gcell .v{font-size:21px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+  .glabel{color:var(--dim);font-size:10px;letter-spacing:.22em;margin:12px 2px 2px}
+  .gstats.g3{grid-template-columns:repeat(3,1fr)}
+  .seg{display:flex;gap:6px;margin:0 0 10px;flex-wrap:wrap}
+  .seg button{background:var(--panel);border:1px solid var(--line);color:var(--dim);font-family:inherit;font-size:10px;letter-spacing:.1em;padding:8px 13px;border-radius:99px;cursor:pointer}
+  .seg button.on{color:#0a0e14;background:var(--acc);border-color:transparent;font-weight:700}
   .lbsearch{display:flex;gap:8px;margin:6px 0 12px}
   .lbsearch input{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:13px;padding:10px 14px;border-radius:10px;outline:none}
   table.lb{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed}
@@ -92,7 +97,8 @@
     const mobile=(g.platforms||[]).indexOf('mobile')>=0;
     const me=(GameStats.getName()||'').toLowerCase();
     document.title=g.title+' — Anorak Arcade';
-    let offset=0, q='', loading=false, done=false;
+    let offset=0, q='', loading=false, done=false, by='score', period='all';
+    const mine=(GameStats.all&&GameStats.all().find(x=>x.game===GID))||{ms:0,sessions:0,best:0};
 
     root.innerHTML=
       '<div class="ghero" style="--ga:'+g.accent+'">'+
@@ -103,16 +109,31 @@
           '<button class="favbtn" id="favBtn"><span class="star">☆</span> <span id="favCount">—</span></button>'+
         '</div>'+
       '</div>'+
+      '<div class="glabel">GLOBAL</div>'+
       '<div class="gstats">'+
         '<div class="gcell"><div class="k">HOURS PLAYED</div><div class="v" id="sMs">—</div></div>'+
         '<div class="gcell"><div class="k">TIMES PLAYED</div><div class="v" id="sPlays">—</div></div>'+
         '<div class="gcell"><div class="k">PLAYERS</div><div class="v" id="sPlayers">—</div></div>'+
         '<div class="gcell"><div class="k">FAVOURITES</div><div class="v" id="sFav">—</div></div>'+
       '</div>'+
-      '<h2 class="section-h v2">▶ GLOBAL LEADERBOARD</h2>'+
+      '<div class="glabel">YOU</div>'+
+      '<div class="gstats g3">'+
+        '<div class="gcell"><div class="k">HOURS YOU PLAYED</div><div class="v">'+fmtMs(mine.ms)+'</div></div>'+
+        '<div class="gcell"><div class="k">TIMES YOU PLAYED</div><div class="v">'+Number(mine.sessions||0).toLocaleString()+'</div></div>'+
+        '<div class="gcell"><div class="k">YOUR BEST</div><div class="v">'+(mine.best?fmtScore(GID,mine.best):'—')+'</div></div>'+
+      '</div>'+
+      '<h2 class="section-h v2">▶ LEADERBOARD</h2>'+
+      '<div class="seg" id="byseg"><button data-by="score" class="on">HIGH SCORES</button><button data-by="plays">MOST PLAYED</button></div>'+
+      '<div class="seg" id="perseg"><button data-p="all" class="on">ALL TIME</button><button data-p="month">MONTH</button><button data-p="week">WEEK</button><button data-p="today">TODAY</button></div>'+
       '<div class="lbsearch"><input id="q" placeholder="search a player…" autocomplete="off"></div>'+
       '<div id="rows"><div class="empty">Loading…</div></div>'+
       '<button class="more" id="more" style="display:none">LOAD MORE</button>';
+
+    // board controls
+    function setBy(v){ by=v; document.querySelectorAll('#byseg button').forEach(x=>x.classList.toggle('on',x.getAttribute('data-by')===v)); document.getElementById('perseg').style.display=(v==='plays')?'none':'flex'; load(true); }
+    function setPeriod(v){ period=v; document.querySelectorAll('#perseg button').forEach(x=>x.classList.toggle('on',x.getAttribute('data-p')===v)); load(true); }
+    document.querySelectorAll('#byseg button').forEach(b=>b.onclick=()=>setBy(b.getAttribute('data-by')));
+    document.querySelectorAll('#perseg button').forEach(b=>b.onclick=()=>setPeriod(b.getAttribute('data-p')));
 
     // play with the brand veil if the native shell is present
     root.querySelector('.playbtn').addEventListener('click',function(){ try{ if(window.AnorakNative){} }catch(e){} });
@@ -142,15 +163,17 @@
     function load(reset){
       if(loading) return; loading=true;
       if(reset){ offset=0; done=false; document.getElementById('rows').innerHTML='<div class="empty">Loading…</div>'; }
-      const url='/api/board?game='+encodeURIComponent(GID)+'&limit=50&offset='+offset+(q?'&q='+encodeURIComponent(q):'');
+      const url='/api/board?game='+encodeURIComponent(GID)+'&limit=50&offset='+offset+'&by='+by+(by==='score'?'&period='+period:'')+(q?'&q='+encodeURIComponent(q):'');
+      const head=by==='plays'?'PLAYS':'SCORE';
+      const fmt=r=>by==='plays'?(Number(r.score||0).toLocaleString()+' plays'):fmtScore(GID,r.score);
       GameStats.api(url).then(d=>{
         const rows=(d&&d.rows)||[];
         const cont=document.getElementById('rows');
         const html=rows.map((r,i)=>{ const rank=offset+i+1;
           return '<tr class="'+(r.name&&r.name.toLowerCase()===me?'me':'')+'"><td class="rank">'+(rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank)+'</td>'+
-            '<td class="av">'+(r.avatar||'')+'</td><td class="nm">'+pname(r.name)+'</td><td class="sc">'+fmtScore(GID,r.score)+'</td></tr>';
+            '<td class="av">'+(r.avatar||'')+'</td><td class="nm">'+pname(r.name)+'</td><td class="sc">'+fmt(r)+'</td></tr>';
         }).join('');
-        if(reset||offset===0) cont.innerHTML = rows.length?('<table class="lb"><tr><th class="rank">#</th><th class="av"></th><th>PLAYER</th><th class="sc">SCORE</th></tr>'+html+'</table>'):'<div class="empty">'+(q?'No players match.':'No scores yet — be the first.')+'</div>';
+        if(reset||offset===0) cont.innerHTML = rows.length?('<table class="lb"><tr><th class="rank">#</th><th class="av"></th><th>PLAYER</th><th class="sc">'+head+'</th></tr>'+html+'</table>'):'<div class="empty">'+(q?'No players match.':'No scores yet — be the first.')+'</div>';
         else if(rows.length){ cont.querySelector('table.lb').insertAdjacentHTML('beforeend',html); }
         offset+=rows.length; done=rows.length<50;
         document.getElementById('more').style.display=done?'none':'block';

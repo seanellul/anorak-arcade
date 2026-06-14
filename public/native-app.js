@@ -639,11 +639,12 @@
   }
 
   /* ===================================================================
-     #9 — edge swipe closes an open SHEET only (never a game — that was
-     accidentally closing games; removed). Games are left/exited via the
-     pause menu's HOME button.
+     #9 — edge swipe (left edge → right): closes an open SHEET, else navigates
+     BACK on content pages (game/profile). Never inside a playable game (that
+     would exit a run) — games are left via the pause menu's HOME button.
      =================================================================== */
   if (!isGame) {
+    var backable = (path === 'profile.html' || path === 'game.html');
     var tsx = 0, tsy = 0, edge = false;
     document.addEventListener('touchstart', function (e) {
       var t = e.touches[0]; tsx = t.clientX; tsy = t.clientY; edge = tsx < 24;
@@ -653,7 +654,8 @@
       var t = e.changedTouches[0];
       if (t.clientX - tsx > 70 && Math.abs(t.clientY - tsy) < 60) {
         var openScrim = document.querySelector('.aa-scrim.open');
-        if (openScrim) openScrim.classList.remove('open');
+        if (openScrim) { openScrim.classList.remove('open'); return; }
+        if (backable && history.length > 1) { feel('tap'); history.back(); }
       }
     }, { passive: true });
   }

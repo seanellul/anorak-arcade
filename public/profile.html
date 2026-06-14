@@ -103,11 +103,24 @@
   const selfName=GameStats.getName()||'';
   const isSelf=!name || (selfName && name.toLowerCase()===selfName.toLowerCase());
   const target=name||selfName;
+  // YOU page (reached via the tab bar) needs no "back" link or extra top gap
+  if(isSelf){ const bk=document.querySelector('.back'); if(bk) bk.remove(); const w=document.querySelector('.wrap'); if(w) w.style.paddingTop='6px'; }
 
   function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1900); }
   function entry(g){ if(g==='MOTHERLOAD'||g==='MOTHERLOAD_CASH')return 'motherload/index.html'; if(g==='ECOTONE')return 'ecotone/index.html'; return g.toLowerCase()+'.html'; }
   function fmtScore(g,s){ s=Number(s)||0; if(g==='MOTHERLOAD_CASH')return '$'+s.toLocaleString(); if(g==='MOTHERLOAD')return s.toLocaleString()+'m'; return s.toLocaleString(); }
   function medal(r){ return r===1?'🥇':r===2?'🥈':r===3?'🥉':'#'+r; }
+  function fmtMs(ms){ const s=Math.round((ms||0)/1000); if(s<60)return s+'s'; const m=Math.floor(s/60); if(m<60)return m+'m'; const h=Math.floor(m/60); return h.toLocaleString()+'h '+(m%60)+'m'; }
+  // local per-game playtime (what you play most) — self page only
+  function playtimeHTML(){
+    const all=(GameStats.all&&GameStats.all())||[];
+    const played=all.filter(x=>(x.ms||0)>0||(x.sessions||0)>0).sort((a,b)=>(b.ms||0)-(a.ms||0));
+    if(!played.length) return '';
+    const rows=played.map(x=>{ const c=COLORS[x.game]||'#888';
+      return '<tr class="grow" data-play="game.html?id='+encodeURIComponent(x.game)+'"><td class="nm" style="color:'+c+'">'+esc(LABELS[x.game]||x.game)+'</td><td class="sc">'+fmtMs(x.ms)+'</td><td class="sc" style="width:64px">'+Number(x.sessions||0).toLocaleString()+'</td></tr>';
+    }).join('');
+    return '<h2 class="section-h v2">⏱ YOUR PLAYTIME</h2><table class="lb" style="table-layout:fixed;width:100%"><tr><th>GAME</th><th class="sc">TIME</th><th class="sc" style="width:64px">PLAYS</th></tr>'+rows+'</table>';
+  }
 
   if(!GameStats.hasAPI){ root.innerHTML='<div class="empty" style="margin-top:20px">Profiles need the live API.</div>'; return; }
   if(!target){
@@ -167,10 +180,10 @@
       '<h2 class="section-h v2">▶ RANKS</h2>'+
       (games.length?'<table class="lb"><tr><th class="rank">RANK</th><th>GAME</th><th class="sc">BEST</th></tr>'+
         games.map(g=>{ const c=COLORS[g.game]||'#888';
-          return '<tr class="grow" data-play="'+entry(g.game)+'"><td class="rank">'+medal(g.rank)+'</td><td class="nm" style="color:'+c+'">'+esc(LABELS[g.game]||g.game)+'</td><td class="sc">'+fmtScore(g.game,g.best)+'</td></tr>';
+          return '<tr class="grow" data-play="game.html?id='+encodeURIComponent(g.game)+'"><td class="rank">'+medal(g.rank)+'</td><td class="nm" style="color:'+c+'">'+esc(LABELS[g.game]||g.game)+'</td><td class="sc">'+fmtScore(g.game,g.best)+'</td></tr>';
         }).join('')+'</table>'
         :'<div class="empty">No ranked games yet.</div>')+
-      (isSelf?settingsHTML():'');
+      (isSelf?(playtimeHTML()+settingsHTML()):'');
 
     // wire
     if(isSelf){
