@@ -136,9 +136,6 @@
   <p class="note" style="margin:0 0 10px">One ranking across every game. You earn points for every game you sit in the top 100 of — the world #1 of a game is worth 100, #100 is worth 1. This is the global ladder.</p>
   <div id="players" class="reveal"><div class="empty">Loading…</div></div>
 
-  <h2 class="section-h v2">⏱ GLOBAL</h2>
-  <div id="global" class="reveal"><div class="empty">Loading…</div></div>
-
   <h2 class="section-h v2">▶ HIGH SCORES</h2>
   <div class="lbfilter reveal">
     <select id="fGame" aria-label="game"></select>
@@ -150,6 +147,9 @@
     </span>
   </div>
   <div id="boards" class="reveal"><div class="empty">Loading…</div></div>
+
+  <h2 class="section-h v2">⏱ GLOBAL · TIME PLAYED</h2>
+  <div id="global" class="reveal"><div class="empty">Loading…</div></div>
 
   <p class="note">This page is the <b>global</b> view — every game at a glance. Each game window has its own full leaderboard you can open and climb mid-run. Names are whatever you type — old-arcade style. Your personal playtime lives in your browser and the <b>RESET</b> on the home page only clears your local copy; the global record stays. Scores are submitted by the client, so treat the board as friendly, not Fort Knox.</p>
 </div>
@@ -196,7 +196,7 @@
   }
   function card(g, body){ const c=COLORS[g]||'#888';
     return '<div class="bcard"><span class="glow" style="background:'+c+'"></span>'+
-           '<h3 style="color:'+c+'"><a href="'+href(g)+'">'+label(g)+'</a></h3>'+body+'</div>';
+           '<h3 style="color:'+c+'"><a href="game.html?id='+encodeURIComponent(g)+'">'+label(g)+'</a></h3>'+body+'</div>';
   }
   function table(rowsHTML){ return '<table class="lb"><tr><th class="rank">#</th><th class="av"></th><th>NAME</th><th class="sc">SCORE</th></tr>'+rowsHTML+'</table>'; }
 
@@ -280,6 +280,7 @@
 
   // ---- TOP PLAYERS · ARCADE SCORE — the cross-game meta-leaderboard ----
   function divisionFor(a){ a=a||0; if(a>=700)return'Diamond'; if(a>=400)return'Platinum'; if(a>=200)return'Gold'; if(a>=75)return'Silver'; if(a>0)return'Bronze'; return''; }
+  const DIVSHORT={Bronze:'BRZ',Silver:'SLV',Gold:'GLD',Platinum:'PLT',Diamond:'DIA'};
   function loadPlayers(){
     const el=document.getElementById('players');
     if(!GameStats.hasAPI){ el.innerHTML='<div class="empty">Global player ranking goes live with the API.</div>'; return; }
@@ -293,7 +294,7 @@
           return '<tr class="'+(p.name&&p.name.toLowerCase()===me?'me':'')+'"><td class="rank">'+(i+1)+'</td>'+
             '<td class="av">'+(p.avatar||fallbackAva(p.name))+'</td>'+
             '<td class="nm">'+pname(p.name)+'</td>'+
-            '<td>'+(div?'<span class="divb" style="background:'+(DIVCOL[div]||'#888')+'">'+esc(div)+'</span>':'')+'</td>'+
+            '<td>'+(div?'<span class="divb" style="background:'+(DIVCOL[div]||'#888')+'">'+esc(DIVSHORT[div]||div)+'</span>':'')+'</td>'+
             '<td class="sc">'+Number(p.arcade||0).toLocaleString()+'</td></tr>';
         }).join('')+'</table>';
     }).catch(()=>{ el.innerHTML='<div class="empty">Couldn’t reach the player ranking.</div>'; });

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Anorak Arcade game — stats and the full global leaderboard.">
+<meta name="theme-color" content="#0a0e14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Game — Anorak Arcade</title>
+<link rel="stylesheet" href="site.css">
+<style>
+  html,body{overflow-x:hidden;max-width:100%}
+  .ghero{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:18px;padding:22px;margin:14px 0;background:linear-gradient(160deg,color-mix(in srgb,var(--ga,#e8a13a) 26%,#0c1220),#0a0e14 70%)}
+  .ghero .verb{color:var(--ga,#e8a13a);font-size:11px;letter-spacing:.28em;font-weight:700}
+  .ghero h1{margin:6px 0 6px;font-size:30px;letter-spacing:.04em}
+  .ghero .blurb{color:#c2ccdd;font-size:13px;line-height:1.5;max-width:560px}
+  .gactions{display:flex;gap:10px;align-items:center;margin-top:16px;flex-wrap:wrap}
+  .playbtn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:0 24px;background:var(--ga,#e8a13a);color:#0a0e14;border:0;border-radius:12px;font-family:inherit;font-weight:700;letter-spacing:.1em;font-size:14px;cursor:pointer;text-decoration:none}
+  .favbtn{display:inline-flex;align-items:center;gap:8px;min-height:46px;padding:0 16px;background:transparent;border:1px solid var(--line2);color:var(--ink);border-radius:12px;font-family:inherit;font-size:13px;cursor:pointer;letter-spacing:.06em}
+  .favbtn .star{font-size:18px}
+  .favbtn.on{border-color:var(--ga,#e8a13a);color:var(--ga,#e8a13a)}
+  .gstats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:6px 0 14px}
+  @media(min-width:560px){.gstats{grid-template-columns:repeat(4,1fr)}}
+  .gcell{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 10px;text-align:center}
+  .gcell .k{color:var(--dim);font-size:9px;letter-spacing:.16em}
+  .gcell .v{font-size:21px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+  .lbsearch{display:flex;gap:8px;margin:6px 0 12px}
+  .lbsearch input{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:13px;padding:10px 14px;border-radius:10px;outline:none}
+  table.lb{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed}
+  table.lb th{color:var(--dim);text-align:left;font-size:10px;letter-spacing:.16em;padding:6px 8px;border-bottom:1px solid var(--line)}
+  table.lb td{padding:10px 8px;border-bottom:1px solid #161d2b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  table.lb .rank{color:var(--dim);width:46px}
+  table.lb .av{width:28px;font-size:16px;text-align:center;padding:0}
+  table.lb .nm{font-weight:700;letter-spacing:.04em}
+  table.lb .nm a{color:inherit;text-decoration:none;border-bottom:1px dotted transparent}
+  table.lb .nm a:hover{border-bottom-color:currentColor}
+  table.lb .sc{text-align:right;font-variant-numeric:tabular-nums;width:96px}
+  table.lb tr.me{background:rgba(255,177,61,.08)}
+  .more{display:block;width:100%;margin:14px 0;background:var(--panel);border:1px solid var(--line2);color:var(--ink);font-family:inherit;font-size:12px;letter-spacing:.12em;padding:12px;border-radius:10px;cursor:pointer}
+  .empty{color:var(--dim);padding:16px 0}
+  .back{color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}
+  .back:hover{color:var(--ink)}
+</style>
+</head>
+<body class="v2">
+<div class="fx" aria-hidden="true"><span class="orb a" data-depth="0.020"></span><span class="orb b" data-depth="0.035"></span><span class="orb c" data-depth="0.050"></span></div>
+<div class="scanlines" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span>ANORAK ARCADE</a>
+  <span class="spacer"></span>
+  <a class="link" href="index.html">ARCADE</a>
+  <a class="link" href="leaderboard.html">LEADERBOARD</a>
+</nav>
+
+<div class="wrap">
+  <a class="back" href="index.html">← arcade</a>
+  <div id="game"><div class="empty" style="margin-top:20px">Loading…</div></div>
+</div>
+
+<div class="footer">Anorak Arcade · <a href="index.html">arcade</a> · <a href="leaderboard.html">leaderboard</a></div>
+
+<script src="site.js"></script>
+<script src="stats.js"></script>
+<script src="chrome.js"></script>
+<script>
+(()=>{
+  const esc=s=>String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const root=document.getElementById('game');
+  const idParam=((new URLSearchParams(location.search)).get('id')||'').toUpperCase();
+  function fmtMs(ms){ const s=Math.round((ms||0)/1000); if(s<60)return s+'s'; const m=Math.floor(s/60); if(m<60)return m+'m'; const h=Math.floor(m/60); return h.toLocaleString()+'h '+(m%60)+'m'; }
+  function fmtScore(g,s){ s=Number(s)||0; if(g==='MOTHERLOAD_CASH')return '$'+s.toLocaleString(); if(g==='MOTHERLOAD')return s.toLocaleString()+'m'; return s.toLocaleString(); }
+  function pname(name){ const n=esc(name); return (!name||name==='anon')?n:'<a href="profile.html?name='+encodeURIComponent(name)+'">'+n+'</a>'; }
+
+  if(!idParam){ root.innerHTML='<div class="empty" style="margin-top:20px">No game specified.</div>'; return; }
+
+  // resolve the catalog entry (by id or slug)
+  fetch('/catalog.json').then(r=>r.json()).then(c=>{
+    const games=(c&&c.games)||[];
+    const g=games.find(x=>String(x.id).toUpperCase()===idParam || String(x.slug).toUpperCase()===idParam);
+    if(!g){ root.innerHTML='<div class="empty" style="margin-top:20px">Unknown game.</div>'; return; }
+    boot(g);
+  }).catch(()=>{ root.innerHTML='<div class="empty" style="margin-top:20px">Couldn’t load the catalog.</div>'; });
+
+  function boot(g){
+    const GID=String(g.id).toUpperCase();
+    const entry=g.entry||(g.slug+'.html');
+    const mobile=(g.platforms||[]).indexOf('mobile')>=0;
+    const me=(GameStats.getName()||'').toLowerCase();
+    document.title=g.title+' — Anorak Arcade';
+    let offset=0, q='', loading=false, done=false;
+
+    root.innerHTML=
+      '<div class="ghero" style="--ga:'+g.accent+'">'+
+        '<div class="verb">'+esc(g.verb||g.tag||'')+'</div><h1>'+esc(g.title)+'</h1>'+
+        '<div class="blurb">'+esc(g.blurb||g.tag||'')+'</div>'+
+        '<div class="gactions">'+
+          '<a class="playbtn" href="'+entry+'">▶ PLAY'+(mobile?'':' · desktop')+'</a>'+
+          '<button class="favbtn" id="favBtn"><span class="star">☆</span> <span id="favCount">—</span></button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="gstats">'+
+        '<div class="gcell"><div class="k">HOURS PLAYED</div><div class="v" id="sMs">—</div></div>'+
+        '<div class="gcell"><div class="k">TIMES PLAYED</div><div class="v" id="sPlays">—</div></div>'+
+        '<div class="gcell"><div class="k">PLAYERS</div><div class="v" id="sPlayers">—</div></div>'+
+        '<div class="gcell"><div class="k">FAVOURITES</div><div class="v" id="sFav">—</div></div>'+
+      '</div>'+
+      '<h2 class="section-h v2">▶ GLOBAL LEADERBOARD</h2>'+
+      '<div class="lbsearch"><input id="q" placeholder="search a player…" autocomplete="off"></div>'+
+      '<div id="rows"><div class="empty">Loading…</div></div>'+
+      '<button class="more" id="more" style="display:none">LOAD MORE</button>';
+
+    // play with the brand veil if the native shell is present
+    root.querySelector('.playbtn').addEventListener('click',function(){ try{ if(window.AnorakNative){} }catch(e){} });
+
+    // stats + favourite state
+    if(GameStats.hasAPI){
+      GameStats.api('/api/game?id='+encodeURIComponent(GID)+'&clientId='+encodeURIComponent(GameStats.clientId)).then(d=>{
+        document.getElementById('sMs').textContent=fmtMs(d.ms);
+        document.getElementById('sPlays').textContent=Number(d.plays||0).toLocaleString();
+        document.getElementById('sPlayers').textContent=Number(d.players||0).toLocaleString();
+        document.getElementById('sFav').textContent=Number(d.favorites||0).toLocaleString();
+        setFav(d.favorited, d.favorites||0);
+      }).catch(()=>{});
+    }
+    function setFav(on,count){ const b=document.getElementById('favBtn'); b.classList.toggle('on',!!on);
+      b.querySelector('.star').textContent=on?'★':'☆'; document.getElementById('favCount').textContent=Number(count||0).toLocaleString(); document.getElementById('sFav').textContent=Number(count||0).toLocaleString(); }
+    document.getElementById('favBtn').onclick=()=>{
+      if(!GameStats.hasAPI) return;
+      const tok=localStorage.getItem('aa.token'); const h={'Content-Type':'application/json'}; if(tok) h.Authorization='Bearer '+tok;
+      fetch('https://anorak-arcade-api.sean-ellul.workers.dev/api/favorite',{method:'POST',headers:h,body:JSON.stringify({game:GID,clientId:GameStats.clientId})})
+        .then(r=>r.json()).then(d=>{ if(d&&d.ok){ setFav(d.favorited,d.count);
+          try{ var f=JSON.parse(localStorage.getItem('aa.favs')||'[]'); var i=f.indexOf(g.slug); if(d.favorited&&i<0)f.push(g.slug); else if(!d.favorited&&i>=0)f.splice(i,1); localStorage.setItem('aa.favs',JSON.stringify(f)); }catch(e){}
+        } }).catch(()=>{});
+    };
+
+    // leaderboard chunks + search
+    function load(reset){
+      if(loading) return; loading=true;
+      if(reset){ offset=0; done=false; document.getElementById('rows').innerHTML='<div class="empty">Loading…</div>'; }
+      const url='/api/board?game='+encodeURIComponent(GID)+'&limit=50&offset='+offset+(q?'&q='+encodeURIComponent(q):'');
+      GameStats.api(url).then(d=>{
+        const rows=(d&&d.rows)||[];
+        const cont=document.getElementById('rows');
+        const html=rows.map((r,i)=>{ const rank=offset+i+1;
+          return '<tr class="'+(r.name&&r.name.toLowerCase()===me?'me':'')+'"><td class="rank">'+(rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':'#'+rank)+'</td>'+
+            '<td class="av">'+(r.avatar||'')+'</td><td class="nm">'+pname(r.name)+'</td><td class="sc">'+fmtScore(GID,r.score)+'</td></tr>';
+        }).join('');
+        if(reset||offset===0) cont.innerHTML = rows.length?('<table class="lb"><tr><th class="rank">#</th><th class="av"></th><th>PLAYER</th><th class="sc">SCORE</th></tr>'+html+'</table>'):'<div class="empty">'+(q?'No players match.':'No scores yet — be the first.')+'</div>';
+        else if(rows.length){ cont.querySelector('table.lb').insertAdjacentHTML('beforeend',html); }
+        offset+=rows.length; done=rows.length<50;
+        document.getElementById('more').style.display=done?'none':'block';
+        loading=false;
+      }).catch(()=>{ loading=false; document.getElementById('rows').innerHTML='<div class="empty">Couldn’t load the leaderboard.</div>'; });
+    }
+    document.getElementById('more').onclick=()=>load(false);
+    let qt; document.getElementById('q').oninput=function(){ q=this.value.trim(); clearTimeout(qt); qt=setTimeout(()=>load(true),250); };
+    load(true);
+    window.AAChrome&&AAChrome.bind(root);
+  }
+})();
+</script>
+</body>
+</html>

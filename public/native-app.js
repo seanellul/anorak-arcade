@@ -316,6 +316,7 @@
   function favs() { try { return JSON.parse(lget('aa.favs')) || []; } catch (e) { return []; } }
   function isFav(slug) { return favs().indexOf(slug) >= 0; }
   function toggleFav(slug) { var f = favs(); var i = f.indexOf(slug); if (i >= 0) f.splice(i, 1); else f.push(slug); try { localStorage.setItem('aa.favs', JSON.stringify(f)); } catch (e) {} return i < 0; }
+  function setFavState(slug, on) { var f = favs(); var i = f.indexOf(slug); if (on && i < 0) f.push(slug); else if (!on && i >= 0) f.splice(i, 1); try { localStorage.setItem('aa.favs', JSON.stringify(f)); } catch (e) {} }
   function bestOf(id) { try { return (window.GameStats && GameStats.localBest && GameStats.localBest(id)) || 0; } catch (e) { return 0; } }
   function entryHref(g) { return g.entry || (g.slug + '.html'); }
 
@@ -339,13 +340,22 @@
   }
 
   /* ---- #4 native mobile home rendered from catalog.json ---- */
-  var _catalog = null, _filter = 'all';
+  var _catalog = null, _filter = 'all', _sort = 'default', _favCounts = {};
+  function playtimeOf(id) { try { var d = JSON.parse(lget('aa.stats')) || {}; return (d[id] && d[id].ms) || 0; } catch (e) { return 0; } }
+  function sortGames(arr) {
+    var a = arr.slice();
+    if (_sort === 'name') a.sort(function (x, y) { return String(x.title).localeCompare(String(y.title)); });
+    else if (_sort === 'playtime') a.sort(function (x, y) { return playtimeOf(y.id) - playtimeOf(x.id); });
+    else if (_sort === 'favs') a.sort(function (x, y) { return (_favCounts[y.id] || 0) - (_favCounts[x.id] || 0); });
+    return a;
+  }
   function buildHome() {
     de.classList.add('aa-home');
     var root = document.createElement('div'); root.className = 'aa-home';
     document.body.appendChild(root);
     fetch('/catalog.json').then(function (r) { return r.json(); }).then(function (c) {
       _catalog = (c && c.games) || []; renderHome(root);
+      api('GET', '/api/favorites/counts').then(function (d) { if (d && d.counts) { _favCounts = d.counts; if (_sort === 'favs') renderHome(root); } });
     }).catch(function () { _catalog = []; renderHome(root); });
   }
   function gcard(g, i) {
@@ -365,16 +375,36 @@
     var playable = all.filter(function (g) { return (g.platforms || []).indexOf('mobile') >= 0; });
     var desktop = all.filter(function (g) { return (g.platforms || []).indexOf('mobile') < 0; });
     var list = _filter === 'fav' ? playable.filter(function (g) { return isFav(g.slug); }) : playable;
+    list = sortGames(list);
     var html = '<div class="top"><span class="dot"></span><span class="wm">ARCADE</span><span class="count">' + playable.length + ' games</span></div>';
     html += hubHTML();
-    html += '<div class="aa-filter"><button data-f="all" class="' + (_filter === 'all' ? 'on' : '') + '">ALL</button><button data-f="fav" class="' + (_filter === 'fav' ? 'on' : '') + '">★ FAVES</button></div>';
+    html += '<div class="aa-filter">' +
+      '<button data-f="all" class="' + (_filter === 'all' ? 'on' : '') + '">ALL</button>' +
+      '<button data-f="fav" class="' + (_filter === 'fav' ? 'on' : '') + '">★ FAVES</button>' +
+      '<select class="aa-sort" aria-label="sort">' +
+        '<option value="default"' + (_sort === 'default' ? ' selected' : '') + '>Sort: Featured</option>' +
+        '<option value="playtime"' + (_sort === 'playtime' ? ' selected' : '') + '>Sort: Playtime</option>' +
+        '<option value="name"' + (_sort === 'name' ? ' selected' : '') + '>Sort: Name</option>' +
+        '<option value="favs"' + (_sort === 'favs' ? ' selected' : '') + '>Sort: Most favourited</option>' +
+      '</select></div>';
     html += '<div class="aa-grid">' + (list.length ? list.map(gcard).join('') : '<div class="aa-empty" style="grid-column:1/-1">No favourites yet — tap ☆ on a game.</div>') + '</div>';
-    if (_filter === 'all' && desktop.length) html += '<div class="aa-sec">FULL GAMES · DESKTOP</div><div class="aa-grid">' + desktop.map(gcard).join('') + '</div>';
+    if (_filter === 'all' && desktop.length) html += '<div class="aa-sec">FULL GAMES · DESKTOP</div><div class="aa-grid">' + sortGames(desktop).map(gcard).join('') + '</div>';
     root.innerHTML = html;
     // wire
     root.querySelectorAll('.aa-filter button').forEach(function (b) { b.onclick = function () { feel('select'); _filter = b.getAttribute('data-f'); renderHome(root); }; });
-    root.querySelectorAll('.fav').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); var on = toggleFav(b.getAttribute('data-fav')); feel('tap'); b.classList.toggle('on', on); b.textContent = on ? '★' : '☆'; if (_filter === 'fav') renderHome(root); }; });
-    root.querySelectorAll('.aa-gcard').forEach(function (b) { b.onclick = function () { var g = all.find(function (x) { return x.slug === b.getAttribute('data-slug'); }); if (g) openGameDetail(g); }; });
+    var sortSel = root.querySelector('.aa-sort'); if (sortSel) sortSel.onchange = function () { feel('select'); _sort = sortSel.value; renderHome(root); };
+    root.querySelectorAll('.fav').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); feel('tap');
+      var slug = b.getAttribute('data-fav'); var g = all.find(function (x) { return x.slug === slug; });
+      if (!g) { var on0 = toggleFav(slug); b.classList.toggle('on', on0); b.textContent = on0 ? '★' : '☆'; return; }
+      // server is authoritative for the global favourite + count; local mirrors the response
+      api('POST', '/api/favorite', { game: g.id, clientId: lget('aa.clientId') || '' }).then(function (d) {
+        var on = (d && typeof d.favorited === 'boolean') ? d.favorited : !isFav(slug);
+        setFavState(slug, on); b.classList.toggle('on', on); b.textContent = on ? '★' : '☆';
+        if (d && typeof d.count === 'number') _favCounts[g.id] = d.count;
+        if (_filter === 'fav' || _sort === 'favs') renderHome(root);
+      }).catch(function () { var on = toggleFav(slug); b.classList.toggle('on', on); b.textContent = on ? '★' : '☆'; });
+    }; });
+    root.querySelectorAll('.aa-gcard').forEach(function (b) { b.onclick = function () { var g = all.find(function (x) { return x.slug === b.getAttribute('data-slug'); }); if (g) { feel('commit'); showVeil(g.accent, g.title); location.href = 'game.html?id=' + encodeURIComponent(g.id); } }; });
     // paint the live previews (reuse the home demo engine) once laid out
     requestAnimationFrame(function () {
       root.querySelectorAll('canvas.aa-prev').forEach(function (cv) {
@@ -426,15 +456,15 @@
       '<div class="pt">PAUSED · ' + esc(gameId()) + '</div>' +
       '<button class="aa-btn" id="aaResume">▶ RESUME</button>' +
       '<div class="pmenu">' +
-        '<a class="pbtn" id="aaPHome" href="index.html"><span class="ic">⌂</span><span>HOME</span></a>' +
-        '<button class="pbtn" id="aaPScores"><span class="ic">🏆</span><span>SCORES</span></button>' +
-        '<button class="pbtn" id="aaPSettings"><span class="ic">⚙</span><span>SETTINGS</span></button>' +
+        '<button type="button" class="pbtn" id="aaPHome"><span class="ic">⌂</span><span>HOME</span></button>' +
+        '<button type="button" class="pbtn" id="aaPScores"><span class="ic">🏆</span><span>SCORES</span></button>' +
+        '<button type="button" class="pbtn" id="aaPSettings"><span class="ic">⚙</span><span>SETTINGS</span></button>' +
       '</div>';
     document.body.appendChild(pauseEl);
     pauseEl.querySelector('#aaResume').onclick = resumeGame;
     pauseEl.querySelector('#aaPScores').onclick = function () { feel('select'); openScores(gameId()); };
     pauseEl.querySelector('#aaPSettings').onclick = function () { feel('select'); openSettings(); };
-    pauseEl.querySelector('#aaPHome').onclick = function () { feel('select'); showVeil('#e8a13a', ''); };
+    pauseEl.querySelector('#aaPHome').onclick = function () { feel('select'); showVeil('#e8a13a', ''); location.href = 'index.html'; };
   }
   function openPause() { feel('select'); pauseGame(); pauseEl.classList.add('open'); }
   function resumeGame() { feel('tap'); pauseEl.classList.remove('open'); pauseGame(); }

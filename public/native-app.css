@@ -240,6 +240,7 @@ html.aa-native.aa-home body{ padding-top:calc(env(safe-area-inset-top) + 10px) !
   color:var(--aa-dim); font-family:inherit; font-size:11px; letter-spacing:.12em; border-radius:99px; cursor:pointer;
 }
 .aa-filter button.on{ color:var(--aa-brand); border-color:color-mix(in srgb,var(--aa-brand) 45%,var(--aa-line)); }
+.aa-filter .aa-sort{ margin-left:auto; min-height:38px; padding:0 10px; background:var(--aa-panel); border:1px solid var(--aa-line); color:var(--aa-dim); font-family:inherit; font-size:11px; letter-spacing:.04em; border-radius:99px; }
 
 /* 2-up game grid — each card shows a LIVE preview (reuses the home demo engine) */
 .aa-grid{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
