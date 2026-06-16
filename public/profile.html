@@ -183,7 +183,7 @@
           return '<tr class="grow" data-play="game.html?id='+encodeURIComponent(g.game)+'"><td class="rank">'+medal(g.rank)+'</td><td class="nm" style="color:'+c+'">'+esc(LABELS[g.game]||g.game)+'</td><td class="sc">'+fmtScore(g.game,g.best)+'</td></tr>';
         }).join('')+'</table>'
         :'<div class="empty">No ranked games yet.</div>')+
-      (isSelf?(playtimeHTML()+settingsHTML()):'');
+      (isSelf?(playtimeHTML()+settingsHTML()):(localStorage.getItem('aa.token')?'<h2 class="section-h v2">⚔ VS YOU</h2><div id="vsyou"><div class="empty">Comparing…</div></div>':''));
 
     // wire
     if(isSelf){
@@ -193,9 +193,24 @@
       wireSettings();
     } else {
       const af=document.getElementById('addFr'); if(af) af.onclick=addFriend;
+      if(localStorage.getItem('aa.token')) renderCompare();
     }
     document.querySelectorAll('tr.grow[data-play]').forEach(tr=>tr.onclick=()=>{ location.href=tr.getAttribute('data-play'); });
     window.AAChrome&&AAChrome.bind(root);
+  }
+
+  function renderCompare(){
+    GameStats.api('/api/compare?name='+encodeURIComponent(target)).then(d=>{
+      const box=document.getElementById('vsyou'); if(!box) return;
+      if(!d||d.error){ box.innerHTML='<div class="empty">'+esc((d&&d.error)||'Set a name to compare.')+'</div>'; return; }
+      const rows=(d.games||[]).filter(g=>g.you>0||g.them>0).sort((a,b)=>(b.you+b.them)-(a.you+a.them));
+      const head='<div class="pstats" style="grid-template-columns:1fr 1fr"><div class="pcell"><div class="k">YOUR ARCADE</div><div class="v">'+Number(d.youArcade||0).toLocaleString()+'</div></div><div class="pcell"><div class="k">THEIR ARCADE</div><div class="v" style="color:'+(d.themArcade>d.youArcade?'#ff6a6a':'#36d399')+'">'+Number(d.themArcade||0).toLocaleString()+'</div></div></div>';
+      box.innerHTML=head+(rows.length?'<table class="lb" style="table-layout:fixed"><tr><th>GAME</th><th class="sc">YOU</th><th class="sc">THEM</th></tr>'+
+        rows.map(g=>{ const c=COLORS[g.game]||'#888'; const yc=g.lead==='you'?'#36d399':'var(--ink)'; const tc=g.lead==='them'?'#36d399':'var(--ink)';
+          return '<tr class="grow" data-play="game.html?id='+encodeURIComponent(g.game)+'"><td class="nm" style="color:'+c+'">'+esc(LABELS[g.game]||g.game)+'</td><td class="sc" style="color:'+yc+'">'+fmtScore(g.game,g.you)+'</td><td class="sc" style="color:'+tc+'">'+fmtScore(g.game,g.them)+'</td></tr>';
+        }).join('')+'</table>':'<div class="empty">No shared games yet.</div>');
+      box.querySelectorAll('tr.grow[data-play]').forEach(tr=>tr.onclick=()=>{ location.href=tr.getAttribute('data-play'); });
+    }).catch(()=>{});
   }
 
   function openPicker(){

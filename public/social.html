@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Anorak Arcade — follow players, see who's ahead, and track the competition.">
+<meta name="theme-color" content="#0a0e14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<title>Social — Anorak Arcade</title>
+<link rel="stylesheet" href="site.css">
+<style>
+  html,body{overflow-x:hidden;max-width:100%}
+  .shead{display:flex;align-items:center;gap:12px;margin:12px 0 6px}
+  .shead h1{font-size:26px;letter-spacing:.04em;margin:0;flex:1}
+  .subtabs{display:flex;gap:6px;margin:10px 0 14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .subtabs button{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--dim);font-family:inherit;font-size:11px;letter-spacing:.1em;padding:9px 15px;border-radius:99px;cursor:pointer}
+  .subtabs button.on{color:#0a0e14;background:var(--acc);border-color:transparent;font-weight:700}
+  .slist{display:flex;flex-direction:column}
+  .srow{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid #161d2b;cursor:pointer}
+  .srow .av{font-size:22px;flex:0 0 auto;width:30px;text-align:center}
+  .srow .mid{flex:1;min-width:0}
+  .srow .nm{font-weight:700;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .srow .meta{color:var(--dim);font-size:11px;letter-spacing:.04em;margin-top:2px}
+  .divb{display:inline-block;padding:1px 7px;border-radius:99px;font-size:9px;font-weight:700;letter-spacing:.1em;color:#0a0e14}
+  .vs{font-size:11px;font-weight:700;letter-spacing:.08em;padding:3px 8px;border-radius:99px;flex:0 0 auto}
+  .vs.ahead{color:#36d399;border:1px solid color-mix(in srgb,#36d399 40%,transparent)}
+  .vs.behind{color:#ff6a6a;border:1px solid color-mix(in srgb,#ff6a6a 40%,transparent)}
+  .vs.even{color:var(--dim);border:1px solid var(--line2)}
+  .followbtn{flex:0 0 auto;background:var(--acc);border:0;color:#0a0e14;font-family:inherit;font-weight:700;font-size:11px;letter-spacing:.08em;padding:8px 13px;border-radius:9px;cursor:pointer}
+  .followbtn.out{background:transparent;border:1px solid var(--line2);color:var(--dim)}
+  .feed .fi{display:flex;align-items:flex-start;gap:10px;padding:11px 4px;border-bottom:1px solid #161d2b;font-size:13px;line-height:1.45}
+  .feed .fi .ic{flex:0 0 auto;width:20px;text-align:center}
+  .feed .fi .tx{flex:1;color:#c2ccdd}
+  .feed .fi .tx b{color:var(--ink);font-weight:700}
+  .findbar{display:flex;gap:8px;margin-bottom:6px}
+  .findbar input{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px;padding:11px 14px;border-radius:10px;outline:none}
+  .empty{color:var(--dim);padding:18px 2px;text-align:center;font-size:13px}
+  .signin{text-align:center;padding:30px 10px}
+  .back{color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}
+</style>
+</head>
+<body class="v2">
+<div class="fx" aria-hidden="true"><span class="orb a" data-depth="0.020"></span><span class="orb b" data-depth="0.035"></span><span class="orb c" data-depth="0.050"></span></div>
+<div class="scanlines" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="dot"></span>ANORAK ARCADE</a>
+  <span class="spacer"></span>
+  <a class="link" href="index.html">ARCADE</a>
+  <a class="link" href="leaderboard.html">LEADERBOARD</a>
+  <a class="link active" href="social.html">SOCIAL</a>
+</nav>
+<div class="wrap">
+  <div class="shead"><h1>Social</h1><span id="counts" style="color:var(--dim);font-size:12px;letter-spacing:.06em"></span></div>
+  <div class="subtabs" id="subtabs">
+    <button data-t="activity" class="on">ACTIVITY</button>
+    <button data-t="following">FOLLOWING</button>
+    <button data-t="followers">FOLLOWERS</button>
+    <button data-t="find">FIND</button>
+  </div>
+  <div id="content"><div class="empty">Loading…</div></div>
+</div>
+<div class="footer">Anorak Arcade · <a href="index.html">arcade</a> · <a href="leaderboard.html">leaderboard</a></div>
+<script src="site.js"></script>
+<script src="stats.js"></script>
+<script src="chrome.js"></script>
+<script>
+(()=>{
+  const API='https://anorak-arcade-api.sean-ellul.workers.dev';
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a',MOTHERLOAD_CASH:'#79e08a',ECOTONE:'#7fc24a',INTERCEPT:'#ff8c42'};
+  const DIVCOL={Bronze:'#c87a3f',Silver:'#c6ced8',Gold:'#ffd23f',Platinum:'#9fe7e0',Diamond:'#7fd3ff'};
+  const DIVSHORT={Bronze:'BRZ',Silver:'SLV',Gold:'GLD',Platinum:'PLT',Diamond:'DIA'};
+  const esc=s=>String(s==null?'':s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const tok=()=>localStorage.getItem('aa.token')||'';
+  function api(method,p,body){ const h={'Content-Type':'application/json'}; if(tok())h.Authorization='Bearer '+tok();
+    return fetch(API+p,{method,headers:h,body:body?JSON.stringify(body):undefined}).then(r=>r.json().catch(()=>({}))).catch(()=>null); }
+  const content=document.getElementById('content');
+  let tab='activity';
+
+  function prof(name){ return 'profile.html?name='+encodeURIComponent(name); }
+  function feedLine(e){
+    let pay={}; try{pay=JSON.parse(e.payload||'{}');}catch(x){}
+    const g=esc(e.game||''), who=esc(e.actor||'someone'), sc=pay.score?Number(pay.score).toLocaleString():'';
+    if(e.own&&e.kind==='overtaken')return '<span class="ic">⚔</span><span class="tx"><b>'+who+'</b> passed you in <b>'+g+'</b> — defend your spot</span>';
+    if(e.own&&e.kind==='no1')return '<span class="ic">👑</span><span class="tx">You took <b>#1</b> in <b>'+g+'</b></span>';
+    if(!e.own&&e.kind==='no1')return '<span class="ic">👑</span><span class="tx"><b>'+who+'</b> is <b>#1</b> in <b>'+g+'</b></span>';
+    if(!e.own&&e.kind==='best')return '<span class="ic">▲</span><span class="tx"><b>'+who+'</b> set a new <b>'+g+'</b> best'+(sc?' · '+sc:'')+'</span>';
+    return '';
+  }
+  function srow(p, right){
+    const div=p.division?'<span class="divb" style="background:'+(DIVCOL[p.division]||'#888')+'">'+(DIVSHORT[p.division]||p.division)+'</span> ':'';
+    const meta=(p.arcade!=null)?(div+Number(p.arcade||0).toLocaleString()+' arcade'):(p.ms?GameStats.fmt(p.ms):'');
+    return '<div class="srow" data-prof="'+esc(p.name)+'"><span class="av">'+(p.avatar||'👾')+'</span>'+
+      '<span class="mid"><div class="nm">'+esc(p.name)+'</div>'+(meta?'<div class="meta">'+meta+'</div>':'')+'</span>'+(right||'')+'</div>';
+  }
+  function wireRows(){ content.querySelectorAll('.srow[data-prof]').forEach(r=>r.onclick=e=>{ if(e.target.closest('button'))return; location.href=prof(r.getAttribute('data-prof')); }); }
+
+  function needSignIn(){
+    content.innerHTML='<div class="signin"><div class="empty">Sign in to follow players, see your followers, and track the competition.</div>'+
+      (window.AnorakNative&&AnorakNative.signInWithApple?'<button class="followbtn" id="si"> Sign in with Apple</button>':'')+'</div>';
+    const si=document.getElementById('si'); if(si) si.onclick=()=>Promise.resolve(AnorakNative.signInWithApple()).then(ok=>{ if(ok) render(); });
+  }
+
+  function render(){
+    document.querySelectorAll('#subtabs button').forEach(b=>b.classList.toggle('on',b.getAttribute('data-t')===tab));
+    if(tab!=='find' && !tok()){ needSignIn(); return; }
+    content.innerHTML='<div class="empty">Loading…</div>';
+    if(tab==='activity'){
+      api('GET','/api/feed').then(d=>{
+        const evs=((d&&d.events)||[]).filter(e=>!(e.own&&e.kind==='best'));
+        const lines=evs.map(feedLine).filter(Boolean);
+        content.className=''; content.innerHTML=lines.length?('<div class="feed">'+lines.map(l=>'<div class="fi">'+l+'</div>').join('')+'</div>'):'<div class="empty">No activity yet — follow some players or play a game.</div>';
+      });
+    } else if(tab==='following'){
+      api('GET','/api/friends').then(d=>{
+        const fr=(d&&d.friends)||[]; document.getElementById('counts').textContent=fr.length+' following';
+        if(!fr.length){ content.innerHTML='<div class="empty">You’re not following anyone yet. Try FIND.</div>'; return; }
+        content.innerHTML='<div class="slist">'+fr.map(f=>{
+          const vs=f.vs?'<span class="vs '+f.vs+'">'+(f.vs==='ahead'?'▲':f.vs==='behind'?'▼':'=')+' '+f.vs+'</span>':'';
+          return srow(f, vs+'<button class="followbtn out" data-unf="'+esc(f.name)+'">FOLLOWING</button>');
+        }).join('')+'</div>';
+        content.querySelectorAll('[data-unf]').forEach(b=>b.onclick=()=>{ api('POST','/api/friends/remove',{handle:b.getAttribute('data-unf')}).then(()=>render()); });
+        wireRows();
+      });
+    } else if(tab==='followers'){
+      api('GET','/api/followers').then(d=>{
+        const fo=(d&&d.followers)||[]; document.getElementById('counts').textContent=fo.length+' followers';
+        if(!fo.length){ content.innerHTML='<div class="empty">No followers yet.</div>'; return; }
+        content.innerHTML='<div class="slist">'+fo.map(f=>{
+          const btn=f.youFollow?'<button class="followbtn out" data-unf="'+esc(f.name)+'">FOLLOWING</button>':'<button class="followbtn" data-fol="'+esc(f.name)+'">FOLLOW BACK</button>';
+          return srow(f, btn);
+        }).join('')+'</div>';
+        content.querySelectorAll('[data-fol]').forEach(b=>b.onclick=()=>{ api('POST','/api/friends/add',{handle:b.getAttribute('data-fol')}).then(()=>render()); });
+        content.querySelectorAll('[data-unf]').forEach(b=>b.onclick=()=>{ api('POST','/api/friends/remove',{handle:b.getAttribute('data-unf')}).then(()=>render()); });
+        wireRows();
+      });
+    } else if(tab==='find'){
+      content.innerHTML='<div class="findbar"><input id="q" placeholder="search players by name…" autocomplete="off"></div><div id="results"></div>';
+      const inp=document.getElementById('q'), res=document.getElementById('results'); let t;
+      inp.focus();
+      inp.oninput=function(){ const q=this.value.trim(); clearTimeout(t); if(!q){ res.innerHTML=''; return; }
+        t=setTimeout(()=>api('GET','/api/players/search?q='+encodeURIComponent(q)).then(d=>{
+          const ps=(d&&d.players)||[];
+          res.innerHTML=ps.length?('<div class="slist">'+ps.map(p=>srow(p, tok()?'<button class="followbtn" data-fol="'+esc(p.name)+'">FOLLOW</button>':'')).join('')+'</div>'):'<div class="empty">No players match.</div>';
+          res.querySelectorAll('[data-fol]').forEach(b=>b.onclick=()=>{ const h=b.getAttribute('data-fol'); api('POST','/api/friends/add',{handle:h}).then(()=>{ b.textContent='✓ FOLLOWING'; b.classList.add('out'); b.disabled=true; }); });
+          res.querySelectorAll('.srow[data-prof]').forEach(r=>r.onclick=e=>{ if(e.target.closest('button'))return; location.href=prof(r.getAttribute('data-prof')); });
+        }), 250);
+      };
+    }
+  }
+  document.querySelectorAll('#subtabs button').forEach(b=>b.onclick=()=>{ tab=b.getAttribute('data-t'); document.getElementById('counts').textContent=''; render(); });
+  render();
+})();
+</script>
+</body>
+</html>

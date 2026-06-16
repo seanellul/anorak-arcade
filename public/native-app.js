@@ -306,9 +306,10 @@
     var onHome = path === 'index.html' || path === '';
     var onBoard = path === 'leaderboard.html';
     var onYou = path === 'profile.html';
+    var onSocial = path === 'social.html';
     bar.appendChild(tab('◈', 'PLAY', onHome, null, 'index.html'));
     bar.appendChild(tab('🏆', 'BOARD', onBoard, null, 'leaderboard.html'));
-    bar.appendChild(tab('👥', 'FRIENDS', false, openFriends));
+    bar.appendChild(tab('👥', 'SOCIAL', onSocial, null, 'social.html'));   // dedicated social page
     bar.appendChild(tab('◐', 'YOU', onYou, null, 'profile.html'));   // dedicated profile page (self)
     document.body.appendChild(bar);
   }
