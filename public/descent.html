@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="You're falling. Steer left and right to thread the gaps — your craft follows your finger. Chase charges on the risky line to pump your multiplier. How deep can you go?">
+<meta name="theme-color" content="#0a0e14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Anorak Arcade">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Anorak Arcade">
+<meta property="og:title" content="DESCENT — freefall">
+<meta property="og:description" content="Steer left and right to thread the gaps. Chase charges on the risky line for the multiplier. How deep can you go?">
+<meta property="og:image" content="https://anorak-arcade.pages.dev/og-descent.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="DESCENT — freefall">
+<meta name="twitter:description" content="Free-steer your craft down an ever-tightening shaft, with a greed multiplier. A love letter to a bygone era — original browser prototypes.">
+
+<title>DESCENT — freefall</title>
+<style>
+  :root{ --bg:#0a0e14; --panel:#161020; --ink:#eef2fb; --dim:#8b86a8; --acc:#b15cff; --acc2:#7d3cff; --hot:#ffd23f; --good:#36d399; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  html,body{overscroll-behavior:none}
+  body{margin:0;background:radial-gradient(1100px 760px at 50% -8%,#1c0f33,#0a0e14 62%);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  header{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.34em;margin:0;font-weight:700}h1 .v{color:var(--acc)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:520px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #251a36;border-radius:8px;padding:8px 10px;position:relative;overflow:hidden}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}
+  .stat .val{font-size:21px;font-weight:700;margin-top:2px;transition:transform .08s}
+  .stat .val.bump{transform:scale(1.2)}
+  #depth{color:var(--acc)}
+  #mult{color:var(--hot)}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#06040d;border:1px solid #251a36;border-radius:12px;display:block;max-width:100%;height:auto;cursor:none;touch-action:none}
+  .foot{max-width:520px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#1c1430;border:1px solid #2e2240;border-radius:5px;padding:1px 7px;font-size:11px}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,5,14,.92);border-radius:12px;text-align:center;padding:24px}
+  .overlay h2{margin:0 0 4px;letter-spacing:.18em;font-size:26px}
+  .overlay h2.bad{color:var(--bad)} .overlay h2.title{color:var(--acc)}
+  .overlay p{color:var(--dim);margin:6px 0;max-width:430px;line-height:1.6;font-size:13px}
+  .overlay .big{font-size:40px;font-weight:700;color:var(--hot);margin:8px 0}
+  button{background:linear-gradient(180deg,#c98cff,#9b4dff);color:#1a0633;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:13px 30px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:14px;box-shadow:0 6px 22px rgba(177,92,255,.4)}
+  button:hover{filter:brightness(1.08)}
+  .modes{display:flex;gap:8px;justify-content:center;margin-top:8px}
+  .modes button{background:#1c1430;border:1px solid #2e2240;color:var(--dim);font-weight:700;letter-spacing:.1em;padding:8px 18px;border-radius:8px;font-size:12px;margin:0;box-shadow:none}
+  .modes button.on{background:#251a36;border-color:var(--acc);color:var(--hot)}
+  .modes button:hover{filter:none}
+  .seedline{color:var(--dim);font-size:11px;letter-spacing:.14em;margin-top:9px;min-height:14px}
+  .statline{color:var(--dim);font-size:12px;margin-top:10px;letter-spacing:.06em}
+  .statline b{color:var(--ink)}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}a.back:hover{color:var(--ink)}
+  @media(max-width:560px){
+    body{justify-content:flex-start}
+    a.back{position:static;display:block;margin:7px 0 0 10px;font-size:11px}
+    header{padding:2px 10px 0}
+    header h1{font-size:14px}
+    header .sub{display:none}
+    .hud{gap:6px;padding:4px 8px}
+    .hud .stat{background:none;border:0;padding:2px 5px;overflow:visible}
+    .hud .stat .k{font-size:8px;letter-spacing:.08em}
+    .hud .stat .val{font-size:18px;margin-top:0}
+    #wrap{margin:5px 0}
+    .foot{display:none}
+  }
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← arcade</a>
+<header>
+  <div><h1>DES<span class="v">CENT</span></h1><div class="sub">FREEFALL · how deep can you go</div></div>
+</header>
+<div class="hud">
+  <div class="stat"><div class="k">DEPTH</div><div class="val" id="depth">0</div></div>
+  <div class="stat"><div class="k">MULT</div><div class="val" id="mult">×1.0</div></div>
+  <div class="stat"><div class="k">BEST</div><div class="val" id="best">0</div></div>
+</div>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="title">
+    <h2 class="title">DES<span style="color:#b15cff">CENT</span></h2>
+    <p>You're falling down a shaft. <b style="color:#eef2fb">Move left and right</b> to steer — your craft follows your finger (or mouse). Slip through the gaps; obstacles jut from the walls, gates leave one slot, and pillars block the middle.</p>
+    <p>Grab <b style="color:#ffd23f">charges</b> to pump your <b style="color:#ffd23f">multiplier</b> and make the depths fly by — but they sit where they pull you off your line. The shaft only gets faster and tighter. <b style="color:#ff4d6d">One hit ends the dive.</b></p>
+    <div class="modes">
+      <button id="mDaily" class="on" type="button">DAILY</button>
+      <button id="mFree" type="button">FREE</button>
+    </div>
+    <div class="seedline" id="seedline"></div>
+    <button id="startBtn">DIVE ▶</button>
+    <div class="statline d-desktop"><span class="key">move mouse</span> steer &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">slide finger</span> steer &nbsp; <span class="key">❙❙</span> pause</div>
+  </div>
+  <div class="overlay" id="over" style="display:none">
+    <h2 class="bad">IMPACT</h2>
+    <div class="big" id="finalScore">0</div>
+    <div class="statline" id="finalStats"></div>
+    <button id="again">DIVE AGAIN ⏎</button>
+    <div class="statline d-touch" style="margin-top:6px">or tap the shaft</div>
+  </div>
+  <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p><span class="d-desktop">press <span class="key">P</span> to resume</span><span class="d-touch">tap <span class="key">❙❙</span> to resume</span></p></div>
+</div>
+<div class="foot">
+  <b style="color:#b15cff">Steer</b> left and right — your craft tracks your finger (or mouse) for precise dodging. Slip past wall <b style="color:#ff4d6d">blocks</b>, thread a <b style="color:#ff4d6d">gate</b>'s slot, and weave around mid-shaft <b style="color:#ff4d6d">pillars</b>. <b style="color:#ffd23f">Charges</b> raise your multiplier, which scales every metre you fall — but reaching them pulls you off your safe line. Depth is your score; one collision ends the run.
+</div>
+<script src="seed.js"></script>
+<script src="juice.js"></script>
+<script src="stats.js"></script>
+<script>
+(()=>{
+  const MOBILE = window.matchMedia('(max-width:560px)').matches;
+  const W = MOBILE?340:380, H = MOBILE?640:640;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  const J=window.Juice; const fx=J.layer();
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- geometry ----
+  const WALL_W   = 24;                 // wall thickness on each side
+  const VESSEL_R = 9;
+  const VESSEL_Y = H*0.28;             // craft stays at a fixed screen y; the world scrolls past it
+  const INNER_L  = WALL_W, INNER_R = W-WALL_W;
+  const INTERIOR = INNER_R - INNER_L;
+  const X_MIN    = INNER_L + VESSEL_R, X_MAX = INNER_R - VESSEL_R;   // travel clamp
+  const clampX   = x => Math.max(X_MIN, Math.min(X_MAX, x));
+
+  // ---- tuning ----
+  const SPEED0    = 170;               // px/s initial descent
+  const SPEED_K   = 0.055;             // +~5.5 px/s per 100 depth
+  const SPEED_CAP = MOBILE?520:580;
+  const FOLLOW    = 22;                // how fast the craft eases toward the pointer (per second)
+  const THICK     = 16;                // obstacle depth thickness
+  const gapAt     = d => Math.max(168, 256 - d*0.011);   // vertical spacing tightens with depth
+  // gap/slot widths — generous early so free-steering feels fair, tightening with depth
+  const slotAt    = d => Math.max(VESSEL_R*4.2, INTERIOR*0.46 - d*0.012);
+  const blockAt   = d => Math.min(INTERIOR*0.66, INTERIOR*0.46 + d*0.010);   // protrusion of a wall block
+  const pillarAt  = d => Math.min(INTERIOR*0.40, INTERIOR*0.24 + d*0.008);   // width of a mid-shaft pillar
+  const GATE_UNLOCK   = 650;
+  const PILLAR_UNLOCK = 1500;
+  const PICKUP_RATE   = 0.32;
+  const MULT_STEP     = 0.1;
+  const START_CLEAR   = 520;           // clear runway before the first obstacle
+  const RUNG = 46;                     // wall tick spacing (parallax)
+
+  // ---- state ----
+  let vx, targetX,
+      depth, speed, scoreF, mult, score, best,
+      obstacles, pickups, genDepth, milestone,
+      last, state, mode, rng, gestured=false, trail;
+  const ACC='#b15cff', HOT='#ffd23f', BAD='#ff4d6d', GOOD='#36d399';
+
+  best = (()=>{ try{ return parseInt(localStorage.getItem('descent_best')||'0',10)||0; }catch(e){ return 0; } })();
+
+  function newRng(){ return mode==='daily' ? AASeed.daily('DESCENT') : AASeed.free('DESCENT'); }
+
+  // ---- procedural shaft (all draws from rng — deterministic per seed) ----
+  function pickKind(d){
+    const r = rng();
+    if(d < GATE_UNLOCK) return 'block';                         // gentle intro: learn to steer
+    if(d < PILLAR_UNLOCK) return r < 0.55 ? 'block' : 'gate';
+    if(r < 0.38) return 'block';
+    if(r < 0.74) return 'gate';
+    return 'pillar';
+  }
+  function genObstacle(d){
+    const kind = pickKind(d);
+    if(kind==='gate'){
+      const sw = slotAt(d);
+      const slotX = rng.range(INNER_L + sw/2 + 4, INNER_R - sw/2 - 4);
+      obstacles.push({ d, kind, slotX, slotW:sw, hit:false });
+    } else if(kind==='pillar'){
+      const pw = pillarAt(d);
+      // keep a passable lane on both sides of the pillar
+      const px = rng.range(INNER_L + pw/2 + VESSEL_R*2.2, INNER_R - pw/2 - VESSEL_R*2.2);
+      obstacles.push({ d, kind, px, pw, hit:false });
+    } else {
+      obstacles.push({ d, kind:'block', side: rng.chance(0.5)?-1:1, len: blockAt(d), hit:false });
+    }
+  }
+  function genChunk(){
+    const ahead = depth + H*1.6;
+    while(genDepth < ahead){
+      genObstacle(genDepth);
+      if(rng.chance(PICKUP_RATE)){
+        pickups.push({ d: genDepth - gapAt(genDepth)*0.5, x: rng.range(X_MIN+6, X_MAX-6), taken:false });
+      }
+      genDepth += gapAt(genDepth);
+    }
+  }
+
+  function reset(showTitle){
+    vx = W/2; targetX = W/2;
+    depth=0; speed=SPEED0; scoreF=0; mult=1; score=0; milestone=0;
+    obstacles=[]; pickups=[]; genDepth=START_CLEAR; trail=[];
+    rng=newRng(); genChunk();
+    document.getElementById('over').style.display='none';
+    document.getElementById('paused').style.display='none';
+    document.getElementById('title').style.display=showTitle?'flex':'none';
+    state = showTitle?'title':'play';
+    updateSeedline(); updateHUD();
+  }
+  function start(){ gestured=true; J.unlock(); reset(false); last=performance.now(); }
+
+  // ---- input (pointer-follow: craft x tracks finger / mouse) ----
+  function P(e){ const r=cv.getBoundingClientRect(), t=e.touches&&e.touches[0]?e.touches[0]:e;
+    return { x:(t.clientX-r.left)*(W/r.width), y:(t.clientY-r.top)*(H/r.height) }; }
+  function steer(e){ if(state!=='play') return; targetX = clampX(P(e).x); }
+  cv.addEventListener('mousemove', steer);
+  cv.addEventListener('mousedown', e=>{ gestured=true; if(state==='dead'){ start(); return; } steer(e); });
+  cv.addEventListener('touchstart', e=>{ e.preventDefault(); gestured=true; if(state==='dead'){ start(); return; } steer(e); },{passive:false});
+  cv.addEventListener('touchmove', e=>{ e.preventDefault(); steer(e); },{passive:false});
+  window.addEventListener('keydown', e=>{ const k=e.key.toLowerCase();
+    if(state==='play'){
+      if(k==='arrowleft'){ e.preventDefault(); targetX = clampX(targetX - INTERIOR*0.18); }
+      else if(k==='arrowright'){ e.preventDefault(); targetX = clampX(targetX + INTERIOR*0.18); }
+    }
+    if(k==='enter'&&state==='dead') start();
+    else if(k==='p'&&(state==='play'||state==='paused')) togglePause();
+  });
+  function togglePause(){ if(state==='play'){ state='paused'; document.getElementById('paused').style.display='flex'; }
+    else if(state==='paused'){ state='play'; document.getElementById('paused').style.display='none'; last=performance.now(); } }
+  document.getElementById('startBtn').onclick=start;
+  document.getElementById('again').onclick=start;
+  const mD=document.getElementById('mDaily'), mF=document.getElementById('mFree');
+  mode='daily';
+  mD.onclick=()=>{ gestured=true; mode='daily'; mD.classList.add('on'); mF.classList.remove('on'); updateSeedline(); haptic('tap'); };
+  mF.onclick=()=>{ gestured=true; mode='free'; mF.classList.add('on'); mD.classList.remove('on'); updateSeedline(); haptic('tap'); };
+  window.addEventListener('blur',()=>{ if(state==='play') togglePause(); });
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden && state==='play') togglePause(); });
+
+  function haptic(verb){ try{
+    if(window.Feel && Feel[verb]) Feel[verb]();
+    else if(gestured && navigator.vibrate){ const m={tap:6,select:8,commit:10,heavy:[14,22,14],warn:24,success:[10,28,10],fail:[30,40,30]}[verb]; if(m) navigator.vibrate(m); }
+  }catch(e){} }
+
+  function updateSeedline(){ const el=document.getElementById('seedline');
+    el.textContent = mode==='daily' ? ('TODAY · '+AASeed.dailyKey()) : 'ENDLESS · random shaft'; }
+
+  // ---- HUD ----
+  function bump(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'),100); }
+  function updateHUD(){
+    document.getElementById('depth').textContent=Math.round(scoreF);
+    document.getElementById('mult').textContent='×'+mult.toFixed(1);
+    document.getElementById('best').textContent=Math.max(best,Math.round(scoreF));
+  }
+
+  // ---- collision ----
+  // vessel rect overlaps a solid x-span [x1,x2] within the obstacle's y-band?
+  function overlapsX(x1,x2){ return (vx+VESSEL_R > x1) && (vx-VESSEL_R < x2); }
+  function obstacleHit(o){
+    if(Math.abs(o.d - depth) > THICK/2 + VESSEL_R) return false;     // y-bands don't overlap
+    if(o.kind==='gate'){
+      const sl=o.slotX-o.slotW/2, sr=o.slotX+o.slotW/2;
+      return overlapsX(INNER_L, sl) || overlapsX(sr, INNER_R);       // hits a bar on either side of the slot
+    }
+    if(o.kind==='pillar') return overlapsX(o.px-o.pw/2, o.px+o.pw/2);
+    if(o.side<0) return overlapsX(INNER_L, INNER_L + o.len);
+    return overlapsX(INNER_R - o.len, INNER_R);
+  }
+
+  function crash(){
+    state='dead';
+    fx.burst(vx, VESSEL_Y, ACC, 26, {spread:4.2, up:0, decay:0.03, r:3});
+    fx.ring(vx, VESSEL_Y, BAD, 46, {lw:3, decay:0.04});
+    J.tone(150,0.5,'sawtooth',0.12); J.tone(70,0.8,'sine',0.1,0.05);
+    if(!REDUCE) fx.shake(20);
+    haptic('fail');
+    score=Math.round(scoreF);
+    const wasBest = score>best;
+    if(wasBest){ best=score; try{ localStorage.setItem('descent_best',String(best)); }catch(e){} }
+    if(window.GameStats) GameStats.submitScore('DESCENT', score);
+    document.getElementById('finalScore').textContent=score;
+    document.getElementById('finalStats').innerHTML='peak multiplier <b>×'+mult.toFixed(1)+'</b>'+(wasBest?' &nbsp;·&nbsp; <b style="color:#36d399">NEW BEST</b>':'');
+    document.getElementById('over').style.display='flex';
+    updateHUD();
+  }
+
+  // ---- loop ----
+  function loop(now){ let dt=Math.min(48, now-last); last=now; const ds=dt/1000;
+    if(state==='play'){
+      if(window.GameStats) GameStats.ping('DESCENT', dt);
+
+      // descend
+      speed = Math.min(SPEED_CAP, SPEED0 + depth*SPEED_K);
+      depth += speed*ds;
+      scoreF += speed*ds*0.1*mult;          // depth, scaled by the greed multiplier = the score
+      genChunk();
+
+      // steer: ease toward the pointer (tactile, not teleporting)
+      vx += (targetX - vx) * Math.min(1, FOLLOW*ds);
+      vx = clampX(vx);
+
+      // trail (cosmetic)
+      trail.push(vx); if(trail.length>12) trail.shift();
+
+      // depth milestones
+      while(scoreF >= milestone+500){ milestone+=500; haptic('commit');
+        if(!REDUCE) fx.float(W/2, VESSEL_Y-30, Math.round(milestone)+'m', ACC, {size:18, decay:0.02, vy:-0.3}); }
+
+      // pickups
+      for(const p of pickups){ if(p.taken) continue;
+        const sy = VESSEL_Y + (p.d - depth);
+        if(Math.abs(sy-VESSEL_Y) > VESSEL_R+9) continue;
+        const dx=vx-p.x, dy=VESSEL_Y-sy;
+        if(dx*dx+dy*dy <= (VESSEL_R+9)*(VESSEL_R+9)){
+          p.taken=true; mult+=MULT_STEP; scoreF += 25*mult;
+          fx.float(p.x, VESSEL_Y, '×'+mult.toFixed(1), HOT, {size:20, decay:0.02, vy:-0.4});
+          fx.burst(p.x, VESSEL_Y, HOT, 9, {spread:2.4, up:0, decay:0.05, r:2});
+          J.tone(720,0.07,'triangle',0.05); J.tone(1080,0.06,'sine',0.035,0.04);
+          haptic('select'); bump('mult'); bump('depth');
+        }
+      }
+
+      // collision
+      for(const o of obstacles){ if(o.hit) continue;
+        if(obstacleHit(o)){ o.hit=true; crash(); break; } }
+
+      // cull what's scrolled above the craft
+      obstacles = obstacles.filter(o => (o.d - depth) > -H*0.6);
+      pickups   = pickups.filter(p => (p.d - depth) > -H*0.6);
+    }
+
+    fx.update(dt);
+    draw();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- draw ----
+  function wallTicks(){
+    ctx.strokeStyle='rgba(177,92,255,0.16)'; ctx.lineWidth=2;
+    const off = depth % RUNG;
+    ctx.beginPath();
+    for(let y=-off; y<H; y+=RUNG){
+      ctx.moveTo(INNER_L-8, y); ctx.lineTo(INNER_L, y+6);
+      ctx.moveTo(INNER_R+8, y); ctx.lineTo(INNER_R, y+6);
+    }
+    ctx.stroke();
+  }
+  function barGlow(x,y,w,h){
+    if(w<=0) return;
+    const g=ctx.createLinearGradient(x,y,x,y+h);
+    g.addColorStop(0,'rgba(255,77,109,0.25)'); g.addColorStop(0.5,'rgba(255,77,109,0.9)'); g.addColorStop(1,'rgba(255,77,109,0.25)');
+    ctx.fillStyle=g; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='rgba(255,160,180,0.9)'; ctx.fillRect(x,y+h/2-1,w,2);
+  }
+  function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+  function draw(){
+    ctx.save();
+    const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
+    ctx.clearRect(-40,-40,W+80,H+80);
+
+    // walls
+    ctx.fillStyle='#0e0a1a'; ctx.fillRect(0,0,INNER_L,H); ctx.fillRect(INNER_R,0,W-INNER_R,H);
+    ctx.strokeStyle='rgba(177,92,255,0.5)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(INNER_L,0); ctx.lineTo(INNER_L,H); ctx.moveTo(INNER_R,0); ctx.lineTo(INNER_R,H); ctx.stroke();
+    wallTicks();
+
+    // obstacles
+    for(const o of obstacles){
+      const sy = VESSEL_Y + (o.d - depth);
+      if(sy < -THICK || sy > H+THICK) continue;
+      const y = sy - THICK/2;
+      ctx.globalCompositeOperation='lighter';
+      if(o.kind==='gate'){
+        const sl=o.slotX-o.slotW/2, sr=o.slotX+o.slotW/2;
+        barGlow(INNER_L, y, sl-INNER_L, THICK);
+        barGlow(sr, y, INNER_R-sr, THICK);
+        ctx.globalCompositeOperation='source-over';
+        ctx.strokeStyle='rgba(54,211,153,0.85)'; ctx.lineWidth=2;        // slot edges = the safe gap
+        ctx.beginPath(); ctx.moveTo(sl,y-3); ctx.lineTo(sl,y+THICK+3); ctx.moveTo(sr,y-3); ctx.lineTo(sr,y+THICK+3); ctx.stroke();
+      } else if(o.kind==='pillar'){
+        barGlow(o.px-o.pw/2, y, o.pw, THICK);
+      } else if(o.side<0){
+        barGlow(INNER_L, y, o.len, THICK);
+      } else {
+        barGlow(INNER_R-o.len, y, o.len, THICK);
+      }
+      ctx.globalCompositeOperation='source-over';
+    }
+
+    // pickups
+    ctx.globalCompositeOperation='lighter';
+    for(const p of pickups){ if(p.taken) continue;
+      const sy = VESSEL_Y + (p.d - depth); if(sy<-12||sy>H+12) continue;
+      const pl=0.6+0.4*Math.sin(performance.now()/180 + p.d);
+      const g=ctx.createRadialGradient(p.x,sy,0,p.x,sy,12);
+      g.addColorStop(0,'rgba(255,231,120,'+(0.9*pl)+')'); g.addColorStop(0.5,'rgba(255,210,63,'+(0.5*pl)+')'); g.addColorStop(1,'rgba(255,210,63,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(p.x,sy,12,0,7); ctx.fill();
+      ctx.fillStyle=HOT; ctx.save(); ctx.translate(p.x,sy); ctx.rotate(Math.PI/4); ctx.fillRect(-3.5,-3.5,7,7); ctx.restore();
+    }
+    ctx.globalCompositeOperation='source-over';
+
+    // craft trail
+    ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<trail.length;i++){ const a=i/trail.length;
+      ctx.fillStyle='rgba(177,92,255,'+(a*0.32)+')';
+      ctx.beginPath(); ctx.arc(trail[i], VESSEL_Y - (trail.length-i)*2.0, VESSEL_R*(0.4+0.5*a), 0, 7); ctx.fill(); }
+    ctx.globalCompositeOperation='source-over';
+
+    // craft
+    const g=ctx.createRadialGradient(vx,VESSEL_Y,1,vx,VESSEL_Y,VESSEL_R*2.2);
+    g.addColorStop(0,'rgba(232,210,255,0.95)'); g.addColorStop(0.5,'rgba(177,92,255,0.6)'); g.addColorStop(1,'rgba(177,92,255,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(vx,VESSEL_Y,VESSEL_R*2.2,0,7); ctx.fill();
+    ctx.fillStyle='#f1e6ff';
+    roundRect(vx-VESSEL_R, VESSEL_Y-VESSEL_R, VESSEL_R*2, VESSEL_R*2, 4); ctx.fill();
+    ctx.fillStyle=ACC; roundRect(vx-VESSEL_R*0.5, VESSEL_Y-VESSEL_R*0.5, VESSEL_R, VESSEL_R, 2); ctx.fill();
+
+    fx.render(ctx);
+    ctx.restore();
+
+    // speed vignette tightens as the shaft accelerates
+    const sp=(speed-SPEED0)/(SPEED_CAP-SPEED0);
+    if(sp>0.4){ J.vignette(ctx,W,H,(sp-0.4)/0.6*0.45,'rgba(60,20,110,A)'); }
+  }
+
+  // debug hook (inert in normal play)
+  window.__descent={ get obstacles(){return obstacles;}, get pickups(){return pickups;},
+    getScore:()=>Math.round(scoreF), getDepth:()=>depth, getMult:()=>mult, getState:()=>state,
+    setState:v=>state=v, getX:()=>vx, setTarget:x=>{targetX=clampX(x);} };
+
+  reset(true); last=performance.now(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

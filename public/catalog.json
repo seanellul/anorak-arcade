@@ -210,6 +210,22 @@
       "controls": ["touch", "mouse"],
       "entry": "intercept.html",
       "bundle": { "version": "1.0.0", "url": "/bundles/intercept-1.0.0.zip", "bytes": 0, "sha256": "" }
+    },
+    {
+      "id": "DESCENT",
+      "slug": "descent",
+      "title": "DESCENT",
+      "verb": "FREEFALL",
+      "tag": "freefall · steer & dodge",
+      "blurb": "You're falling down a shaft — steer left and right to thread the gaps. Slip past wall blocks, thread a gate's slot, weave around mid-shaft pillars. Charges pump a multiplier that scales every metre, but reaching them pulls you off your line. One hit ends the dive.",
+      "accent": "#b15cff",
+      "type": "prototype",
+      "wave": 5,
+      "featured": false,
+      "platforms": ["mobile", "desktop"],
+      "controls": ["touch", "mouse"],
+      "entry": "descent.html",
+      "bundle": { "version": "1.0.0", "url": "/bundles/descent-1.0.0.zip", "bytes": 0, "sha256": "" }
     }
   ]
 }

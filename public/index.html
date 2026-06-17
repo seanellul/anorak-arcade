@@ -300,6 +300,15 @@ a.card.v2.feature .body p{max-width:560px}
         <div class="pill">finite-resource triage · multi-kill timing</div>
       </div>
     </a>
+    <a class="card v2 reveal" href="descent.html" style="--c:#b15cff">
+      <span class="demo"><canvas data-demo="descent"></canvas><span class="verb">FREEFALL</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>DESCENT</h2>
+        <div class="tag">freefall · steer & dodge</div>
+        <p>You're falling. Steer left and right — your craft follows your finger — to <i>thread the gaps</i> past blocks, gates and pillars. Grab charges to pump a multiplier. One hit ends the dive.</p>
+        <div class="pill">free-steer faller · greed multiplier</div>
+      </div>
+    </a>
   </div>
 
   <section class="playtime reveal">
@@ -327,8 +336,8 @@ a.card.v2.feature .body p{max-width:560px}
    playtime panel (unchanged from prod)
    ===================================================================== */
 (()=>{
-  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a',ECOTONE:'#7fc24a'};
-  const ORDER=['MOTHERLOAD','ECOTONE','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','INTERCEPT'];
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a',ECOTONE:'#7fc24a',INTERCEPT:'#ff4747',DESCENT:'#b15cff'};
+  const ORDER=['MOTHERLOAD','ECOTONE','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','INTERCEPT','DESCENT'];
   function render(){
     if(!window.GameStats) return;
     const all=GameStats.all(); const map={}; all.forEach(a=>map[a.game]=a);
@@ -904,7 +913,45 @@ a.card.v2.feature .body p{max-width:560px}
     }, onResize:reset};
   }
 
-  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,weave,pulse,intercept,motherload,ecotone};
+  /* ---------- DESCENT: a craft weaves down a shaft, threading gaps in the falling bars ---------- */
+  function descent(g){
+    const {ctx}=g; let bars,cx,t=0,spawnT=0;
+    function wall(){ return Math.max(5,g.w*0.07); }
+    function reset(){ bars=[]; cx=g.w/2; t=0; spawnT=0; }
+    reset();
+    const SPD=0.05;
+    return {step(dt){ t+=dt;
+      const wl=wall(), l=wl, r=g.w-wl, inner=r-l, cy=g.h*0.32;
+      spawnT-=dt;
+      if(spawnT<=0){ spawnT=560;
+        const gapW=Math.max(16,inner*0.40), gx=l+gapW/2+Math.random()*(inner-gapW);
+        bars.push({y:g.h+8, gx, gapW}); }
+      ctx.clearRect(0,0,g.w,g.h);
+      // walls
+      ctx.fillStyle='#0e0a1a'; ctx.fillRect(0,0,l,g.h); ctx.fillRect(r,0,g.w-r,g.h);
+      ctx.strokeStyle='rgba(177,92,255,0.45)'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(l,0); ctx.lineTo(l,g.h); ctx.moveTo(r,0); ctx.lineTo(r,g.h); ctx.stroke();
+      // gate bars rising past the craft
+      let target=g.w/2, bd=1e9;
+      for(let i=bars.length-1;i>=0;i--){ const b=bars[i]; b.y-=dt*SPD;
+        if(b.y<-8){ bars.splice(i,1); continue; }
+        const sl=b.gx-b.gapW/2, sr=b.gx+b.gapW/2;
+        ctx.fillStyle='rgba(255,77,109,0.85)'; ctx.fillRect(l,b.y-2,sl-l,4); ctx.fillRect(sr,b.y-2,r-sr,4);
+        ctx.strokeStyle='rgba(54,211,153,0.7)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(sl,b.y-4); ctx.lineTo(sl,b.y+4); ctx.moveTo(sr,b.y-4); ctx.lineTo(sr,b.y+4); ctx.stroke();
+        const d=b.y-cy; if(d>-4 && d<bd){ bd=d; target=b.gx; } }
+      // craft eases toward the next gap
+      cx += (target-cx)*Math.min(1,dt*0.006); cx=Math.max(l+5,Math.min(r-5,cx));
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const gr=ctx.createRadialGradient(cx,cy,0,cx,cy,11);
+      gr.addColorStop(0,'rgba(232,210,255,0.95)'); gr.addColorStop(0.5,'rgba(177,92,255,0.55)'); gr.addColorStop(1,'rgba(177,92,255,0)');
+      ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(cx,cy,11,0,6.28); ctx.fill(); ctx.restore();
+      ctx.fillStyle='#f1e6ff'; ctx.fillRect(cx-4,cy-4,8,8);
+      if(t>9000) reset();
+    }, onResize:reset};
+  }
+
+  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,weave,pulse,intercept,descent,motherload,ecotone};
 
   /* boot every demo canvas; share one rAF; pause off-screen */
   document.querySelectorAll('canvas[data-demo]').forEach(cv=>{
