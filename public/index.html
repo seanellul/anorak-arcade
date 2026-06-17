@@ -315,7 +315,7 @@ a.card.v2.feature .body p{max-width:560px}
     <div class="chip"><span class="ico">⚡</span><div class="ctxt"><b>Zero dependencies</b><span>Pure HTML5 canvas — nothing to install.</span></div></div>
     <div class="chip"><span class="ico">🔊</span><div class="ctxt"><b>Click once for sound</b><span>Tap inside any game to enable audio.</span></div></div>
     <div class="chip"><span class="ico">↻</span><div class="ctxt"><b>Instant restart</b><span>Fail → retry loop. Loss is cheap, and clearly your own fault.</span></div></div>
-    <div class="chip"><span class="ico">💾</span><div class="ctxt"><b>Tracked locally</b><span>Saved in your browser; live leaderboard syncing soon.</span></div></div>
+    <div class="chip"><span class="ico">🏆</span><div class="ctxt"><b>Global leaderboards</b><span>Best scores ranked live. Get the app and sign in to claim your spot.</span></div></div>
   </div>
 </div>
 
@@ -328,7 +328,7 @@ a.card.v2.feature .body p{max-width:560px}
    ===================================================================== */
 (()=>{
   const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a',ECOTONE:'#7fc24a'};
-  const ORDER=['MOTHERLOAD','ECOTONE','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE'];
+  const ORDER=['MOTHERLOAD','ECOTONE','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','INTERCEPT'];
   function render(){
     if(!window.GameStats) return;
     const all=GameStats.all(); const map={}; all.forEach(a=>map[a.game]=a);
