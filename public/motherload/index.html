@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0" />
   <title>Motherload</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23e8a13a'/></svg>" />
-  <link rel="stylesheet" href="css/style.css?v=50" />
+  <link rel="stylesheet" href="css/style.css?v=51" />
 </head>
 <body>
   <div id="game-root">
@@ -19,7 +19,7 @@
     <div id="hud" class="hidden">
       <div class="gauge">
         <span class="gauge-label">FUEL</span>
-        <div class="bar"><div id="fuel-fill" class="fill fuel"></div></div>
+        <div class="bar"><div id="fuel-fill" class="fill fuel"></div><div id="fuel-home" class="home-tick hidden" title="Fuel needed to climb home"></div></div>
         <span id="fuel-text" class="gauge-text">0/0</span>
       </div>
       <div class="gauge">
@@ -95,6 +95,8 @@
       </div>
       <button id="start-btn" class="big-btn" data-nav-default>START MINING</button>
       <button id="continue-btn" class="big-btn secondary hidden">CONTINUE</button>
+      <button id="daily-challenge-btn" class="big-btn secondary" title="One shared seed for everyone, Normal rules — compare your depth">📅 DAILY CHALLENGE</button>
+      <div id="daily-best" class="daily-best hidden"></div>
       <button id="howto-btn" class="big-btn secondary">📖 HOW TO PLAY</button>
       <button id="garage-btn" class="big-btn secondary">🛠 GARAGE</button>
       <button id="records-btn" class="big-btn secondary">🏆 RECORDS</button>
@@ -104,8 +106,8 @@
       <div class="controls-help">
         <h3>CONTROLS</h3>
         <p><b>Arrow keys / WASD</b> — Fly &amp; thrust · <b>Down</b> — Drill · <b>Left / Right into dirt</b> — Tunnel</p>
-        <p><b>E / Enter</b> Use building · <b>C</b> Codex · <b>M</b> Map · <b>B</b> Dynamite · <b>T</b> Teleport · <b>ESC</b> Pause</p>
-        <p>🎮 <b>Gamepad supported</b> — stick / d-pad to fly · <b>A</b> use · <b>X</b> dynamite · <b>Y</b> teleport · <b>Start</b> pause</p>
+        <p><b>E / Enter</b> Use building · <b>C</b> Codex · <b>M</b> Maps · <b>TAB</b> Cargo · <b>B</b> Dynamite · <b>T</b> Teleport · <b>ESC</b> Pause</p>
+        <p>🎮 <b>Gamepad supported</b> — stick / d-pad to fly · <b>A</b> use · <b>X</b> dynamite · <b>Y</b> teleport · <b>LB/RB</b> cargo · <b>Start</b> pause</p>
       </div>
     </div>
 
@@ -139,6 +141,14 @@
         <p class="about-sign">— Thanks for playing. Now go strike the Motherlode. ⛏</p>
       </div>
       <button id="about-back" class="big-btn" data-nav-default>BACK</button>
+    </div>
+
+    <!-- New-game overwrite confirmation -->
+    <div id="confirm-screen" class="screen hidden">
+      <h1 class="title danger" style="font-size:38px">OVERWRITE SAVE?</h1>
+      <p class="subtitle" style="max-width:520px">A saved expedition already exists. Starting a new run will replace it the next time the game saves.</p>
+      <button id="confirm-yes" class="big-btn">START NEW RUN</button>
+      <button id="confirm-no" class="big-btn secondary" data-nav-default>BACK</button>
     </div>
 
     <!-- Pause menu -->
@@ -227,7 +237,7 @@
     </div><!-- /#stage -->
   </div>
 
-  <script type="module" src="js/main.js?v=50"></script>
+  <script type="module" src="js/main.js?v=51"></script>
   <!-- Anorak Arcade integration (kept out of the game source) -->
   <script src="../stats.js"></script>
   <script src="arcade-track.js"></script>

@@ -1,7 +1,7 @@
 // ============================================================
 //  Motherload — entry point
 // ============================================================
-import { Game } from "./game.js?v=50";
+import { Game } from "./game.js?v=51";
 
 const canvas = document.getElementById("game");
 const game = new Game(canvas);

@@ -4,7 +4,7 @@
 //  Achievements are state-checkable predicates evaluated each tick;
 //  records track lifetime personal bests.
 // ============================================================
-import { ORE_KEYS, ALLOYS, ARTIFACTS, SPACE_ORE_KEYS } from "./config.js?v=50";
+import { ORE_KEYS, ALLOYS, ARTIFACTS, SPACE_ORE_KEYS } from "./config.js?v=51";
 
 const PROGRESS_KEY = "motherload_progress_v1";
 const ALLOY_KEYS = Object.keys(ALLOYS);
@@ -38,6 +38,12 @@ export const ACHIEVEMENTS = [
   { id: "astronaut", icon: "🚀", name: "Astronaut", desc: "Rocket all the way up to space.", cond: () => false },
   { id: "void_miner", icon: "☄", name: "Void Miner", desc: "Mine ore from an asteroid.",
     cond: (c) => SPACE_ORE_KEYS.some((k) => (c.state.player.cargo[k] || 0) > 0) },
+  { id: "excavator", icon: "🚜", name: "Excavator", desc: "Dig 2,500 tiles in a single run.",
+    cond: (c) => (c.state.stats.tilesDug || 0) >= 2500 },
+  { id: "chain_reaction", icon: "🔗", name: "Chain Reaction", desc: "Chain an x8 ore combo.",
+    cond: (c) => (c.state.stats.bestCombo || 0) >= 8 },
+  { id: "treasure_hunter", icon: "🧰", name: "Treasure Hunter", desc: "Crack 5 buried treasure chests in one run.",
+    cond: (c) => (c.state.stats.treasures || 0) >= 5 },
   // Ending achievements — granted directly when you make the choice (cond never auto-fires).
   { id: "ending_free",    icon: "👁", name: "Liberator", desc: "Free the Heart of Natas.",     cond: () => false },
   { id: "ending_seal",    icon: "🔒", name: "Warden",    desc: "Seal the Heart of Natas away.", cond: () => false },

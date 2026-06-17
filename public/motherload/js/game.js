@@ -8,22 +8,23 @@ import {
   MUTATORS, MUTATOR_KEYS, resolveMutators,
   PERKS, PERK_BRANCH_KEYS, resolvePerks, perkPointsEarned,
   ENDINGS, RESTOCK_TARGET,
-} from "./config.js?v=50";
-import { World, tileColor } from "./world.js?v=50";
-import { Player } from "./player.js?v=50";
-import { Camera } from "./camera.js?v=50";
-import { Input } from "./input.js?v=50";
-import { UI } from "./ui.js?v=50";
-import { BUILDINGS, buildingAt, sellAll, buyFullFuel, autoRestock } from "./shops.js?v=50";
-import { MissionManager } from "./missions.js?v=50";
-import { AudioManager } from "./audio.js?v=50";
-import { NavManager } from "./nav.js?v=50";
-import { WeatherManager } from "./weather.js?v=50";
-import { MarketManager } from "./market.js?v=50";
-import { AchievementManager, ACHIEVEMENTS } from "./achievements.js?v=50";
-import { RadioManager } from "./radio.js?v=50";
+} from "./config.js?v=51";
+import { World, tileColor } from "./world.js?v=51";
+import { Player } from "./player.js?v=51";
+import { Camera } from "./camera.js?v=51";
+import { Input } from "./input.js?v=51";
+import { UI } from "./ui.js?v=51";
+import { BUILDINGS, buildingAt, sellAll, buyFullFuel, autoRestock } from "./shops.js?v=51";
+import { MissionManager } from "./missions.js?v=51";
+import { AudioManager } from "./audio.js?v=51";
+import { NavManager } from "./nav.js?v=51";
+import { WeatherManager } from "./weather.js?v=51";
+import { MarketManager } from "./market.js?v=51";
+import { AchievementManager, ACHIEVEMENTS } from "./achievements.js?v=51";
+import { RadioManager } from "./radio.js?v=51";
 
 const SAVE_KEY = "motherload_save_v1";
+const DAILY_KEY = "motherload_daily_v1"; // today's daily-challenge best
 
 export class Game {
   constructor(canvas) {
@@ -37,6 +38,8 @@ export class Game {
     this.particles = [];
     this.floaters = [];     // floating value/damage text
     this.thrownDynamite = []; // live fused dynamite sticks in the world
+    this._delayed = [];       // game-time scheduled events (see after())
+    this.mapMode = "off";     // M cycles: off → local tunnel map → world map
     this.hitStop = 0;       // brief freeze-frame on impactful events
     this.cine = null;       // active cinematic moment (letterbox + slow-mo + title)
     this.comboCount = 0;    // ore mined in quick succession
@@ -86,11 +89,11 @@ export class Game {
   }
 
   bindButtons() {
-    const startMining = () => {
+    const startMining = () => this.confirmNewGame(() => {
       this.audio.init();
       const seedStr = document.getElementById("seed-input").value.trim();
       this.newGame(seedFromInput(seedStr), this.selectedDifficulty);
-    };
+    });
     document.getElementById("start-btn").addEventListener("click", () => {
       this.audio.init();
       // First-time players get the How-to-Play screen before their first dig.
@@ -111,12 +114,30 @@ export class Game {
     if (goLoad) goLoad.addEventListener("click", () => { UI.hideGameOver(); this.loadGame(); });
     document.getElementById("mutators-btn").addEventListener("click", () => { this.audio.init(); this.openMutators(); });
     document.getElementById("mutators-close").addEventListener("click", () => this.closeMutators());
-    document.getElementById("mutators-start").addEventListener("click", () => {
+    document.getElementById("mutators-start").addEventListener("click", () => this.confirmNewGame(() => {
       this.audio.init();
       this.closeMutators();
       const seedStr = document.getElementById("seed-input").value.trim();
       this.newGame(seedFromInput(seedStr), this.selectedDifficulty, [...this.selectedMutators]);
+    }));
+    // Confirm-overwrite dialog (shown only when a saved run exists).
+    document.getElementById("confirm-yes").addEventListener("click", () => {
+      document.getElementById("confirm-screen").classList.add("hidden");
+      const fn = this._confirmYes; this._confirmYes = null;
+      if (fn) fn();
     });
+    document.getElementById("confirm-no").addEventListener("click", () => {
+      document.getElementById("confirm-screen").classList.add("hidden");
+      this._confirmYes = null;
+    });
+    // Daily challenge — one shared seed for everyone, Normal rules.
+    const dailyChal = document.getElementById("daily-challenge-btn");
+    if (dailyChal) dailyChal.addEventListener("click", () => this.confirmNewGame(() => {
+      this.audio.init();
+      this.newGame(dailySeed(), "normal", [], { daily: dailySeed() });
+      UI.toast("📅 Daily Challenge — one shared world, every pilot, all day", "good");
+    }));
+    this.updateDailyBest();
     this._bindSetup();
     const muteBtn = document.getElementById("mute-btn");
     muteBtn.addEventListener("click", () => this.toggleMute());
@@ -302,10 +323,12 @@ export class Game {
     this.audio.setDrill(false); this.audio.setThrust(false);
     const s = this.state;
     const diffLabel = DIFFICULTIES[this.difficulty || "normal"].label;
+    const st = s.stats;
     document.getElementById("pause-stats").innerHTML =
       `<div>Depth: <b>${s.player.depthMeters} m</b></div>` +
       `<div>Balance: <b>$${s.money.toLocaleString()}</b></div>` +
       `<div>Cargo: <b>${s.player.cargoCount}/${s.player.cargoMax}</b></div>` +
+      `<div>Time: <b>${fmtPlayTime(st.playTime)}</b> &nbsp;·&nbsp; Tiles dug: <b>${(st.tilesDug || 0).toLocaleString()}</b></div>` +
       `<div>Mode: <b>${diffLabel}</b> &nbsp;·&nbsp; Seed: <b>${s.world.seed}</b></div>`;
     document.getElementById("pause-screen").classList.remove("hidden");
   }
@@ -366,7 +389,7 @@ export class Game {
 
   // ---------------- lifecycle ----------------
   newGame(seed, difficulty = this.difficulty || this.selectedDifficulty || "normal",
-          mutators = this.selectedMutators ? [...this.selectedMutators] : []) {
+          mutators = this.selectedMutators ? [...this.selectedMutators] : [], opts = {}) {
     mutators = mutators.filter((m) => MUTATORS[m]);
     const mut = resolveMutators(mutators);
     const world = new World(seed, { ore: mut.ore, lava: mut.lava, treasure: mut.treasure });
@@ -390,13 +413,17 @@ export class Game {
       upgradesPurchased: 0,
       _baseSell: diff.sellMul * mut.sell,
       sellMul: diff.sellMul * mut.sell,
-      stats: { maxDepth: 0, totalEarned: 0 },
+      stats: freshStats(),
       missions: new MissionManager(),
       codex: { minerals: [], artifacts: [] },
       base: {},
+      locked: {},                  // cargo reserved for refinery recipes
+      daily: opts.daily || null,   // daily-challenge day key (YYYYMMDD)
     };
     this.applyModifiers();
     player.hull = player.maxHull; // fresh pod starts full
+    this._delayed = [];   // game-time scheduled events (tips, radio beats)
+    this._prevFuel = null;
     this.wireMissions();
     this._setupWeather(world.seed);
     this._hints = {};
@@ -436,15 +463,19 @@ export class Game {
     if (done) return;
     try { localStorage.setItem("motherload_onboarded", "1"); } catch {}
     const tips = [
-      [3200, "⛏ Hold DOWN to drill straight into the dirt beneath you."],
-      [8200, "💎 Minerals fill your cargo — fly UP and press E at the Mineral Depot to sell."],
-      [13200, "⛽ Always keep enough FUEL to climb home. Refuel at the Fuel Station."],
-      [18200, "🗺 Press M for the tunnel map · C for the codex · ESC to pause. Good luck!"],
+      [3.2, "⛏ Hold DOWN to drill straight into the dirt beneath you."],
+      [8.2, "💎 Minerals fill your cargo — fly UP and press E at the Mineral Depot to sell."],
+      [13.2, "⛽ Always keep enough FUEL to climb home. Refuel at the Fuel Station."],
+      [18.2, "🗺 Press M for the maps · TAB for cargo · C for the codex · ESC to pause. Good luck!"],
     ];
-    for (const [ms, msg] of tips) {
-      setTimeout(() => { if (this.mode === "playing") UI.toast(msg, "good"); }, ms);
-    }
+    // Scheduled on game time, so pausing or opening a shop can't swallow a tip.
+    for (const [secs, msg] of tips) this.after(secs, () => UI.toast(msg, "good"));
   }
+
+  // Schedule fn after `secs` of GAMEPLAY time. Unlike setTimeout, the clock
+  // only ticks while the sim runs (mode === "playing"), so tips and radio
+  // beats can't fire into a pause/shop screen and get lost.
+  after(secs, fn) { this._delayed.push({ t: secs, fn }); }
 
   wirePlayer(player) {
     player.onParticles = (x, y, color, count) => this.spawnParticles(x, y, color, count);
@@ -464,6 +495,11 @@ export class Game {
       // Combo: chaining ore quickly builds a multiplier feel
       this.comboCount = (this.comboTimer > 0 ? this.comboCount : 0) + 1;
       this.comboTimer = 1.2;
+      if (this.state) {
+        const st = this.state.stats;
+        st.oresMined = (st.oresMined || 0) + 1;
+        st.bestCombo = Math.max(st.bestCombo || 0, this.comboCount);
+      }
       // Floating value, scaled & coloured by mineral
       const big = m.value >= 2000;
       this.spawnFloater(px, py, `+$${m.value.toLocaleString()}`, m.color, {
@@ -490,18 +526,28 @@ export class Game {
       this.audio.sfx("artifact");
       this.shake(10);
       // Let the relic's lore land, then Old Pell chimes in.
-      setTimeout(() => { if (this.radio && this.mode === "playing") this.radio.transmit("prospector"); }, 7200);
+      this.after(7.2, () => { if (this.radio) this.radio.transmit("prospector"); });
     };
     player.onCoreBreak = () => this.showEndingChoice();
     player.onSfx = (name) => this.audio.sfx(name);
     player.onThrowDynamite = (x, y, vx, vy, fuse, radius) => {
       this.thrownDynamite.push({ x, y, vx, vy, fuse, maxFuse: fuse, radius, onGround: false });
     };
+    player.onTileBroken = () => {
+      if (this.state) this.state.stats.tilesDug = (this.state.stats.tilesDug || 0) + 1;
+    };
+    player.onTeleport = (fromX, fromY) => {
+      this.spawnParticles(fromX, fromY, "#9b6fe7", 16);
+      this.camera.follow(player, true); // snap — no minutes-long pan up the shaft
+      this.spawnParticles(player.centerX, player.centerY, "#9b6fe7", 22);
+      this.audio.sfx("mission");
+    };
     player.onTreasure = (value, x, y) => {
       const s = this.state;
       if (!s) return;
       s.money += value;
       s.stats.totalEarned += value;
+      s.stats.treasures = (s.stats.treasures || 0) + 1;
       UI.toast(`✦ TREASURE! +$${value.toLocaleString()}`, "good");
       this.spawnFloater(x, y, `TREASURE +$${value.toLocaleString()}`, "#ffd445", { size: 18, life: 1.5 });
       this.spawnParticles(x, y, "#ffd445", 24);
@@ -549,6 +595,7 @@ export class Game {
     this.audio.sfx("win");
     UI.hidePrompt();
     UI.showHUD(false);
+    this.recordDailyResult(true);
     try { localStorage.removeItem(SAVE_KEY); } catch {}
     UI.showVictory(this.state, ending);
   }
@@ -560,7 +607,7 @@ export class Game {
       this.state.stats.totalEarned += reward;
       UI.toast(`✦ MISSION COMPLETE: ${mission.title}  +$${reward.toLocaleString()}`, "good");
       this.audio.sfx("mission");
-      if (next) setTimeout(() => UI.toast(`NEW MISSION: ${next.title}`, "good"), 1400);
+      if (next) this.after(1.4, () => UI.toast(`NEW MISSION: ${next.title}`, "good"));
       if (mm.endgameUnlocked) this.onEndgameUnlocked();
       UI.updateObjective(this.state);
     };
@@ -594,8 +641,9 @@ export class Game {
     }
     this.radio.reset();
     this._earnTier = 0;
-    // Mission Control opens the run after a short beat.
-    setTimeout(() => { if (this.mode === "playing") this.radio.transmit("control"); }, 1600);
+    // Mission Control opens the run after a short beat (game time, so the
+    // greeting can't vanish while the player sits in a menu).
+    this.after(1.6, () => this.radio.transmit("control"));
   }
 
   // Dismiss the on-screen transmission/lore banner early and let the next
@@ -711,12 +759,53 @@ export class Game {
     UI.closeShop();
     UI.showHUD(false);
     UI.hidePrompt();
+    this.updateDailyBest();
     UI.showStart(this.hasSave());
   }
 
   // ---------------- save / load ----------------
   hasSave() {
     try { return !!localStorage.getItem(SAVE_KEY); } catch { return false; }
+  }
+
+  // Starting a new run silently overwrites the saved one — ask first.
+  // With no save on disk the question is skipped entirely.
+  confirmNewGame(onYes) {
+    if (!this.hasSave()) { onYes(); return; }
+    this._confirmYes = onYes;
+    document.getElementById("confirm-screen").classList.remove("hidden");
+  }
+
+  // ---------------- daily challenge ----------------
+  loadDailyBest() {
+    try { return JSON.parse(localStorage.getItem(DAILY_KEY)); } catch { return null; }
+  }
+
+  // Record today's daily-challenge result (called on game over & victory).
+  recordDailyResult(won = false) {
+    const s = this.state;
+    if (!s || !s.daily || s.daily !== dailySeed()) return;
+    const cur = this.loadDailyBest();
+    const best = cur && cur.day === s.daily ? cur
+      : { day: s.daily, depth: 0, earned: 0, won: false };
+    best.depth = Math.max(best.depth, s.stats.maxDepth || 0);
+    best.earned = Math.max(best.earned, s.stats.totalEarned || 0);
+    best.won = best.won || won;
+    try { localStorage.setItem(DAILY_KEY, JSON.stringify(best)); } catch {}
+    this.updateDailyBest();
+  }
+
+  // Title-screen line under the Daily Challenge button.
+  updateDailyBest() {
+    const el = document.getElementById("daily-best");
+    if (!el) return;
+    const b = this.loadDailyBest();
+    if (b && b.day === dailySeed()) {
+      el.textContent = `Today's best: ${(b.depth || 0).toLocaleString()}m · $${(b.earned || 0).toLocaleString()}${b.won ? " · ✓ CONQUERED" : ""}`;
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
   }
 
   save() {
@@ -741,6 +830,8 @@ export class Game {
       mutators: this.state.mutators || [],
       perks: this.state.perks || [],
       upgradesPurchased: this.state.upgradesPurchased || 0,
+      locked: this.state.locked || {},
+      daily: this.state.daily || null,
     };
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -782,7 +873,7 @@ export class Game {
     this.state = {
       world, player,
       money: data.money ?? START_MONEY,
-      stats: data.stats ?? { maxDepth: 0, totalEarned: 0 },
+      stats: { ...freshStats(), ...(data.stats || {}) },
       missions: MissionManager.deserialize(data.missions),
       codex: data.codex ?? { minerals: [], artifacts: [] },
       base: data.base ?? {},
@@ -793,8 +884,12 @@ export class Game {
       reachedSpace: !!data.reachedSpace,
       _baseSell: diff.sellMul * mut.sell,
       sellMul: diff.sellMul * mut.sell,
+      locked: data.locked || {},
+      daily: data.daily || null,
     };
     this.applyModifiers(); // also runs recomputeFromTiers + clamps hull
+    this._delayed = [];
+    this._prevFuel = null;
     this.wireMissions();
     this._setupWeather(world.seed);
     this.market.load(data.market);
@@ -994,7 +1089,6 @@ export class Game {
 
   update(dt) {
     if (!this.state) return;
-    const { player, state } = this;
     const s = this.state;
 
     // Stop looping engine sounds whenever we're not actively flying
@@ -1031,12 +1125,29 @@ export class Game {
     // Codex
     if (this.input.justPressed("codex")) { this.openCodex(); return; }
 
-    // Tunnel minimap toggle (M)
-    if (this.input.justPressed("map")) this.showMap = !this.showMap;
+    // Maps (M): local tunnel map → full world map → off
+    if (this.input.justPressed("map")) {
+      this.mapMode = this.mapMode === "local" ? "world" : this.mapMode === "world" ? "off" : "local";
+      this._wmDirty = true; // rebuild the world-map texture on open
+    }
+
+    // Game-time scheduled events (tutorial beats, radio follow-ups). Walked
+    // backwards so a fired callback scheduling another event is safe.
+    for (let i = this._delayed.length - 1; i >= 0; i--) {
+      const d = this._delayed[i];
+      d.t -= dt;
+      if (d.t <= 0) { this._delayed.splice(i, 1); d.fn(); }
+    }
 
     // Player physics + drilling
     const p = s.player;
     s.player.update(dt, this.input, false);
+
+    // ----- Run statistics -----
+    s.stats.playTime = (s.stats.playTime || 0) + dt;
+    const fuelDrop = (this._prevFuel ?? p.fuel) - p.fuel;
+    if (fuelDrop > 0) s.stats.fuelBurned = (s.stats.fuelBurned || 0) + fuelDrop;
+    this._prevFuel = p.fuel;
 
     // ----- Surface weather + living market -----
     this.weather.update(dt);
@@ -1187,19 +1298,27 @@ export class Game {
     // Outpost perks, applied on touchdown at the base (auto-sell first so the
     // proceeds can pay for the refuel & restock that follow).
     if (s.base && this.activeBuilding) {
+      // Collapse the whole touchdown service into ONE toast — auto-sell,
+      // refuel and restock together used to fire three at once.
+      const parts = [];
+      let sold = false;
       if (s.base.autoSell && p.cargoCount > 0) {
-        const res = sellAll(s);
-        if (res.ok) { UI.toast(`🪙 Auto-sold: +$${res.total.toLocaleString()}`, "good"); this.audio.sfx("sell"); }
+        const res = sellAll(s); // respects 🔒 recipe locks
+        if (res.ok) { parts.push(`sold +$${res.total.toLocaleString()}`); sold = true; }
       }
       // Gate on a ≥1-unit gap so the idle-burn drip doesn't nibble $1/frame.
       if (s.base.autoRefuel && p.maxFuel - p.fuel >= 1 && s.money > 0) {
         const wasLow = p.fuel < p.maxFuel * 0.5;
         const res = buyFullFuel(s);
-        if (res.ok && wasLow) { UI.toast("⛽ Auto-refuelled", "good"); this.audio.sfx("buy"); }
+        if (res.ok && wasLow) parts.push("refuelled");
       }
       if (s.base.autoRestock) {
         const res = autoRestock(s, RESTOCK_TARGET);
-        if (res.bought > 0) { UI.toast(`🧰 Restocked ${res.bought} item${res.bought === 1 ? "" : "s"} ($${res.spent.toLocaleString()})`, "good"); this.audio.sfx("buy"); }
+        if (res.bought > 0) parts.push(`restocked ×${res.bought} ($${res.spent.toLocaleString()})`);
+      }
+      if (parts.length) {
+        UI.toast(`🏠 Base: ${parts.join(" · ")}`, "good");
+        this.audio.sfx(sold ? "sell" : "buy");
       }
     }
     const atRest = p.onGround && Math.abs(p.vx) < 8 && Math.abs(p.vy) < 8;
@@ -1271,6 +1390,7 @@ export class Game {
     this.mode = "gameover";
     this.achievements.check(this);   // catch any last-moment unlocks
     this.achievements.recordDeath();
+    this.recordDailyResult(false);
     this.audio.setDrill(false); this.audio.setThrust(false);
     this.audio.sfx("death");
     this.shake(20);
@@ -1534,11 +1654,168 @@ export class Game {
     // Depth gauge drawn outside the shake transform so it stays steady
     this.drawDepthGauge(ctx, player);
 
-    // Tunnel minimap (toggled with M)
-    if (this.showMap) this.drawMinimap(ctx);
+    // Maps (M cycles local tunnel map → full world map → off)
+    if (this.mapMode === "local") this.drawMinimap(ctx);
+    else if (this.mapMode === "world") this.drawWorldMap(ctx);
+
+    // Cargo manifest — hold TAB (or a shoulder button) to peek at the hold
+    if (this.mode === "playing" && this.input.down("cargo")) this.drawCargoPanel(ctx);
 
     // Cinematic letterbox + title card sits above everything
     this.drawCinematic(ctx);
+  }
+
+  // Zoomed-out map of the whole dig: discovered strata bands, the dug tunnel
+  // network, surface buildings, the depth frontier and the pod itself.
+  drawWorldMap(ctx) {
+    const s = this.state;
+    if (!s) return;
+    // The texture rebuild walks the full cleared set — refresh it on open and
+    // then only every ~1.5s, not per frame.
+    this._wmAccum = (this._wmAccum || 0) + 1;
+    if (!this._wmCv || this._wmDirty || this._wmAccum > 90) {
+      this._wmDirty = false;
+      this._wmAccum = 0;
+      this._renderWorldMapTexture();
+    }
+    const totalRows = ROWS - GROUND_ROW;
+    const panelH = Math.min(this.viewH - 150, 520);
+    const panelW = 150;
+    const px = this.viewW - panelW - 40, py = 70;
+    ctx.fillStyle = "rgba(8,6,12,0.85)";
+    ctx.fillRect(px - 5, py - 5, panelW + 10, panelH + 10);
+    ctx.strokeStyle = "rgba(255,179,71,0.5)"; ctx.lineWidth = 1;
+    ctx.strokeRect(px - 5.5, py - 5.5, panelW + 11, panelH + 11);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this._wmCv, px, py, panelW, panelH);
+    ctx.imageSmoothingEnabled = true;
+
+    // depth-frontier line (deepest you've been)
+    const maxRows = (s.stats.maxDepth || 0) / 2;
+    const fy = py + Math.min(1, maxRows / totalRows) * panelH;
+    ctx.strokeStyle = "rgba(255,255,255,0.35)";
+    ctx.beginPath(); ctx.moveTo(px, fy); ctx.lineTo(px + panelW, fy); ctx.stroke();
+
+    // depth ticks every 500m down the left edge
+    ctx.fillStyle = "rgba(255,179,71,0.8)";
+    ctx.font = "9px 'Courier New', monospace";
+    ctx.textAlign = "right";
+    for (let m = 500; m < totalRows * 2; m += 500) {
+      const ty = py + (m / 2 / totalRows) * panelH;
+      ctx.fillRect(px - 4, ty, 4, 1);
+      ctx.fillText(`${m}m`, px - 7, ty + 3);
+    }
+
+    // player marker (clamped to the top edge while airborne)
+    const p = s.player;
+    const prow = Math.max(0, p.centerY / TILE - GROUND_ROW);
+    const mx = px + (p.centerX / (COLS * TILE)) * panelW;
+    const my = py + Math.min(1, prow / totalRows) * panelH;
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(mx, my, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.7)"; ctx.lineWidth = 1; ctx.stroke();
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(255,179,71,0.85)";
+    ctx.fillText("WORLD MAP — M", px - 5, py - 10);
+    ctx.textAlign = "start";
+  }
+
+  // Offscreen 1px-per-tile texture of the underground: discovered strata get
+  // their dirt colour, undiscovered bands stay murk, dug tiles glow.
+  _renderWorldMapTexture() {
+    const s = this.state, w = s.world;
+    const totalRows = ROWS - GROUND_ROW;
+    if (!this._wmCv) {
+      this._wmCv = document.createElement("canvas");
+      this._wmCv.width = COLS;
+      this._wmCv.height = totalRows;
+    }
+    const mc = this._wmCv.getContext("2d");
+    let deepest = 0;
+    if (this._regions) for (const i of this._regions) if (i > deepest) deepest = i;
+    for (let i = 0; i < STRATA.length; i++) {
+      const st = STRATA[i];
+      const end = i + 1 < STRATA.length ? STRATA[i + 1].start : totalRows;
+      const d = st.dirt;
+      mc.fillStyle = i <= deepest
+        ? `rgb(${(d[0] * 0.45) | 0},${(d[1] * 0.45) | 0},${(d[2] * 0.45) | 0})`
+        : "#101018";
+      mc.fillRect(0, st.start, COLS, end - st.start);
+    }
+    // every dug tile, 1px each
+    mc.fillStyle = "rgba(195,220,240,0.95)";
+    for (const i of w.cleared) {
+      const r = (i / COLS) | 0, c = i - r * COLS;
+      if (r >= GROUND_ROW) mc.fillRect(c, r - GROUND_ROW, 1, 1);
+    }
+    // surface buildings strip along the top
+    for (const b of BUILDINGS) {
+      mc.fillStyle = b.color;
+      mc.fillRect(b.col, 0, b.width, 2);
+    }
+    // the Heart, once the endgame is unlocked
+    if (s.missions && s.missions.endgameUnlocked && w.coreCenter) {
+      mc.fillStyle = "#ff3a8a";
+      mc.fillRect(w.coreCenter.c - 2, w.coreCenter.r - GROUND_ROW - 2, 5, 5);
+    }
+  }
+
+  // Hold-TAB cargo manifest: what's in the hold and what it fetches at
+  // today's market prices (difficulty/perk multipliers included), without
+  // flying home to find out.
+  drawCargoPanel(ctx) {
+    const s = this.state, p = s.player;
+    const sellMul = s.sellMul != null ? s.sellMul : 1;
+    const locked = s.locked || {};
+    const rows = Object.entries(p.cargo)
+      .filter(([, n]) => n > 0)
+      .map(([k, n]) => {
+        const unit = Math.round((this.market ? this.market.unitPrice(k) : MINERALS[k].value) * sellMul);
+        return { k, n, total: n * unit };
+      })
+      .sort((a, b) => b.total - a.total);
+    const lineH = 16, headH = 28, footH = 38;
+    const panelW = 252, panelH = headH + Math.max(1, rows.length) * lineH + footH;
+    // Bottom-left, clear of the objective tracker (top-left) and the prompt.
+    const px = 24, py = this.viewH - panelH - 86;
+    ctx.fillStyle = "rgba(8,6,12,0.88)";
+    ctx.fillRect(px, py, panelW, panelH);
+    ctx.strokeStyle = "rgba(255,179,71,0.5)"; ctx.lineWidth = 1;
+    ctx.strokeRect(px + 0.5, py + 0.5, panelW, panelH);
+    ctx.font = "bold 11px 'Courier New', monospace";
+    ctx.fillStyle = "#ffb347";
+    ctx.textAlign = "left";
+    ctx.fillText(`CARGO ${p.cargoCount}/${p.cargoMax}`, px + 10, py + 18);
+    ctx.textAlign = "right";
+    ctx.fillText("AT MARKET", px + panelW - 10, py + 18);
+    ctx.font = "11px 'Courier New', monospace";
+    let y = py + headH + 11, total = 0;
+    if (!rows.length) {
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#8a8a9a";
+      ctx.fillText("Empty hold — go dig.", px + 10, y);
+    }
+    for (const r of rows) {
+      total += r.total;
+      ctx.textAlign = "left";
+      ctx.fillStyle = MINERALS[r.k].color;
+      ctx.fillRect(px + 10, y - 7, 7, 7);
+      ctx.fillStyle = locked[r.k] ? "#8a8a9a" : "#cfcfda";
+      ctx.fillText(`${r.n}× ${MINERALS[r.k].name}${locked[r.k] ? " 🔒" : ""}`, px + 22, y);
+      ctx.textAlign = "right";
+      ctx.fillText(`$${r.total.toLocaleString()}`, px + panelW - 10, y);
+      y += lineH;
+    }
+    y += 6;
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#8a8a9a";
+    ctx.fillText(`Dynamite ${p.dynamite} · Teleporter ${p.teleporters}`, px + 10, y + 8);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#4ce78f";
+    ctx.font = "bold 12px 'Courier New', monospace";
+    ctx.fillText(`≈ $${total.toLocaleString()}`, px + panelW - 10, y + 9);
+    ctx.textAlign = "start";
   }
 
   // A toggleable local map of the dug tunnel network around the pod.
@@ -2583,6 +2860,20 @@ function seedFromInput(str) {
   for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); }
   return h >>> 0;
 }
+// "1h 23m" / "7m 05s" — for the pause & end-of-run stat readouts.
+function fmtPlayTime(secs) {
+  secs = Math.floor(secs || 0);
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
+  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m ${String(secs % 60).padStart(2, "0")}s`;
+}
+
+// A fresh per-run stats block. Loaded saves merge over these defaults, so
+// runs from older versions simply start the new counters at zero.
+function freshStats() {
+  return { maxDepth: 0, totalEarned: 0, maxAlt: 0, tilesDug: 0, oresMined: 0,
+           fuelBurned: 0, playTime: 0, bestCombo: 0, treasures: 0 };
+}
+
 function smooth01(t) { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3 - 2 * t); }
 function mix(a, b, t) {
   t = t < 0 ? 0 : t > 1 ? 1 : t;

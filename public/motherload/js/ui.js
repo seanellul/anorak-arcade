@@ -1,12 +1,19 @@
 // ============================================================
 //  UI — DOM-based HUD, toasts, prompts, and shop modals
 // ============================================================
-import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, consumableCost, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION } from "./config.js?v=50";
-import * as Shop from "./shops.js?v=50";
-import { CAMPAIGN } from "./missions.js?v=50";
-import { ARTIFACTS, ENDINGS } from "./config.js?v=50";
+import { UPGRADES, UPGRADE_KEYS, CONSUMABLES, consumableCost, MINERALS, MINERAL_KEYS, ORE_KEYS, RECIPES, BASE_UPGRADES, BASE_UPGRADE_KEYS, STRATA, PERKS, PERK_BRANCH_KEYS, FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, stratumAt, skyLayerAt, upgradeTier, upgradeCost, upgradeIsMax, UPGRADE_ESCALATION, GROUND_ROW, TILE, MAX_RISE, FUEL_THRUST_UP, FUEL_IDLE } from "./config.js?v=51";
+import * as Shop from "./shops.js?v=51";
+import { CAMPAIGN } from "./missions.js?v=51";
+import { ARTIFACTS, ENDINGS } from "./config.js?v=51";
 
 const el = (id) => document.getElementById(id);
+
+// "1h 23m" / "7m 05s" — for end-of-run stat readouts.
+function fmtTime(secs) {
+  secs = Math.floor(secs || 0);
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60);
+  return h > 0 ? `${h}h ${String(m).padStart(2, "0")}m` : `${m}m ${String(secs % 60).padStart(2, "0")}s`;
+}
 
 export const UI = {
   refs: {},
@@ -16,7 +23,7 @@ export const UI = {
     this.game = game;
     this.refs = {
       hud: el("hud"),
-      fuelFill: el("fuel-fill"), fuelText: el("fuel-text"),
+      fuelFill: el("fuel-fill"), fuelText: el("fuel-text"), fuelHome: el("fuel-home"),
       hullFill: el("hull-fill"), hullText: el("hull-text"),
       heatGauge: el("heat-gauge"), heatFill: el("heat-fill"),
       cargoFill: el("cargo-fill"), cargoText: el("cargo-text"),
@@ -48,6 +55,19 @@ export const UI = {
     const fpct = p.fuel / p.maxFuel;
     this.refs.fuelFill.style.width = `${fpct * 100}%`;
     this.refs.fuelFill.classList.toggle("crit", fpct <= 0.1);
+
+    // Fuel-to-home: a ⌂ tick marks the fuel a straight climb to the surface
+    // costs from here (booster/reactor/difficulty aware, ×1.35 for the
+    // not-a-straight-shaft reality). The bar turns amber once you dip below it.
+    const depthPx = Math.max(0, p.y - GROUND_ROW * TILE);
+    const homeFuel = (depthPx / (MAX_RISE * p.riseMult)) *
+      (FUEL_IDLE + FUEL_THRUST_UP * p.climbFuelMult) * p.fuelMult * (p.diffFuel || 1) * 1.35;
+    const showHome = depthPx > TILE * 12 && homeFuel > 2;
+    if (this.refs.fuelHome) {
+      this.refs.fuelHome.classList.toggle("hidden", !showHome);
+      if (showHome) this.refs.fuelHome.style.left = `${Math.min(98, (homeFuel / p.maxFuel) * 100)}%`;
+    }
+    this.refs.fuelFill.classList.toggle("below-home", showHome && p.fuel < homeFuel && fpct > 0.1);
     this.refs.fuelText.textContent = `${Math.ceil(p.fuel)}/${p.maxFuel}`;
     this.refs.hullFill.style.width = `${(p.hull / p.maxHull) * 100}%`;
     this.refs.hullText.textContent = `${Math.ceil(p.hull)}/${p.maxHull}`;
@@ -142,6 +162,8 @@ export const UI = {
     t.className = `toast ${kind}`;
     t.textContent = msg;
     this.refs.toasts.appendChild(t);
+    // Cap the stack — when events pile up, the oldest toasts make way.
+    while (this.refs.toasts.children.length > 4) this.refs.toasts.firstChild.remove();
     setTimeout(() => {
       t.style.transition = "opacity 0.3s";
       t.style.opacity = "0";
@@ -157,12 +179,14 @@ export const UI = {
   hideStart() { this.refs.startScreen.classList.add("hidden"); },
 
   showGameOver(state, reason) {
-    const p = state.player;
+    const st = state.stats;
     this.refs.gameoverReason.textContent = reason;
     this.refs.gameoverStats.innerHTML = `
-      <div>Max depth reached: <b>${state.stats.maxDepth} m</b></div>
-      <div>Total earned: <b>$${state.stats.totalEarned.toLocaleString()}</b></div>
+      <div>Max depth reached: <b>${st.maxDepth} m</b></div>
+      <div>Total earned: <b>$${st.totalEarned.toLocaleString()}</b></div>
       <div>Final balance: <b>$${state.money.toLocaleString()}</b></div>
+      <div>Tiles dug: <b>${(st.tilesDug || 0).toLocaleString()}</b> &nbsp;·&nbsp; Ore mined: <b>${(st.oresMined || 0).toLocaleString()}</b></div>
+      <div>Time on the clock: <b>${fmtTime(st.playTime)}</b> &nbsp;·&nbsp; Best combo: <b>x${st.bestCombo || 0}</b></div>
     `;
     this.refs.gameover.classList.remove("hidden");
   },
@@ -174,10 +198,13 @@ export const UI = {
     const titleEl = el("victory-title");
     if (titleEl) titleEl.textContent = e.title;
     this.refs.victoryText.innerHTML = e.text;
+    const st = state.stats;
     this.refs.victoryStats.innerHTML = `
-      <div>Depth conquered: <b>${state.stats.maxDepth} m</b></div>
-      <div>Fortune amassed: <b>$${state.stats.totalEarned.toLocaleString()}</b></div>
-      <div>Relics recovered: <b>${cx.artifacts.length}/8</b></div>`;
+      <div>Depth conquered: <b>${st.maxDepth} m</b></div>
+      <div>Fortune amassed: <b>$${st.totalEarned.toLocaleString()}</b></div>
+      <div>Relics recovered: <b>${cx.artifacts.length}/8</b></div>
+      <div>Tiles dug: <b>${(st.tilesDug || 0).toLocaleString()}</b> &nbsp;·&nbsp; Ore mined: <b>${(st.oresMined || 0).toLocaleString()}</b></div>
+      <div>Time on the clock: <b>${fmtTime(st.playTime)}</b> &nbsp;·&nbsp; Best combo: <b>x${st.bestCombo || 0}</b></div>`;
     this.refs.victory.classList.remove("hidden");
   },
   hideVictory() { this.refs.victory.classList.add("hidden"); },
@@ -387,27 +414,64 @@ export const UI = {
       return;
     }
     const market = state.market;
-    let listHtml = `<div class="mineral-list">`;
-    let total = 0;
+    // Displayed prices include the same difficulty/mutator/perk multiplier the
+    // sale itself applies — what you see is what you're paid.
+    const sellMul = state.sellMul != null ? state.sellMul : 1;
+    const locked = state.locked || (state.locked = {});
+    body.innerHTML = "";
+    const list = document.createElement("div");
+    list.className = "mineral-list";
+    let total = 0, sellable = 0, anyLocked = false;
     for (const key in p.cargo) {
       const count = p.cargo[key];
       if (!count) continue;
       const m = MINERALS[key];
-      const unit = market ? market.unitPrice(key) : m.value;
+      const unit = Math.round((market ? market.unitPrice(key) : m.value) * sellMul);
       const v = count * unit;
-      total += v;
+      const isLocked = !!locked[key];
+      if (isLocked) anyLocked = true;
+      else { total += v; sellable += count; }
       const trend = market ? market.trend(key) : "flat";
       const dev = market ? market.deviation(key) : 0;
       const arrow = trend === "up" ? "▲" : trend === "down" ? "▼" : "▬";
       const tcolor = trend === "up" ? "#4ce78f" : trend === "down" ? "#e76a6a" : "#8a8a9a";
       const devStr = `${dev > 0 ? "+" : ""}${dev}%`;
-      listHtml += `<div class="ml-row"><span><span class="swatch" style="background:${m.color}"></span>${count}x ${m.name} <span style="opacity:.6">@ $${unit.toLocaleString()}</span></span><span><span style="color:${tcolor};font-size:.85em">${arrow} ${devStr}</span> &nbsp; $${v.toLocaleString()}</span></div>`;
+      const row = document.createElement("div");
+      row.className = "ml-row" + (isLocked ? " ml-locked" : "");
+      row.innerHTML = `<span><span class="swatch" style="background:${m.color}"></span>${count}x ${m.name} <span style="opacity:.6">@ $${unit.toLocaleString()}</span></span><span><span style="color:${tcolor};font-size:.85em">${arrow} ${devStr}</span> &nbsp; $${v.toLocaleString()}</span>`;
+      // 🔒 reserve this ore for refinery recipes (skipped by Sell Everything & auto-sell)
+      const lockBtn = document.createElement("button");
+      lockBtn.className = "mini-btn" + (isLocked ? " on" : "");
+      lockBtn.textContent = isLocked ? "🔒" : "🔓";
+      lockBtn.title = isLocked
+        ? "Locked — kept by Sell Everything & auto-sell. Click to unlock."
+        : "Lock — reserve for refinery recipes";
+      lockBtn.addEventListener("click", () => {
+        if (locked[key]) delete locked[key]; else locked[key] = true;
+        if (this.game && this.game.audio) this.game.audio.sfx("ui");
+        this._refresh(state, { id: "sell" });
+      });
+      const sellBtn = document.createElement("button");
+      sellBtn.className = "mini-btn sell";
+      sellBtn.textContent = "SELL";
+      sellBtn.title = `Sell all ${m.name}`;
+      sellBtn.addEventListener("click", () => {
+        this.flash(Shop.sellStack(state, key), "sell");
+        this._refresh(state, { id: "sell" });
+      });
+      row.appendChild(lockBtn);
+      row.appendChild(sellBtn);
+      list.appendChild(row);
     }
-    listHtml += `</div><div class="sell-summary">Market total: <span class="sell-total">$${total.toLocaleString()}</span></div>`;
-    body.innerHTML = listHtml;
+    body.appendChild(list);
+    const sum = document.createElement("div");
+    sum.className = "sell-summary";
+    sum.innerHTML = `Market total: <span class="sell-total">$${total.toLocaleString()}</span>` +
+      (anyLocked ? ` <span style="opacity:.6">(🔒 locked cargo excluded)</span>` : "");
+    body.appendChild(sum);
     const row = this.shopRow(
-      "Sell Everything", `${p.cargoCount} items in cargo`,
-      `$${total.toLocaleString()}`, true,
+      "Sell Everything", `${sellable} unlocked item${sellable === 1 ? "" : "s"} in cargo`,
+      `$${total.toLocaleString()}`, sellable > 0,
       () => { this.doSell(state); this._refresh(state, { id: "sell" }); },
       false, "SELL"
     );

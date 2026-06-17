@@ -5,7 +5,7 @@ import {
   TILE, COLS, GROUND_ROW, SPAWN_COL, UPGRADES, UPGRADE_KEYS, CONSUMABLES, consumableCost,
   FUEL_PRICE, REPAIR_PRICE, repairUnitPrice, MINERALS, RECIPES, BASE_UPGRADES, FUEL_SUBSIDY_RATE, DIFFICULTIES,
   upgradeTier, upgradeCost, upgradeIsMax,
-} from "./config.js?v=50";
+} from "./config.js?v=51";
 
 // Effective fuel price after any owned base subsidies.
 export function fuelPrice(state) {
@@ -97,20 +97,39 @@ export function sellAll(state) {
   const market = state.market;
   const sellMul = state.sellMul != null ? state.sellMul
     : ((state.difficulty && DIFFICULTIES[state.difficulty] && DIFFICULTIES[state.difficulty].sellMul) || 1);
+  const locked = state.locked || {};
   let total = 0;
   const lines = [];
   for (const key in player.cargo) {
     const count = player.cargo[key];
     if (count <= 0) continue;
+    if (locked[key]) continue; // 🔒 reserved for refinery recipes
     // Live market price, scaled by the difficulty payout multiplier.
     const v = Math.round((market ? market.registerSale(key, count) : count * MINERALS[key].value) * sellMul);
     total += v;
     lines.push(`${count}x ${MINERALS[key].name}`);
+    delete player.cargo[key];
   }
+  if (!lines.length) return { ok: false, msg: "All cargo is locked for recipes" };
   state.money += total;
-  player.cargo = {};
   state.stats.totalEarned += total;
   return { ok: true, msg: `Sold for $${total.toLocaleString()}`, total, lines };
+}
+
+// Sell one mineral's whole stack — works even on locked cargo (an explicit
+// per-row click is deliberate in a way Sell Everything isn't).
+export function sellStack(state, key) {
+  const player = state.player;
+  const count = player.cargo[key] || 0;
+  if (count <= 0) return { ok: false, msg: "None to sell" };
+  const market = state.market;
+  const sellMul = state.sellMul != null ? state.sellMul
+    : ((state.difficulty && DIFFICULTIES[state.difficulty] && DIFFICULTIES[state.difficulty].sellMul) || 1);
+  const v = Math.round((market ? market.registerSale(key, count) : count * MINERALS[key].value) * sellMul);
+  state.money += v;
+  delete player.cargo[key];
+  state.stats.totalEarned += v;
+  return { ok: true, msg: `Sold ${count}x ${MINERALS[key].name} for $${v.toLocaleString()}`, total: v };
 }
 
 export function buyUpgrade(state, key) {

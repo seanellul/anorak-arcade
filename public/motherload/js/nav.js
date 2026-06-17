@@ -5,7 +5,7 @@
 
 // Overlays that can be navigated, in top-most-first priority order.
 const OVERLAY_IDS = [
-  "howto-screen", "about-screen",
+  "confirm-screen", "howto-screen", "about-screen",
   "garage-screen", "records-screen", "settings-screen", "skills-screen", "mutators-screen", "modal", "pause-screen",
   "ending-choice", "gameover-screen", "victory-screen", "start-screen",
 ];
@@ -92,7 +92,7 @@ export class NavManager {
   back() {
     const c = this.activeContainer();
     if (!c) return;
-    const close = c.querySelector("#modal-close, #garage-close, #records-close, #settings-close, #skills-close, #mutators-close, #resume-btn");
+    const close = c.querySelector("#confirm-no, #modal-close, #garage-close, #records-close, #settings-close, #skills-close, #mutators-close, #resume-btn");
     if (close) close.click();
   }
 
@@ -141,8 +141,9 @@ export class NavManager {
       if (edge("b", bb)) this.back();
       edge("start", start);
     } else {
-      // Gameplay: d-pad / left stick drive the pod, face buttons = actions
-      this.game.input.setPad({ up: dir.up, down: dir.down, left: dir.left, right: dir.right });
+      // Gameplay: d-pad / left stick drive the pod, face buttons = actions,
+      // shoulder buttons hold the cargo manifest open
+      this.game.input.setPad({ up: dir.up, down: dir.down, left: dir.left, right: dir.right, cargo: b(4) || b(5) });
       if (edge("a", a)) this.game.input.pulse("interact");
       if (edge("x", x)) this.game.input.pulse("dynamite");
       if (edge("y", y)) this.game.input.pulse("teleport");

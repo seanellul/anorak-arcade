@@ -11,7 +11,7 @@ import {
   HEAT_MAX, HEAT_BASE_COOL, HEAT_RADIATOR_COOL, HEAT_AMBIENT_SCALE,
   HEAT_LAVA_RADIANT, HEAT_DAMAGE_THRESHOLD, HEAT_DAMAGE_SCALE,
   PRESSURE_DAMAGE_SCALE,
-} from "./config.js?v=50";
+} from "./config.js?v=51";
 
 export class Player {
   constructor(world) {
@@ -65,6 +65,8 @@ export class Player {
     this.onSfx = null;           // (name)=>{}
     this.onTreasure = null;      // (value, x, y)=>{}
     this.onThrowDynamite = null; // (x, y, vx, vy, fuse, radius)=>{}  game spawns the stick
+    this.onTeleport = null;      // (fromX, fromY)=>{}  camera snap + FX at both ends
+    this.onTileBroken = null;    // (type)=>{}  run statistics (tiles dug)
   }
 
   // -------- derived stats from upgrades --------
@@ -519,6 +521,9 @@ export class Player {
         const c = target.c + dx * k, r = target.r + dy * k;
         const t = this.world.getType(c, r);
         if (t === T.CORE || t === T.BOULDER || t === T.BEDROCK || t === T.EMPTY) break;
+        // Never auto-detonate hazards sideways — a paid upgrade shouldn't
+        // ambush the buyer with lava/gas damage they didn't aim at.
+        if (t === T.LAVA || t === T.GAS) break;
         this.breakTile(c, r);
       }
     }
@@ -598,6 +603,7 @@ export class Player {
       if (this.onParticles) this.onParticles(px, py, "#8a6a45", 5);
     }
 
+    if (this.onTileBroken) this.onTileBroken(type);
     world.clearTile(c, r);
   }
 
@@ -644,9 +650,11 @@ export class Player {
       return false;
     }
     this.teleporters--;
+    const ox = this.centerX, oy = this.centerY; // departure point (for FX)
     this.x = SPAWN_COL * TILE + (TILE - this.w) / 2;
     this.y = GROUND_ROW * TILE - this.h - 0.5;
     this.vx = 0; this.vy = 0;
+    if (this.onTeleport) this.onTeleport(ox, oy);
     if (this.onToast) this.onToast("Teleported to surface!", "good");
     return true;
   }
