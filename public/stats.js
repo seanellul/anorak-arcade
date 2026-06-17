@@ -31,6 +31,7 @@
   const pending={};
   function pend(g){ if(!pending[g]) pending[g]={addMs:0,plays:0,score:0,force:false}; return pending[g]; }
   let lastFlush=Date.now(), lastPing={}, lastSave=Date.now(), promptedThisLoad=false;
+  let nameConflict=false;   // server told us our handle is claimed by someone else → prompt for our own
 
   // ---- score integrity: server-issued play session per game, signed final score ----
   // Each run starts a session bound to (clientId, game, seed[, user]); we sign the
@@ -84,7 +85,9 @@
     // sign-in handler) this is a graceful no-op — anonymous players keep their local best and
     // simply don't appear on a global board. This is the "frictionless play, sign in to save" UX.
     if(score>0 && newBest){
-      if(token() && !name) openNameModal(()=>flush(false));
+      // Signed in but no handle yet, OR the server flagged our name as someone else's →
+      // prompt to claim our own (the conflict case explains why). Not signed in → ask to save.
+      if(token() && (!name || nameConflict)) openNameModal(()=>flush(false), nameConflict?'taken':'');
       else if(!token()){ try{ window.dispatchEvent(new CustomEvent('aa:save-prompt',{detail:{game,score}})); }catch(e){} }
     }
     setTimeout(()=>flush(false),250);
@@ -110,7 +113,8 @@
         const tok=token();
         const hdrs={'Content-Type':'application/json'}; if(tok) hdrs.Authorization='Bearer '+tok;
         if(useBeacon && navigator.sendBeacon && !tok){ navigator.sendBeacon(API+'/api/sync', new Blob([body],{type:'application/json'})); }
-        else fetch(API+'/api/sync',{method:'POST',headers:hdrs,body,keepalive:true}).catch(()=>{});
+        else fetch(API+'/api/sync',{method:'POST',headers:hdrs,body,keepalive:true})
+          .then(r=>r.json()).then(d=>{ if(d&&d.nameTaken) nameConflict=true; }).catch(()=>{});
       }catch(e){}
     }
   }
@@ -124,9 +128,15 @@
     v=cleanName(v);
     if(!v) return Promise.resolve({ok:false,reason:'Enter a name'});
     if(!API || LOCAL) return Promise.resolve({ok:true,name:v});   // dev/offline → accept locally
-    const h={'Content-Type':'application/json'}; if(token()) h.Authorization='Bearer '+token();
+    if(!token()) return Promise.resolve({ok:false,reason:'signin'});  // a handle belongs to an account
+    const h={'Content-Type':'application/json',Authorization:'Bearer '+token()};
     return fetch(API+'/api/name',{method:'POST',headers:h,body:JSON.stringify({name:v,clientId})})
-      .then(r=>r.json()).catch(()=>({ok:true,name:v}));            // network fail → accept locally
+      .then(r=>r.json()).then(d=>{
+        if(d && d.ok===true){ nameConflict=false; return {ok:true,name:d.name||v,avatar:d.avatar}; }
+        if(d && (d.error==='unauthorized')) return {ok:false,reason:'signin'};
+        return {ok:false,reason:(d&&d.reason)||'taken'};           // server is authoritative on 'Taken'
+      })
+      .catch(()=>({ok:true,name:v,local:true}));                   // network fail → accept locally; sync reconciles
   }
   // set the chosen profile avatar (emoji). stored locally for instant display + synced.
   const AKEY2='aa.avatar';
@@ -138,37 +148,66 @@
   }
 
   // ---- name modal (injected; inline styles so it works on any page, incl. games) ----
-  function openNameModal(cb){
+  // one-time keyframes for the modal's feedback juice (shake on reject, pop on claim)
+  function injectFX(){ if(document.getElementById('aa-fx'))return;
+    const s=document.createElement('style'); s.id='aa-fx';
+    s.textContent='@keyframes aaShake{10%,90%{transform:translateX(-2px)}30%,70%{transform:translateX(-5px)}50%{transform:translateX(5px)}40%,60%{transform:translateX(4px)}}'
+      +'@keyframes aaPop{0%{transform:scale(.4);opacity:0}55%{transform:scale(1.18)}100%{transform:scale(1);opacity:1}}';
+    document.head.appendChild(s);
+  }
+  // reason: ''=first claim, 'taken'=server says this handle is someone else's
+  function openNameModal(cb, reason){
     if(document.getElementById('aa-name')) return;
+    injectFX();
+    const taken=reason==='taken';
+    const title=taken?'HANDLE TAKEN':'CLAIM YOUR HANDLE';
+    const sub=taken?'someone already owns that name &mdash; lock in one that&rsquo;s yours'
+                   :'your identity on every leaderboard';
     const w=document.createElement('div'); w.id='aa-name';
     w.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(5,7,12,.82);font-family:ui-monospace,Menlo,Consolas,monospace';
-    w.innerHTML='<div style="background:#121826;border:1px solid #2a3447;border-radius:14px;padding:24px;width:300px;max-width:86vw;text-align:center;color:#e7ecf5;box-shadow:0 20px 60px rgba(0,0,0,.5)">'
-      +'<div style="letter-spacing:.22em;color:#ffb13d;font-size:12px;margin-bottom:6px">ENTER YOUR NAME</div>'
-      +'<div style="color:#7d8aa0;font-size:12px;margin-bottom:14px;line-height:1.5">for the leaderboard &mdash; pick anything</div>'
+    w.innerHTML='<div id="aa-name-card" style="background:#121826;border:1px solid '+(taken?'#5b3a3a':'#2a3447')+';border-radius:14px;padding:24px;width:300px;max-width:86vw;text-align:center;color:#e7ecf5;box-shadow:0 20px 60px rgba(0,0,0,.5)">'
+      +'<div style="letter-spacing:.22em;color:'+(taken?'#ff8a5b':'#ffb13d')+';font-size:12px;margin-bottom:6px">'+title+'</div>'
+      +'<div style="color:#7d8aa0;font-size:12px;margin-bottom:14px;line-height:1.5">'+sub+'</div>'
       +'<input id="aa-name-in" maxlength="16" placeholder="HANDLE" autocomplete="off" '
       +'style="width:100%;box-sizing:border-box;background:#0a0e14;border:1px solid #2a3447;border-radius:8px;color:#e7ecf5;font-family:inherit;font-size:16px;padding:11px;text-align:center;letter-spacing:.12em;outline:none">'
       +'<div id="aa-name-err" style="color:#ff6a6a;font-size:11px;min-height:13px;margin-top:7px;letter-spacing:.06em"></div>'
       +'<div style="display:flex;gap:8px;margin-top:8px">'
       +'<button id="aa-name-skip" style="flex:1;background:none;border:1px solid #2a3447;color:#7d8aa0;font-family:inherit;padding:10px;border-radius:8px;cursor:pointer">Skip</button>'
-      +'<button id="aa-name-ok" style="flex:2;background:#ffb13d;border:0;color:#1a0d06;font-family:inherit;font-weight:700;padding:10px;border-radius:8px;cursor:pointer;letter-spacing:.1em">Save</button>'
+      +'<button id="aa-name-ok" style="flex:2;background:#ffb13d;border:0;color:#1a0d06;font-family:inherit;font-weight:700;padding:10px;border-radius:8px;cursor:pointer;letter-spacing:.1em">Claim</button>'
       +'</div></div>';
     document.body.appendChild(w);
-    const inp=w.querySelector('#aa-name-in'); inp.value=name; setTimeout(()=>inp.focus(),30);
+    const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));  // names allow <>&" → escape before innerHTML
+    const card=w.querySelector('#aa-name-card');
+    const inp=w.querySelector('#aa-name-in'); inp.value=taken?'':name; setTimeout(()=>inp.focus(),30);
     const done=cb||function(){};
     const close=()=>w.remove();
     const errEl=w.querySelector('#aa-name-err');
     const okBtn=w.querySelector('#aa-name-ok');
+    const reject=(msg)=>{ errEl.innerHTML=msg; inp.style.borderColor='#ff6a6a';
+      card.style.animation='none'; void card.offsetWidth; card.style.animation='aaShake .4s';
+      okBtn.disabled=false; okBtn.style.opacity=''; okBtn.textContent='Claim'; inp.focus(); };
+    const succeed=(nm)=>{ setName(nm); nameConflict=false;
+      card.innerHTML='<div style="font-size:40px;animation:aaPop .45s">&#10003;</div>'
+        +'<div style="letter-spacing:.2em;color:#6ee7a8;font-size:13px;margin-top:8px">HANDLE SECURED</div>'
+        +'<div style="color:#e7ecf5;font-size:18px;font-weight:700;margin-top:6px;letter-spacing:.08em">'+esc(nm)+'</div>';
+      card.style.borderColor='#2f6b4a';
+      setTimeout(()=>{ close(); done(); },820);
+    };
     const ok=()=>{ const v=cleanName(inp.value);
-      if(!v){ close(); done(); return; }
-      errEl.textContent=''; okBtn.disabled=true; okBtn.style.opacity='.6'; okBtn.textContent='…';
+      if(!v){ if(taken){ inp.focus(); return; } close(); done(); return; }   // can't skip past a conflict with a blank
+      errEl.textContent=''; inp.style.borderColor='#2a3447'; okBtn.disabled=true; okBtn.style.opacity='.6'; okBtn.textContent='…';
       claimName(v).then(res=>{
-        if(res && res.ok!==false){ setName(res.name||v); close(); done(); }
-        else { errEl.textContent=(res&&res.reason)||'Try another name'; okBtn.disabled=false; okBtn.style.opacity=''; okBtn.textContent='Save'; inp.focus(); }
+        if(res && res.ok===true){ succeed(res.name||v); }
+        else if(res && res.reason==='signin'){
+          reject('Sign in to claim &amp; protect it');
+          try{ window.dispatchEvent(new CustomEvent('aa:save-prompt',{detail:{reason:'claim',name:v}})); }catch(e){}
+        }
+        else { reject('&ldquo;'+esc(v)+'&rdquo; is taken — try another'); }
       });
     };
     okBtn.onclick=ok;
     w.querySelector('#aa-name-skip').onclick=()=>{ close(); done(); };
-    w.addEventListener('mousedown',e=>{ if(e.target===w){ close(); done(); } });
+    if(!taken) w.addEventListener('mousedown',e=>{ if(e.target===w){ close(); done(); } });  // a conflict must be resolved, not dismissed by tap-away
     inp.addEventListener('keydown',e=>{ if(e.key==='Enter') ok(); else if(e.key==='Escape'){ close(); done(); } });
   }
 
