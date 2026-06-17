@@ -14,6 +14,11 @@ body[data-game]{
 /* the games' original bare back link — the bar replaces it */
 body[data-game] a.back{ display:none !important; }
 
+/* the per-game page header (title + tagline) is redundant during play — the action bar
+   already shows the game name. Hiding it reclaims vertical space so the canvas fills more
+   of the screen (matches the native-app treatment, which hides the header too). */
+body[data-game] > header{ display:none !important; }
+
 /* ---- top action bar ---- */
 .cab-bar{
   align-self:stretch; position:sticky; top:0; z-index:60;
