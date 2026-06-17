@@ -9,6 +9,7 @@ ios/App/Pods/
 ios/App/Podfile.lock
 
 # Xcode
+build/
 ios/App/build/
 ios/App/DerivedData/
 *.xcuserstate
