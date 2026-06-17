@@ -77,8 +77,9 @@
   .d-touch{ display:none; }
   @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
 </style>
+<link rel="stylesheet" href="cabinet.css">
 </head>
-<body>
+<body data-game="PULSE">
 <a class="back" href="index.html">← arcade</a>
 <header>
   <div><h1>PUL<span class="v">SE</span></h1><div class="sub">TIME · tap on the beat</div></div>
@@ -116,6 +117,8 @@
 </div>
 <script src="juice.js"></script>
 <script src="stats.js"></script>
+<script src="feel.js"></script>
+<script src="cabinet.js"></script>
 <script>
 (()=>{
   const MOBILE = window.matchMedia('(max-width:560px)').matches;

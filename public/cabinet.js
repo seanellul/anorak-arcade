@@ -11,7 +11,9 @@
   // Native app (Capacitor) shell: collapse the action bar into one ⚙ menu (the app sets .aa-native at document-start).
   const NATIVE = document.documentElement.classList.contains('aa-native');
 
-  const COLORS = { CINDER:'#ff6a3d', SHIFT:'#5ad1ff', CONDUIT:'#b98cff', HOMEOSTAT:'#36d399', MOTHERLOAD:'#e8a13a' };
+  const COLORS = { CINDER:'#ff6a3d', SHIFT:'#5ad1ff', CONDUIT:'#b98cff', HOMEOSTAT:'#36d399',
+                   NOVA:'#ff5ec7', SURGE:'#ffd23f', CLEAVE:'#3fe0c2', FLUX:'#6c8cff', WEAVE:'#d6f84a',
+                   PULSE:'#ff2e4d', INTERCEPT:'#ff4747', DESCENT:'#b15cff', MOTHERLOAD:'#e8a13a' };
   const ACC = COLORS[GAME] || '#ffb13d';
   document.body.style.setProperty('--cab-acc', ACC);
 
@@ -34,20 +36,27 @@
   const soundBtn  = bar.querySelector('.cab-sound');
   const fullBtn   = bar.querySelector('.cab-full');
 
-  /* ---------- bigger canvas on PC ---------- */
-  const MAX_SCALE = 1.6;
+  /* ---------- responsive canvas: fill the available space on every screen ----------
+     Each game declares a fixed internal canvas resolution; we scale its *display* size
+     (never its pixel buffer) to the largest box that fits the viewport, preserving aspect
+     — the same approach Motherload uses. Input handlers already map via getBoundingClientRect,
+     so display-only scaling is safe up or down. Runs on web and in the native shell. */
+  const MAX_UPSCALE = 3;   // don't blow a tiny canvas up past 3× native (keeps it from going soft)
   function canvasEl() { return document.querySelector('#wrap canvas') || document.querySelector('canvas'); }
   function fit() {
     const cv = canvasEl();
     if (!cv || !cv.width || !cv.height) return;
     // reset inline sizing first so we can measure the chrome (bar + header + HUD) above the canvas
     cv.style.width = cv.style.height = ''; cv.style.maxWidth = '';
-    if (window.innerWidth < 760) return;      // phones/small tablets: each game's own CSS stays in charge
     const ar = cv.width / cv.height;
-    const top = cv.getBoundingClientRect().top;          // vertical space already used above the canvas
-    const availW = Math.min(window.innerWidth - 40, 1200);
-    const availH = window.innerHeight - top - 18;        // leave the canvas fully on-screen
-    const w = Math.max(cv.width * 0.6, Math.min(cv.width * MAX_SCALE, availW, availH * ar));
+    const phone = window.innerWidth < 760;
+    const sideM = phone ? 8 : 24;                          // breathing room at the sides
+    const top = cv.getBoundingClientRect().top;            // space already used above the canvas
+    const availW = window.innerWidth - sideM * 2;
+    const availH = window.innerHeight - top - (phone ? 10 : 18);
+    if (availW <= 0 || availH <= 0) return;
+    // largest box that fits while preserving aspect, capped so small canvases don't over-blur
+    const w = Math.min(availW, availH * ar, cv.width * MAX_UPSCALE);
     cv.style.width = Math.round(w) + 'px';
     cv.style.height = Math.round(w / ar) + 'px';
     cv.style.maxWidth = '100%';
