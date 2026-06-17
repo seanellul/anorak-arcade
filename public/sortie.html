@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="Hold the line. Enemies assemble overhead then peel off to dive — slide to dodge while you auto-fire. Risk capture to fly as two: double fire, double score. How many waves can you hold?">
+<meta name="theme-color" content="#0a0e14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Anorak Arcade">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Anorak Arcade">
+<meta property="og:title" content="SORTIE — formation">
+<meta property="og:description" content="Galaga reborn. Slide to dodge dives, auto-fire, and risk capture to fly as two — double fire, double score.">
+<meta property="og:image" content="https://anorak-arcade.pages.dev/og-sortie.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="SORTIE — formation">
+<meta name="twitter:description" content="Formation disruption with a capture-and-recover dual-ship gamble. A love letter to a bygone era — original browser prototypes.">
+
+<title>SORTIE — formation</title>
+<style>
+  :root{ --bg:#0a0e14; --panel:#1a1206; --ink:#eef2fb; --dim:#a8895f; --acc:#ff9d3d; --acc2:#e06b16; --hot:#ffd23f; --good:#36d399; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  html,body{overscroll-behavior:none}
+  body{margin:0;background:radial-gradient(1100px 760px at 50% -8%,#2a1605,#0a0e14 62%);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  header{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.34em;margin:0;font-weight:700}h1 .v{color:var(--acc)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:520px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #30220e;border-radius:8px;padding:8px 10px;position:relative;overflow:hidden}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}
+  .stat .val{font-size:21px;font-weight:700;margin-top:2px;transition:transform .08s}
+  .stat .val.bump{transform:scale(1.2)}
+  #score{color:var(--acc)}
+  #wave{color:var(--hot)}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#05040a;border:1px solid #30220e;border-radius:12px;display:block;max-width:100%;height:auto;cursor:none;touch-action:none}
+  .foot{max-width:520px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#241a0c;border:1px solid #382a14;border-radius:5px;padding:1px 7px;font-size:11px}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(8,5,3,.92);border-radius:12px;text-align:center;padding:24px}
+  .overlay h2{margin:0 0 4px;letter-spacing:.18em;font-size:26px}
+  .overlay h2.bad{color:var(--bad)} .overlay h2.title{color:var(--acc)}
+  .overlay p{color:var(--dim);margin:6px 0;max-width:430px;line-height:1.6;font-size:13px}
+  .overlay .big{font-size:40px;font-weight:700;color:var(--hot);margin:8px 0}
+  button{background:linear-gradient(180deg,#ffb867,#e06b16);color:#2a1303;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:13px 30px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:14px;box-shadow:0 6px 22px rgba(255,157,61,.4)}
+  button:hover{filter:brightness(1.08)}
+  .modes{display:flex;gap:8px;justify-content:center;margin-top:8px}
+  .modes button{background:#241a0c;border:1px solid #382a14;color:var(--dim);font-weight:700;letter-spacing:.1em;padding:8px 18px;border-radius:8px;font-size:12px;margin:0;box-shadow:none}
+  .modes button.on{background:#30220e;border-color:var(--acc);color:var(--hot)}
+  .modes button:hover{filter:none}
+  .seedline{color:var(--dim);font-size:11px;letter-spacing:.14em;margin-top:9px;min-height:14px}
+  .statline{color:var(--dim);font-size:12px;margin-top:10px;letter-spacing:.06em}
+  .statline b{color:var(--ink)}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}a.back:hover{color:var(--ink)}
+  @media(max-width:560px){
+    body{justify-content:flex-start}
+    a.back{position:static;display:block;margin:7px 0 0 10px;font-size:11px}
+    header{padding:2px 10px 0}
+    header h1{font-size:14px}
+    header .sub{display:none}
+    .hud{gap:6px;padding:4px 8px}
+    .hud .stat{background:none;border:0;padding:2px 5px;overflow:visible}
+    .hud .stat .k{font-size:8px;letter-spacing:.08em}
+    .hud .stat .val{font-size:18px;margin-top:0}
+    #wrap{margin:5px 0}
+    .foot{display:none}
+  }
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
+</style>
+<link rel="stylesheet" href="cabinet.css">
+</head>
+<body data-game="SORTIE">
+<a class="back" href="index.html">← arcade</a>
+<header>
+  <div><h1>SOR<span class="v">TIE</span></h1><div class="sub">FORMATION · hold the line</div></div>
+</header>
+<div class="hud">
+  <div class="stat"><div class="k">SCORE</div><div class="val" id="score">0</div></div>
+  <div class="stat"><div class="k">WAVE</div><div class="val" id="wave">1</div></div>
+  <div class="stat"><div class="k">BEST</div><div class="val" id="best">0</div></div>
+</div>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="title">
+    <h2 class="title">SOR<span style="color:#ff9d3d">TIE</span></h2>
+    <p>Enemies fly in and assemble overhead, then <b style="color:#eef2fb">peel off to dive</b>. <b style="color:#eef2fb">Slide</b> to dodge — your guns fire on their own. Down a diver for double the points of one still in formation.</p>
+    <p>The gamble: a <b style="color:#ff9d3d">captor</b> drops a tractor beam. Get caught and you lose a ship — but <b style="color:#ffd23f">destroy the captor while it holds you</b> to recover and fly as <b style="color:#ffd23f">two ships</b>: double fire, <b style="color:#ffd23f">double score</b>.</p>
+    <div class="modes">
+      <button id="mDaily" class="on" type="button">DAILY</button>
+      <button id="mFree" type="button">FREE</button>
+    </div>
+    <div class="seedline" id="seedline"></div>
+    <button id="startBtn">SCRAMBLE ▶</button>
+    <div class="statline d-desktop"><span class="key">move mouse</span> slide &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">slide finger</span> move &nbsp; <span class="key">❙❙</span> pause</div>
+  </div>
+  <div class="overlay" id="over" style="display:none">
+    <h2 class="bad">SHOT DOWN</h2>
+    <div class="big" id="finalScore">0</div>
+    <div class="statline" id="finalStats"></div>
+    <button id="again">SCRAMBLE AGAIN ⏎</button>
+    <div class="statline d-touch" style="margin-top:6px">or tap the field</div>
+  </div>
+  <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p><span class="d-desktop">press <span class="key">P</span> to resume</span><span class="d-touch">tap <span class="key">❙❙</span> to resume</span></p></div>
+</div>
+<div class="foot">
+  <b style="color:#ff9d3d">Slide</b> to position your ship — it auto-fires upward. Enemies assemble into a formation, then peel off in <b style="color:#ff4d6d">dives</b>; a diving kill is worth double a formed one. A <b style="color:#ff9d3d">captor</b> can tractor-beam your ship for a life — but <b style="color:#ffd23f">shoot it down while it holds you</b> to recover and fly as two: double fire and double score. Clear a wave without losing a ship for a perfect bonus. Lose all your ships and the sortie ends.
+</div>
+<script src="seed.js"></script>
+<script src="juice.js"></script>
+<script src="stats.js"></script>
+<script src="feel.js"></script>
+<script src="cabinet.js"></script>
+<script>
+(()=>{
+  const MOBILE = window.matchMedia('(max-width:560px)').matches;
+  const W = MOBILE?340:380, H = 640;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  const J=window.Juice; const fx=J.layer();
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- geometry / tuning ----
+  const SHIP_Y   = H-40;
+  const SHIP_R   = 9;
+  const X_MIN    = 16, X_MAX = W-16;
+  const clampX   = x => Math.max(X_MIN, Math.min(X_MAX, x));
+  const COLS     = MOBILE?6:7;
+  const COL_W    = (W-72)/(COLS-1);
+  const FORM_X0  = 36;
+  const FORM_Y0  = 78;
+  const ROW_H    = 34;
+  const E_R      = 11;                  // enemy half-size
+  const BULLET_V = 560;                 // px/s
+  const FIRE_INT = 1/6.5;               // s between shots
+  const BEAM_Y   = H*0.46;              // captor hovers here to beam
+  const BEAM_DUR = 1.25;               // s beam stays on
+  const BEAM_HALF= 30;                 // cone half-width at the bottom
+  const CAPTOR_HP= 3;
+  const INVULN   = 1.3;                 // s of safety after spawn/hit
+  const LIVES0   = 3;
+
+  // ---- state ----
+  let sx, targetX, lives, dual, invuln,
+      enemies, bullets, scoreF, best, wave, mode, rng,
+      diveT, waveState, banner, bannerT, lostThisWave, captureFx,
+      last, state, gestured=false, fireCd, gameTime;
+  const ACC='#ff9d3d', HOT='#ffd23f', BAD='#ff4d6d', GOOD='#36d399', SHIPC='#7fe8ff';
+
+  best = (()=>{ try{ return parseInt(localStorage.getItem('sortie_best')||'0',10)||0; }catch(e){ return 0; } })();
+  function newRng(){ return mode==='daily' ? AASeed.daily('SORTIE') : AASeed.free('SORTIE'); }
+
+  // ---- formation home positions (with gentle global sway applied at draw/use) ----
+  function homeX(col){ return FORM_X0 + col*COL_W; }
+  function homeY(row){ return FORM_Y0 + row*ROW_H; }
+  function sway(){ return Math.sin(gameTime*0.7)*Math.min(14, 6+wave); }
+
+  // ---- wave spawn ----
+  function spawnWave(){
+    enemies=[]; bullets=[]; diveT=2.2; waveState='enter'; lostThisWave=true;
+    const rows = Math.min(5, 2+wave);
+    const captors = wave>=2 ? Math.min(2, 1+Math.floor((wave-2)/3)) : 0;
+    // build slot list
+    const slots=[];
+    for(let r=0;r<rows;r++) for(let c=0;c<COLS;c++) slots.push({r,c});
+    // choose captor slots (top row, seeded)
+    const capSet=new Set();
+    for(let i=0;i<captors;i++){ const c=rng.int(0,COLS-1); capSet.add('0,'+c); }
+    let order=0;
+    for(const s of slots){
+      const isCap = capSet.has(s.r+','+s.c);
+      // entry start point: alternate sides, seeded jitter
+      const fromLeft = rng.chance(0.5);
+      const ex = fromLeft ? -24 : W+24;
+      const ey = 30 + rng.range(0, 120);
+      enemies.push({
+        type:isCap?'captor':'grunt', row:s.r, col:s.c,
+        x:ex, y:ey, state:'enter', t:0,
+        delay: order*0.06 + rng.range(0,0.3),
+        p0:{x:ex,y:ey}, p1:{x: fromLeft? W*0.3 : W*0.7, y: rng.range(40,90)},
+        hp:isCap?CAPTOR_HP:1, holding:false, cap:null, beamT:0, hitFlash:0
+      });
+      order++;
+    }
+  }
+
+  function reset(showTitle){
+    rng=newRng();
+    sx=W/2; targetX=W/2; lives=LIVES0; dual=false; invuln=INVULN;
+    scoreF=0; wave=1; gameTime=0; fireCd=0; banner=''; bannerT=0; captureFx=0;
+    spawnWave();
+    document.getElementById('over').style.display='none';
+    document.getElementById('paused').style.display='none';
+    document.getElementById('title').style.display=showTitle?'flex':'none';
+    state = showTitle?'title':'play';
+    updateSeedline(); updateHUD();
+  }
+  function start(){ gestured=true; J.unlock(); reset(false); last=performance.now(); }
+
+  // ---- input ----
+  function P(e){ const r=cv.getBoundingClientRect(), t=e.touches&&e.touches[0]?e.touches[0]:e;
+    return { x:(t.clientX-r.left)*(W/r.width), y:(t.clientY-r.top)*(H/r.height) }; }
+  function steer(e){ if(state!=='play') return; targetX = clampX(P(e).x); }
+  cv.addEventListener('mousemove', steer);
+  cv.addEventListener('mousedown', e=>{ gestured=true; if(state==='dead'){ start(); return; } steer(e); });
+  cv.addEventListener('touchstart', e=>{ e.preventDefault(); gestured=true; if(state==='dead'){ start(); return; } steer(e); },{passive:false});
+  cv.addEventListener('touchmove', e=>{ e.preventDefault(); steer(e); },{passive:false});
+  window.addEventListener('keydown', e=>{ const k=e.key.toLowerCase();
+    if(state==='play'){
+      if(k==='arrowleft'){ e.preventDefault(); targetX=clampX(targetX-40); }
+      else if(k==='arrowright'){ e.preventDefault(); targetX=clampX(targetX+40); }
+    }
+    if(k==='enter'&&state==='dead') start();
+    else if(k==='p'&&(state==='play'||state==='paused')) togglePause();
+  });
+  function togglePause(){ if(state==='play'){ state='paused'; document.getElementById('paused').style.display='flex'; }
+    else if(state==='paused'){ state='play'; document.getElementById('paused').style.display='none'; last=performance.now(); } }
+  document.getElementById('startBtn').onclick=start;
+  document.getElementById('again').onclick=start;
+  const mD=document.getElementById('mDaily'), mF=document.getElementById('mFree');
+  mode='daily';
+  mD.onclick=()=>{ gestured=true; mode='daily'; mD.classList.add('on'); mF.classList.remove('on'); updateSeedline(); haptic('tap'); };
+  mF.onclick=()=>{ gestured=true; mode='free'; mF.classList.add('on'); mD.classList.remove('on'); updateSeedline(); haptic('tap'); };
+  window.addEventListener('blur',()=>{ if(state==='play') togglePause(); });
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden && state==='play') togglePause(); });
+
+  function haptic(verb){ try{
+    if(window.Feel && Feel[verb]) Feel[verb]();
+    else if(gestured && navigator.vibrate){ const m={tap:6,select:8,commit:10,heavy:[14,22,14],warn:24,success:[10,28,10],fail:[30,40,30]}[verb]; if(m) navigator.vibrate(m); }
+  }catch(e){} }
+
+  function updateSeedline(){ const el=document.getElementById('seedline');
+    el.textContent = mode==='daily' ? ('TODAY · '+AASeed.dailyKey()) : 'ENDLESS · random assault'; }
+
+  function bump(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'),100); }
+  function updateHUD(){
+    document.getElementById('score').textContent=Math.round(scoreF);
+    document.getElementById('wave').textContent=wave;
+    document.getElementById('best').textContent=Math.max(best,Math.round(scoreF));
+  }
+
+  function showBanner(txt){ banner=txt; bannerT=1.6; }
+
+  // ---- enemy behaviour ----
+  function quad(p0,p1,p2,t){ const u=1-t; return { x:u*u*p0.x+2*u*t*p1.x+t*t*p2.x, y:u*u*p0.y+2*u*t*p1.y+t*t*p2.y }; }
+
+  function startDive(e){
+    if(e.type==='captor'){ e.state='swoop'; e.cap=null; e.vy=120+wave*8; e.beamT=0; return; }
+    e.state='diving'; e.t=0;
+    const homeP={x:homeX(e.col)+sway(), y:homeY(e.row)};
+    const dir = rng.chance(0.5)?-1:1;
+    const amp = rng.range(W*0.18, W*0.42)*dir;
+    e.dp0={x:e.x,y:e.y};
+    e.dp1={x:clampX(e.x+amp), y:H*0.42};
+    e.dp2={x:clampX(sx + rng.range(-60,60)), y:H+40};   // sweep toward where the ship is
+    e.diveDur = 1.6 - Math.min(0.7, wave*0.06);
+  }
+
+  function pickDiver(){
+    const formed = enemies.filter(e=>e.state==='formed');
+    if(!formed.length) return;
+    // prefer a captor sometimes if one is formed and not holding
+    const caps = formed.filter(e=>e.type==='captor' && !e.holding);
+    let e;
+    if(caps.length && rng.chance(0.4)) e=rng.pick(caps);
+    else e=rng.pick(formed);
+    startDive(e);
+  }
+
+  function loseShip(reason){
+    if(invuln>0 && reason!=='capture') return;
+    if(dual){ // sacrifice the wingman, keep the life
+      dual=false; invuln=INVULN; lostThisWave=true;
+      fx.burst(sx+14, SHIP_Y, SHIPC, 16, {spread:3.5, decay:0.04, r:3});
+      J.tone(220,0.3,'sawtooth',0.1); haptic('warn'); bump('score'); return;
+    }
+    lives--; invuln=INVULN; lostThisWave=true;
+    fx.burst(sx, SHIP_Y, SHIPC, 22, {spread:4, decay:0.035, r:3});
+    fx.ring(sx, SHIP_Y, BAD, 40, {lw:3, decay:0.05}); if(!REDUCE) fx.shake(14);
+    if(reason==='capture'){ J.tone(140,0.5,'square',0.1); haptic('heavy'); }
+    else { J.tone(200,0.4,'sawtooth',0.1); haptic('warn'); }
+    if(lives<=0) gameOver();
+  }
+
+  function captureShip(captor){
+    // ship taken: costs a life, captor holds it and returns to formation
+    captor.holding=true; captor.cap='holding'; captor.state='return';
+    captor.capAnimY = SHIP_Y;           // captured-ship visual starts at the ship and rises with captor
+    captureFx=1; showBanner('CAPTURED');
+    fx.ring(sx, SHIP_Y, ACC, 50, {lw:3, decay:0.04});
+    loseShip('capture');
+    if(lives>0){ sx=W/2; targetX=W/2; }
+  }
+
+  function recover(captor){
+    dual=true; lives=Math.min(LIVES0+1, lives+1); captor.holding=false; invuln=INVULN*0.6;
+    showBanner('RECOVERED · ×2'); captureFx=0;
+    fx.float(sx, SHIP_Y-24, 'DUAL SHIP ×2', HOT, {size:20, decay:0.015, vy:-0.5});
+    fx.burst(sx, SHIP_Y, HOT, 24, {spread:4, decay:0.03, r:3});
+    J.tone(523,0.12,'triangle',0.07); J.tone(784,0.12,'triangle',0.06,0.08); J.tone(1046,0.18,'sine',0.05,0.16);
+    haptic('success'); bump('score');
+  }
+
+  function killEnemy(e, idx){
+    const diving = (e.state==='diving'||e.state==='swoop'||e.state==='beam');
+    const val = (diving?100:50) * (dual?2:1);   // +100 for a risky diver, +50 otherwise
+    scoreF += val;
+    fx.burst(e.x, e.y, e.type==='captor'?ACC:HOT, 14, {spread:3.4, decay:0.04, r:2.5});
+    fx.float(e.x, e.y-6, '+'+val, e.state==='formed'?'#ffd9ad':HOT, {size:14, decay:0.025, vy:-0.4});
+    J.tone(e.type==='captor'?330:560, 0.07, 'triangle', 0.05);
+    if(e.type==='captor'){ J.tone(180,0.18,'sawtooth',0.06,0.04); haptic('commit'); }
+    const wasHolding = e.holding;
+    enemies.splice(idx,1);
+    bump('score');
+    if(wasHolding && lives>0 && !dual) recover(e);   // killed the captor that held us → recover
+    else if(wasHolding) { dual=true; showBanner('×2'); }  // edge: holding but already had life back
+    checkWaveClear();
+  }
+
+  function checkWaveClear(){
+    if(enemies.length===0 && state==='play'){
+      let bonus = lostThisWave?0:500;
+      if(bonus){ scoreF+=bonus; showBanner('PERFECT WAVE +500'); fx.float(W/2, H*0.4, 'PERFECT +500', GOOD, {size:22, decay:0.012, vy:-0.4}); J.tone(660,0.1,'triangle',0.06); J.tone(990,0.14,'sine',0.05,0.1); haptic('success'); }
+      else { showBanner('WAVE '+wave+' CLEAR'); haptic('commit'); }
+      wave++; bump('wave');
+      // brief gap then next wave
+      setTimeout(()=>{ if(state==='play'){ spawnWave(); } }, 900);
+      waveState='gap';
+    }
+  }
+
+  function gameOver(){
+    state='dead';
+    J.tone(150,0.5,'sawtooth',0.12); J.tone(70,0.8,'sine',0.1,0.05); if(!REDUCE) fx.shake(20); haptic('fail');
+    const score=Math.round(scoreF);
+    const wasBest=score>best; if(wasBest){ best=score; try{ localStorage.setItem('sortie_best',String(best)); }catch(e){} }
+    if(window.GameStats) GameStats.submitScore('SORTIE', score);
+    document.getElementById('finalScore').textContent=score;
+    document.getElementById('finalStats').innerHTML='reached <b>wave '+wave+'</b>'+(wasBest?' &nbsp;·&nbsp; <b style="color:#36d399">NEW BEST</b>':'');
+    document.getElementById('over').style.display='flex';
+    updateHUD();
+  }
+
+  // ---- loop ----
+  function loop(now){ let dt=Math.min(48, now-last); last=now; const ds=dt/1000;
+    if(state==='play'){
+      if(window.GameStats) GameStats.ping('SORTIE', dt);
+      gameTime+=ds; if(invuln>0) invuln-=ds; if(captureFx>0) captureFx=Math.max(0,captureFx-ds*0.6);
+      if(bannerT>0) bannerT-=ds;
+
+      // ship follows pointer
+      sx += (targetX - sx) * Math.min(1, 18*ds); sx=clampX(sx);
+
+      // auto-fire
+      fireCd-=ds;
+      if(fireCd<=0){ fireCd=FIRE_INT;
+        if(dual){ bullets.push({x:sx-11,y:SHIP_Y-8}); bullets.push({x:sx+11,y:SHIP_Y-8}); }
+        else bullets.push({x:sx,y:SHIP_Y-10});
+        J.tone(880,0.03,'square',0.018);
+      }
+
+      // bullets
+      for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i]; b.y-=BULLET_V*ds;
+        if(b.y<-12){ bullets.splice(i,1); continue; }
+      }
+
+      // dive scheduling
+      const formedCount = enemies.filter(e=>e.state==='formed').length;
+      if(waveState==='fight'){
+        diveT-=ds;
+        const maxDivers = 1 + Math.floor(wave/2);
+        const diving = enemies.filter(e=>e.state!=='formed'&&e.state!=='enter').length;
+        if(diveT<=0 && formedCount>0 && diving<maxDivers){ pickDiver(); diveT = Math.max(0.5, 1.8 - wave*0.08) * rng.range(0.7,1.3); }
+      }
+
+      // enemy update
+      let entering=false;
+      for(let i=enemies.length-1;i>=0;i--){ const e=enemies[i];
+        if(e.hitFlash>0) e.hitFlash-=ds;
+        const hx=homeX(e.col)+sway(), hy=homeY(e.row);
+
+        if(e.state==='enter'){
+          entering=true;
+          if(e.delay>0){ e.delay-=ds; e.x=e.p0.x; e.y=e.p0.y; }
+          else { e.t=Math.min(1, e.t+ds*1.4); const p=quad(e.p0,e.p1,{x:hx,y:hy},e.t); e.x=p.x; e.y=p.y;
+            if(e.t>=1){ e.state='formed'; } }
+        } else if(e.state==='formed'){
+          e.x=hx; e.y=hy;
+        } else if(e.state==='diving'){
+          e.t=Math.min(1, e.t+ds/e.diveDur); const p=quad(e.dp0,e.dp1,e.dp2,e.t); e.x=p.x; e.y=p.y;
+          if(e.t>=1){ // re-enter from top toward home
+            e.state='enter'; e.t=0; e.delay=0; e.p0={x:hx+rng.range(-30,30),y:-24}; e.p1={x:hx,y:40}; e.x=e.p0.x; e.y=e.p0.y;
+          }
+        } else if(e.state==='swoop'){   // captor descends to beam height, tracking ship slowly
+          e.y+=e.vy*ds; e.x += (clampX(sx)-e.x)*Math.min(1,1.2*ds);
+          if(e.y>=BEAM_Y){ e.y=BEAM_Y; e.state='beam'; e.beamT=BEAM_DUR; }
+        } else if(e.state==='beam'){
+          e.beamT-=ds;
+          // capture check: ship within cone & alive
+          if(invuln<=0 && lives>0){
+            const half = 6 + (SHIP_Y-e.y)/(H-e.y) * (BEAM_HALF-6);
+            if(Math.abs(sx-e.x) < half){ captureShip(e); }
+          }
+          if(e.beamT<=0 && e.state==='beam'){ e.state='return'; }   // beam missed → retreat
+        } else if(e.state==='return'){
+          // fly back up to formation home (carrying captured ship if holding)
+          const dx=hx-e.x, dy=hy-e.y, d=Math.hypot(dx,dy);
+          const v=200*ds;
+          if(d<=v){ e.x=hx; e.y=hy; e.state='formed'; }
+          else { e.x+=dx/d*v; e.y+=dy/d*v; }
+          if(e.holding) e.capAnimY = e.y + 22;
+        }
+
+        // bullet collisions
+        for(let j=bullets.length-1;j>=0;j--){ const b=bullets[j];
+          if(Math.abs(b.x-e.x)<E_R && Math.abs(b.y-e.y)<E_R){
+            bullets.splice(j,1); e.hp--; e.hitFlash=0.08;
+            if(e.hp<=0){ killEnemy(e,i); }
+            break;
+          }
+        }
+        if(!enemies[i]) continue;   // killed
+
+        // ship collision (diving / beaming / swooping enemies threaten on contact)
+        if(state==='play' && invuln<=0 && (e.state==='diving'||e.state==='swoop'||e.state==='beam'||e.state==='return')){
+          if(Math.abs(e.x-sx)<E_R+SHIP_R-4 && Math.abs(e.y-SHIP_Y)<E_R+SHIP_R-4){
+            // captor contact captures rather than just damages
+            if(e.type==='captor' && !e.holding && lives>0){ captureShip(e); }
+            else loseShip('hit');
+          }
+        }
+      }
+
+      if(waveState==='enter' && !entering) waveState='fight';
+    }
+
+    fx.update(dt);
+    draw();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- draw ----
+  function drawEnemy(e){
+    const flash=e.hitFlash>0;
+    ctx.save(); ctx.translate(e.x,e.y);
+    if(e.type==='captor'){
+      ctx.shadowColor=ACC; ctx.shadowBlur=10;
+      ctx.fillStyle=flash?'#fff':'#ff9d3d';
+      // captor: a wider hull with pincers
+      ctx.beginPath(); ctx.moveTo(0,-E_R); ctx.lineTo(E_R,E_R*0.6); ctx.lineTo(E_R*0.4,E_R); ctx.lineTo(-E_R*0.4,E_R); ctx.lineTo(-E_R,E_R*0.6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=flash?'#fff':'#ffd23f'; ctx.fillRect(-3,-3,6,6);
+    } else {
+      ctx.shadowColor=HOT; ctx.shadowBlur=7;
+      ctx.fillStyle=flash?'#fff':'#ffcf8a';
+      // grunt: chevron
+      ctx.beginPath(); ctx.moveTo(0,-E_R*0.8); ctx.lineTo(E_R*0.85,E_R*0.7); ctx.lineTo(0,E_R*0.3); ctx.lineTo(-E_R*0.85,E_R*0.7); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=flash?'#fff':'#e06b16'; ctx.fillRect(-2.5,-2.5,5,5);
+    }
+    ctx.restore();
+    // captured ship beneath a holding captor
+    if(e.holding){ const cy=(e.capAnimY!=null?e.capAnimY:e.y+22);
+      drawShipGlyph(e.x, cy, 0.8, '#7fe8ff', 0.5); }
+  }
+  function drawBeam(e){
+    if(e.state!=='beam') return;
+    const a = Math.min(1, e.beamT/BEAM_DUR) * (0.5+0.5*Math.sin(performance.now()/40));
+    const yb=H;
+    const g=ctx.createLinearGradient(0,e.y,0,yb);
+    g.addColorStop(0,'rgba(255,210,63,'+(0.5*a)+')'); g.addColorStop(1,'rgba(255,157,61,0)');
+    ctx.fillStyle=g; ctx.beginPath();
+    ctx.moveTo(e.x-6,e.y); ctx.lineTo(e.x+6,e.y); ctx.lineTo(e.x+BEAM_HALF,yb); ctx.lineTo(e.x-BEAM_HALF,yb); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle='rgba(255,210,63,'+(0.6*a)+')'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(e.x-6,e.y); ctx.lineTo(e.x-BEAM_HALF,yb); ctx.moveTo(e.x+6,e.y); ctx.lineTo(e.x+BEAM_HALF,yb); ctx.stroke();
+  }
+  function drawShipGlyph(x,y,s,col,glow){
+    ctx.save(); ctx.translate(x,y); ctx.scale(s,s);
+    ctx.globalCompositeOperation='lighter';
+    const gr=ctx.createRadialGradient(0,0,0,0,0,16); gr.addColorStop(0,'rgba(180,240,255,'+(0.7*glow)+')'); gr.addColorStop(1,'rgba(127,232,255,0)');
+    ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(0,0,16,0,6.28); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(0,-11); ctx.lineTo(8,8); ctx.lineTo(0,4); ctx.lineTo(-8,8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#eafaff'; ctx.fillRect(-2,-4,4,7);
+    ctx.restore();
+  }
+  function starfield(){
+    ctx.fillStyle='rgba(255,220,170,0.5)';
+    for(let i=0;i<26;i++){ const x=(i*97+13)%W; const y=((i*53 + gameTime*16*(0.4+ (i%3)*0.3))%H); ctx.globalAlpha=0.2+0.5*((i%5)/5); ctx.fillRect(x,y,1.6,1.6); }
+    ctx.globalAlpha=1;
+  }
+  function draw(){
+    ctx.save();
+    const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
+    ctx.clearRect(-40,-40,W+80,H+80);
+    starfield();
+
+    // bullets
+    ctx.fillStyle='#fff0d6';
+    for(const b of bullets){ ctx.fillRect(b.x-1.3,b.y-6,2.6,7); }
+
+    // beams (under enemies)
+    for(const e of enemies) drawBeam(e);
+    // enemies
+    for(const e of enemies) drawEnemy(e);
+
+    // player ship(s)
+    if(state==='play' || state==='paused'){
+      const blink = invuln>0 && (Math.floor(performance.now()/90)%2===0);
+      if(!blink){
+        if(dual){ drawShipGlyph(sx-11, SHIP_Y, 0.95, SHIPC, 0.7); drawShipGlyph(sx+11, SHIP_Y, 0.95, SHIPC, 0.7); }
+        else drawShipGlyph(sx, SHIP_Y, 1, SHIPC, 0.8);
+      }
+    }
+
+    fx.render(ctx);
+
+    // lives + dual flag (top-left inside canvas)
+    for(let i=0;i<lives;i++){ drawShipGlyph(20+i*16, 20, 0.5, SHIPC, 0.4); }
+    if(dual){ ctx.fillStyle=HOT; ctx.font='bold 13px ui-monospace,monospace'; ctx.fillText('×2', W-34, 24); }
+
+    // banner
+    if(bannerT>0 && banner){ const a=Math.min(1,bannerT/0.4);
+      ctx.globalAlpha=a; ctx.fillStyle=HOT; ctx.font='bold 20px ui-monospace,monospace'; ctx.textAlign='center';
+      ctx.fillText(banner, W/2, H*0.4); ctx.textAlign='left'; ctx.globalAlpha=1; }
+
+    ctx.restore();
+  }
+
+  // debug hook
+  window.__sortie={ getState:()=>state, setState:v=>state=v, getScore:()=>Math.round(scoreF), getWave:()=>wave,
+    getLives:()=>lives, isDual:()=>dual, getX:()=>sx, setTarget:x=>{targetX=clampX(x);},
+    counts:()=>({total:enemies.length, formed:enemies.filter(e=>e.state==='formed').length,
+      diving:enemies.filter(e=>['diving','swoop','beam','return'].includes(e.state)).length,
+      captors:enemies.filter(e=>e.type==='captor').length, holding:enemies.filter(e=>e.holding).length}),
+    waveState:()=>waveState, setInvuln:v=>invuln=v,
+    addCaptor:()=>{ const col=Math.floor(COLS/2); enemies.push({type:'captor',row:0,col,x:homeX(col),y:homeY(0),state:'formed',t:0,delay:0,hp:CAPTOR_HP,holding:false,cap:null,beamT:0,hitFlash:0}); },
+    captor:()=>{ const c=enemies.find(e=>e.type==='captor'); return c?{state:c.state,x:Math.round(c.x),y:Math.round(c.y),beamT:+c.beamT.toFixed(2),holding:c.holding,hp:c.hp}:null; },
+    forceCaptorDive:()=>{ const c=enemies.find(e=>e.type==='captor'&&e.state==='formed'); if(c) startDive(c); return !!c; },
+    forceKillHolder:()=>{ const i=enemies.findIndex(e=>e.holding); if(i>=0){ enemies[i].hp=1; killEnemy(enemies[i],i); return true;} return false; } };
+
+  reset(true); last=performance.now(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

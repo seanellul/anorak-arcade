@@ -309,6 +309,24 @@ a.card.v2.feature .body p{max-width:560px}
         <div class="pill">free-steer faller · greed multiplier</div>
       </div>
     </a>
+    <a class="card v2 reveal" href="sortie.html" style="--c:#ff9d3d">
+      <span class="demo"><canvas data-demo="sortie"></canvas><span class="verb">FORMATION</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>SORTIE</h2>
+        <div class="tag">formation · slide & break</div>
+        <p>Hold the line. Enemies assemble overhead, then peel off to dive while you auto-fire. <i>Risk capture</i> — destroy the captor mid-beam to fly as two: double fire, double score.</p>
+        <div class="pill">formation shooter · capture-recover gamble</div>
+      </div>
+    </a>
+    <a class="card v2 reveal" href="circuit.html" style="--c:#2fe0b0">
+      <span class="demo"><canvas data-demo="circuit"></canvas><span class="verb">GROW & GRAZE</span><span class="fade"></span><span class="play">PLAY ↗</span></span>
+      <div class="body">
+        <h2>CIRCUIT</h2>
+        <div class="tag">circuit · grow & graze</div>
+        <p>A live current. Steer to collect charge and grow your light-trail, then <i>skim your own trail</i> a hair's width away to pump a combo. Touch it and you discharge.</p>
+        <div class="pill">snake × tron · graze-combo risk dial</div>
+      </div>
+    </a>
   </div>
 
   <section class="playtime reveal">
@@ -336,8 +354,8 @@ a.card.v2.feature .body p{max-width:560px}
    playtime panel (unchanged from prod)
    ===================================================================== */
 (()=>{
-  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a',ECOTONE:'#7fc24a',INTERCEPT:'#ff4747',DESCENT:'#b15cff'};
-  const ORDER=['MOTHERLOAD','ECOTONE','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','INTERCEPT','DESCENT'];
+  const COLORS={CINDER:'#ff6a3d',SHIFT:'#5ad1ff',CONDUIT:'#b98cff',HOMEOSTAT:'#36d399',NOVA:'#ff5ec7',SURGE:'#ffd23f',CLEAVE:'#3fe0c2',FLUX:'#6c8cff',WEAVE:'#d6f84a',PULSE:'#ff2e4d',MOTHERLOAD:'#e8a13a',ECOTONE:'#7fc24a',INTERCEPT:'#ff4747',DESCENT:'#b15cff',SORTIE:'#ff9d3d',CIRCUIT:'#2fe0b0'};
+  const ORDER=['MOTHERLOAD','ECOTONE','CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','INTERCEPT','DESCENT','SORTIE','CIRCUIT'];
   function render(){
     if(!window.GameStats) return;
     const all=GameStats.all(); const map={}; all.forEach(a=>map[a.game]=a);
@@ -951,7 +969,83 @@ a.card.v2.feature .body p{max-width:560px}
     }, onResize:reset};
   }
 
-  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,weave,pulse,intercept,descent,motherload,ecotone};
+  /* ---------- SORTIE: a formation overhead, divers peel off, the ship slides & fires ---------- */
+  function sortie(g){
+    const {ctx}=g; let form,divers,bullets,sx,t=0,fireT=0,diveT=0;
+    function reset(){ form=[]; divers=[]; bullets=[]; sx=g.w/2; t=0; fireT=0; diveT=900;
+      const cols=6, rows=3, gw=g.w*0.62, x0=(g.w-gw)/2, gy=g.h*0.16, sp=gw/(cols-1);
+      for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) form.push({hx:x0+c*sp, hy:gy+r*g.h*0.075, alive:true}); }
+    reset();
+    return {step(dt){ t+=dt; fireT-=dt; diveT-=dt;
+      const sy=g.h-10;
+      // ship drifts toward the lowest live diver (or center)
+      let tgt=g.w/2, lo=-1; for(const d of divers){ if(d.y>lo){lo=d.y;tgt=d.x;} }
+      sx+=(tgt-sx)*Math.min(1,dt*0.004); sx=Math.max(10,Math.min(g.w-10,sx));
+      if(fireT<=0){ bullets.push({x:sx,y:sy-6}); fireT=240; }
+      if(diveT<=0){ const live=form.filter(f=>f.alive); if(live.length){ const e=live[(Math.random()*live.length)|0];
+        e.alive=false; divers.push({x:e.hx,y:e.hy,sxp:e.hx,t:0,amp:(Math.random()*2-1)*g.w*0.3}); } diveT=700+Math.random()*500; }
+      ctx.clearRect(0,0,g.w,g.h);
+      // formation
+      for(const f of form){ if(!f.alive) continue;
+        ctx.save(); ctx.shadowColor='#ff9d3d'; ctx.shadowBlur=6; ctx.fillStyle='#ffb867';
+        ctx.fillRect(f.hx-3,f.hy-2,6,4); ctx.restore(); }
+      // divers (swooping bezier-ish path down)
+      for(let i=divers.length-1;i>=0;i--){ const d=divers[i]; d.t+=dt*0.0011; const p=d.t;
+        d.y=d.y+dt*0.05; d.x=d.sxp+Math.sin(p*6.28)*d.amp*Math.min(1,p);
+        ctx.save(); ctx.shadowColor='#ff9d3d'; ctx.shadowBlur=8; ctx.fillStyle='#ffd23f';
+        ctx.beginPath(); ctx.moveTo(d.x,d.y+4); ctx.lineTo(d.x-4,d.y-3); ctx.lineTo(d.x+4,d.y-3); ctx.closePath(); ctx.fill(); ctx.restore();
+        if(d.y>g.h+6) divers.splice(i,1); }
+      // bullets + hits
+      for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i]; b.y-=dt*0.22;
+        ctx.fillStyle='#fff0d6'; ctx.fillRect(b.x-1,b.y-5,2,6);
+        let hit=false;
+        for(const d of divers){ if(Math.abs(d.x-b.x)<6&&Math.abs(d.y-b.y)<7){ d.y=g.h+99; hit=true; break; } }
+        if(hit||b.y<-6) bullets.splice(i,1); }
+      // ship
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const gr=ctx.createRadialGradient(sx,sy,0,sx,sy,12); gr.addColorStop(0,'rgba(255,210,150,0.9)'); gr.addColorStop(0.5,'rgba(255,157,61,0.5)'); gr.addColorStop(1,'rgba(255,157,61,0)');
+      ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(sx,sy,12,0,6.28); ctx.fill(); ctx.restore();
+      ctx.fillStyle='#ffd9ad'; ctx.beginPath(); ctx.moveTo(sx,sy-7); ctx.lineTo(sx-6,sy+4); ctx.lineTo(sx+6,sy+4); ctx.closePath(); ctx.fill();
+      if(t>9000) reset();
+    }, onResize:reset};
+  }
+
+  /* ---------- CIRCUIT: a current snakes around, laying a glowing trail, skimming itself ---------- */
+  function circuit(g){
+    const {ctx}=g; let head,dir,trail,tx,ty,t=0,aimT=0;
+    function reset(){ head={x:g.w*0.5,y:g.h*0.6}; dir=-1.57; trail=[{x:head.x,y:head.y}]; tx=g.w*0.5; ty=g.h*0.3; t=0; aimT=0; }
+    reset();
+    const SPD=0.06, TURN=0.005, MAXLEN=46;
+    return {step(dt){ t+=dt; aimT-=dt;
+      if(aimT<=0){ tx=g.w*(0.18+Math.random()*0.64); ty=g.h*(0.16+Math.random()*0.68); aimT=700+Math.random()*500; }
+      let des=Math.atan2(ty-head.y,tx-head.x), del=des-dir;
+      while(del>Math.PI)del-=6.283; while(del<-Math.PI)del+=6.283;
+      dir+=Math.max(-TURN*dt,Math.min(TURN*dt,del));
+      head.x+=Math.cos(dir)*SPD*dt; head.y+=Math.sin(dir)*SPD*dt;
+      // bounce off edges
+      if(head.x<6){head.x=6;dir=Math.PI-dir;} if(head.x>g.w-6){head.x=g.w-6;dir=Math.PI-dir;}
+      if(head.y<6){head.y=6;dir=-dir;} if(head.y>g.h-6){head.y=g.h-6;dir=-dir;}
+      const tl=trail[trail.length-1]; if(Math.hypot(head.x-tl.x,head.y-tl.y)>4){ trail.push({x:head.x,y:head.y}); if(trail.length>MAXLEN) trail.shift(); }
+      // graze glow: near own (older) trail?
+      let near=1e9; for(let i=0;i<trail.length-8;i++){ const a=trail[i]; const d=Math.hypot(a.x-head.x,a.y-head.y); if(d<near)near=d; }
+      const graze=near<22;
+      ctx.clearRect(0,0,g.w,g.h);
+      // trail ribbon
+      if(trail.length>1){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineJoin='round'; ctx.lineCap='round';
+        ctx.strokeStyle='rgba(47,224,176,0.18)'; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(trail[0].x,trail[0].y); for(let i=1;i<trail.length;i++)ctx.lineTo(trail[i].x,trail[i].y); ctx.stroke();
+        ctx.strokeStyle='rgba(140,255,228,0.85)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(trail[0].x,trail[0].y); for(let i=1;i<trail.length;i++)ctx.lineTo(trail[i].x,trail[i].y); ctx.stroke();
+        ctx.restore(); }
+      // head
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const c=graze?'255,210,63':'47,224,176'; const gr=ctx.createRadialGradient(head.x,head.y,0,head.x,head.y,graze?13:9);
+      gr.addColorStop(0,'rgba('+(graze?'255,231,150':'190,255,240')+',0.95)'); gr.addColorStop(0.5,'rgba('+c+',0.5)'); gr.addColorStop(1,'rgba('+c+',0)');
+      ctx.fillStyle=gr; ctx.beginPath(); ctx.arc(head.x,head.y,graze?13:9,0,6.28); ctx.fill(); ctx.restore();
+      ctx.fillStyle=graze?'#fff4c8':'#eafff8'; ctx.beginPath(); ctx.arc(head.x,head.y,3,0,6.28); ctx.fill();
+      if(t>9000) reset();
+    }, onResize:reset};
+  }
+
+  const FACTORY={cinder,shift,conduit,homeostat,nova,surge,cleave,flux,weave,pulse,intercept,descent,sortie,circuit,motherload,ecotone};
 
   /* boot every demo canvas; share one rAF; pause off-screen */
   document.querySelectorAll('canvas[data-demo]').forEach(cv=>{

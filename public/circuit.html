@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="A live current. Steer your head to collect charge — and skim your own light-trail without touching it to pump a combo multiplier. Touch the trail and you discharge. How brave is your line?">
+<meta name="theme-color" content="#0a0e14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Anorak Arcade">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Anorak Arcade">
+<meta property="og:title" content="CIRCUIT — grow & graze">
+<meta property="og:description" content="Collect charge, then skim your own light-trail for combo. Touch it and you discharge. The braver your line, the bigger the score.">
+<meta property="og:image" content="https://anorak-arcade.pages.dev/og-circuit.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CIRCUIT — grow & graze">
+<meta name="twitter:description" content="Snake × Tron with a graze meter — near-misses are the scoring play. A love letter to a bygone era — original browser prototypes.">
+
+<title>CIRCUIT — grow & graze</title>
+<style>
+  :root{ --bg:#0a0e14; --panel:#0d1a18; --ink:#eef2fb; --dim:#7fa39b; --acc:#2fe0b0; --acc2:#16b896; --hot:#ffd23f; --good:#36d399; --bad:#ff4d6d; }
+  *{box-sizing:border-box}
+  html,body{overscroll-behavior:none}
+  body{margin:0;background:radial-gradient(1100px 760px at 50% -8%,#0a2a26,#0a0e14 62%);color:var(--ink);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+  header{width:100%;max-width:520px;display:flex;justify-content:space-between;align-items:baseline;padding:18px 8px 4px}
+  h1{font-size:18px;letter-spacing:.34em;margin:0;font-weight:700}h1 .v{color:var(--acc)}
+  .sub{color:var(--dim);font-size:11px;letter-spacing:.18em}
+  .hud{width:100%;max-width:520px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px}
+  .stat{background:var(--panel);border:1px solid #15302b;border-radius:8px;padding:8px 10px;position:relative;overflow:hidden}
+  .stat .k{color:var(--dim);font-size:10px;letter-spacing:.18em}
+  .stat .val{font-size:21px;font-weight:700;margin-top:2px;transition:transform .08s}
+  .stat .val.bump{transform:scale(1.2)}
+  #score{color:var(--acc)}
+  #combo{color:var(--hot)}
+  #combo.live{text-shadow:0 0 12px rgba(255,210,63,.8)}
+  #wrap{position:relative;margin:10px 0}
+  canvas{background:#04100d;border:1px solid #15302b;border-radius:12px;display:block;max-width:100%;height:auto;cursor:none;touch-action:none}
+  .foot{max-width:520px;color:var(--dim);font-size:12px;line-height:1.7;padding:6px 12px 40px;text-align:center}
+  .key{color:var(--ink);background:#0e2420;border:1px solid #1d3a34;border-radius:5px;padding:1px 7px;font-size:11px}
+  .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(4,14,11,.92);border-radius:12px;text-align:center;padding:24px}
+  .overlay h2{margin:0 0 4px;letter-spacing:.18em;font-size:26px}
+  .overlay h2.bad{color:var(--bad)} .overlay h2.title{color:var(--acc)}
+  .overlay p{color:var(--dim);margin:6px 0;max-width:430px;line-height:1.6;font-size:13px}
+  .overlay .big{font-size:40px;font-weight:700;color:var(--hot);margin:8px 0}
+  button{background:linear-gradient(180deg,#4cf0c8,#16b896);color:#04231c;border:0;font-family:inherit;font-weight:700;letter-spacing:.12em;padding:13px 30px;border-radius:9px;cursor:pointer;font-size:14px;margin-top:14px;box-shadow:0 6px 22px rgba(47,224,176,.4)}
+  button:hover{filter:brightness(1.08)}
+  .modes{display:flex;gap:8px;justify-content:center;margin-top:8px}
+  .modes button{background:#0e2420;border:1px solid #1d3a34;color:var(--dim);font-weight:700;letter-spacing:.1em;padding:8px 18px;border-radius:8px;font-size:12px;margin:0;box-shadow:none}
+  .modes button.on{background:#15302b;border-color:var(--acc);color:var(--hot)}
+  .modes button:hover{filter:none}
+  .seedline{color:var(--dim);font-size:11px;letter-spacing:.14em;margin-top:9px;min-height:14px}
+  .statline{color:var(--dim);font-size:12px;margin-top:10px;letter-spacing:.06em}
+  .statline b{color:var(--ink)}
+  a.back{position:fixed;top:14px;left:14px;color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}a.back:hover{color:var(--ink)}
+  @media(max-width:560px){
+    body{justify-content:flex-start}
+    a.back{position:static;display:block;margin:7px 0 0 10px;font-size:11px}
+    header{padding:2px 10px 0}
+    header h1{font-size:14px}
+    header .sub{display:none}
+    .hud{gap:6px;padding:4px 8px}
+    .hud .stat{background:none;border:0;padding:2px 5px;overflow:visible}
+    .hud .stat .k{font-size:8px;letter-spacing:.08em}
+    .hud .stat .val{font-size:18px;margin-top:0}
+    #wrap{margin:5px 0}
+    .foot{display:none}
+  }
+  .d-touch{ display:none; }
+  @media(pointer:coarse){ .d-desktop{ display:none !important; } .d-touch{ display:revert; } }
+</style>
+<link rel="stylesheet" href="cabinet.css">
+</head>
+<body data-game="CIRCUIT">
+<a class="back" href="index.html">← arcade</a>
+<header>
+  <div><h1>CIR<span class="v">CUIT</span></h1><div class="sub">GROW & GRAZE · skim the line</div></div>
+</header>
+<div class="hud">
+  <div class="stat"><div class="k">SCORE</div><div class="val" id="score">0</div></div>
+  <div class="stat"><div class="k">COMBO</div><div class="val" id="combo">×1.0</div></div>
+  <div class="stat"><div class="k">BEST</div><div class="val" id="best">0</div></div>
+</div>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="overlay" id="title">
+    <h2 class="title">CIR<span style="color:#2fe0b0">CUIT</span></h2>
+    <p>You're a live current. <b style="color:#eef2fb">Steer toward your finger</b> (or mouse) — the head turns smoothly, it never stops. Collect <b style="color:#2fe0b0">charge</b> to score and grow your trail.</p>
+    <p>The trick: <b style="color:#ffd23f">skim your own trail</b> without touching it to pump your <b style="color:#ffd23f">combo</b> — the closer the graze, the faster it climbs. But <b style="color:#ff4d6d">touch the trail or a wall and you discharge.</b></p>
+    <div class="modes">
+      <button id="mDaily" class="on" type="button">DAILY</button>
+      <button id="mFree" type="button">FREE</button>
+    </div>
+    <div class="seedline" id="seedline"></div>
+    <button id="startBtn">CHARGE ▶</button>
+    <div class="statline d-desktop"><span class="key">move mouse</span> steer &nbsp; <span class="key">P</span> pause</div>
+    <div class="statline d-touch"><span class="key">drag finger</span> steer &nbsp; <span class="key">❙❙</span> pause</div>
+  </div>
+  <div class="overlay" id="over" style="display:none">
+    <h2 class="bad">DISCHARGE</h2>
+    <div class="big" id="finalScore">0</div>
+    <div class="statline" id="finalStats"></div>
+    <button id="again">CHARGE AGAIN ⏎</button>
+    <div class="statline d-touch" style="margin-top:6px">or tap the grid</div>
+  </div>
+  <div class="overlay" id="paused" style="display:none"><h2>PAUSED</h2><p><span class="d-desktop">press <span class="key">P</span> to resume</span><span class="d-touch">tap <span class="key">❙❙</span> to resume</span></p></div>
+</div>
+<div class="foot">
+  <b style="color:#2fe0b0">Steer toward your finger</b> — the head turns at a capped rate and never stops. Grab <b style="color:#2fe0b0">charge</b> to score and lengthen your light-trail. The scoring play is the <b style="color:#ffd23f">graze</b>: skim your own trail a hair's width away to climb the combo multiplier — every charge banks at the current combo. <b style="color:#ff4d6d">Touch your trail or a wall and the run ends.</b> The braver your line, the higher you fly.
+</div>
+<script src="seed.js"></script>
+<script src="juice.js"></script>
+<script src="stats.js"></script>
+<script src="feel.js"></script>
+<script src="cabinet.js"></script>
+<script>
+(()=>{
+  const MOBILE = window.matchMedia('(max-width:560px)').matches;
+  const W = MOBILE?340:380, H = 600;
+  const cv=document.getElementById('c'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  const J=window.Juice; const fx=J.layer();
+  const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- arena ----
+  const PAD = 16;                       // wall inset
+  const AL=PAD, AR=W-PAD, AT=PAD, AB=H-PAD;
+  const ARENA_W=AR-AL, ARENA_H=AB-AT;
+
+  // ---- tuning ----
+  const HEAD_R   = 5;
+  const SPEED0   = 150;                 // px/s
+  const SPEED_STEP = 5;                 // +per pickup
+  const SPEED_CAP  = 360;
+  const MAX_TURN = 320 * Math.PI/180;   // rad/s steering rate — agile enough to thread tight skims
+  const R_DIE    = 6;                   // self/wall collision radius
+  const R_GRAZE  = 30;                  // graze radius (> R_DIE) — wide band you can ride; reward concentrates near the inner edge
+  const GROW     = 18;                  // trail px added per pickup (lengthens the ribbon you can skim)
+  const LEN0     = 430;                 // starting ribbon length (px) — a persistent Tron trail you can always skim
+  const MIN_GAP  = 4;                   // decimation: min px between trail points
+  const IGNORE_PTS = 8;                 // recent points excluded from collision/graze
+  const COMBO_DECAY_DELAY = 1.6;        // s of no graze before combo bleeds (banks the combo)
+  const COMBO_RAMP = 2.1;               // combo gained per second while grazing
+  const COMBO_FADE = 1.0;               // combo lost per second when decaying
+  const COMBO_MAX  = 9.9;
+  const PIP_R     = 9;
+  const DIE_DIST  = R_DIE + HEAD_R - 2; // center-distance that counts as a hit
+  const PICKUP_DIST = HEAD_R + PIP_R + 13;  // forgiving collect radius — no orbit-lock
+
+  // ---- state ----
+  let head, dir, trail, trailLen, targetLen,
+      tx, ty, steering,
+      speed, combo, scoreF, best, grazing, grazeGlow, sinceGraze,
+      pipSeq, pipIdx, pip, pickupCount, peakCombo,
+      last, state, mode, rng, gestured=false, comboMilestone, grazeWarnT;
+  const ACC='#2fe0b0', HOT='#ffd23f', BAD='#ff4d6d', GOOD='#36d399';
+
+  best = (()=>{ try{ return parseInt(localStorage.getItem('circuit_best')||'0',10)||0; }catch(e){ return 0; } })();
+
+  function newRng(){ return mode==='daily' ? AASeed.daily('CIRCUIT') : AASeed.free('CIRCUIT'); }
+
+  // ---- seeded pip stream (deterministic positions, inset from walls) ----
+  function nextPip(){
+    const m = 34;                       // keep pips off the immediate wall
+    const p = pipSeq[pipIdx % pipSeq.length];
+    pipIdx++;
+    return { x: AL+m + p[0]*(ARENA_W-2*m), y: AT+m + p[1]*(ARENA_H-2*m) };
+  }
+  function buildPipSeq(){
+    pipSeq=[]; for(let i=0;i<200;i++) pipSeq.push([rng(), rng()]);
+    pipIdx=0;
+  }
+
+  function reset(showTitle){
+    rng=newRng(); buildPipSeq();
+    head={ x:(AL+AR)/2, y:AB-80 };
+    dir=-Math.PI/2;                     // heading up
+    trail=[{x:head.x,y:head.y}]; trailLen=0; targetLen=LEN0;
+    tx=head.x; ty=AT+60; steering=false;
+    speed=SPEED0; combo=1; scoreF=0; grazing=false; grazeGlow=0; sinceGraze=99;
+    pickupCount=0; peakCombo=1; comboMilestone=1; grazeWarnT=0;
+    pip=nextPip();
+    document.getElementById('over').style.display='none';
+    document.getElementById('paused').style.display='none';
+    document.getElementById('title').style.display=showTitle?'flex':'none';
+    state = showTitle?'title':'play';
+    updateSeedline(); updateHUD();
+  }
+  function start(){ gestured=true; J.unlock(); reset(false); last=performance.now(); }
+
+  // ---- input (steer toward pointer) ----
+  function P(e){ const r=cv.getBoundingClientRect(), t=e.touches&&e.touches[0]?e.touches[0]:e;
+    return { x:(t.clientX-r.left)*(W/r.width), y:(t.clientY-r.top)*(H/r.height) }; }
+  function aim(e){ const p=P(e); tx=p.x; ty=p.y; steering=true; }
+  cv.addEventListener('mousemove', e=>{ if(state==='play') aim(e); });
+  cv.addEventListener('mousedown', e=>{ gestured=true; if(state==='dead'){ start(); return; } if(state==='play') aim(e); });
+  cv.addEventListener('touchstart', e=>{ e.preventDefault(); gestured=true; if(state==='dead'){ start(); return; } if(state==='play') aim(e); },{passive:false});
+  cv.addEventListener('touchmove', e=>{ e.preventDefault(); if(state==='play') aim(e); },{passive:false});
+  cv.addEventListener('touchend', e=>{ e.preventDefault(); steering=false; },{passive:false});
+  window.addEventListener('keydown', e=>{ const k=e.key.toLowerCase();
+    if(k==='enter'&&state==='dead') start();
+    else if(k==='p'&&(state==='play'||state==='paused')) togglePause();
+  });
+  function togglePause(){ if(state==='play'){ state='paused'; document.getElementById('paused').style.display='flex'; }
+    else if(state==='paused'){ state='play'; document.getElementById('paused').style.display='none'; last=performance.now(); } }
+  document.getElementById('startBtn').onclick=start;
+  document.getElementById('again').onclick=start;
+  const mD=document.getElementById('mDaily'), mF=document.getElementById('mFree');
+  mode='daily';
+  mD.onclick=()=>{ gestured=true; mode='daily'; mD.classList.add('on'); mF.classList.remove('on'); updateSeedline(); haptic('tap'); };
+  mF.onclick=()=>{ gestured=true; mode='free'; mF.classList.add('on'); mD.classList.remove('on'); updateSeedline(); haptic('tap'); };
+  window.addEventListener('blur',()=>{ if(state==='play') togglePause(); });
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden && state==='play') togglePause(); });
+
+  function haptic(verb){ try{
+    if(window.Feel && Feel[verb]) Feel[verb]();
+    else if(gestured && navigator.vibrate){ const m={tap:6,select:8,commit:10,heavy:[14,22,14],warn:24,success:[10,28,10],fail:[30,40,30]}[verb]; if(m) navigator.vibrate(m); }
+  }catch(e){} }
+
+  function updateSeedline(){ const el=document.getElementById('seedline');
+    el.textContent = mode==='daily' ? ('TODAY · '+AASeed.dailyKey()) : 'ENDLESS · random board'; }
+
+  // ---- HUD ----
+  function bump(id){ const el=document.getElementById(id); if(!el) return; el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'),100); }
+  function updateHUD(){
+    document.getElementById('score').textContent=Math.round(scoreF);
+    const cel=document.getElementById('combo'); cel.textContent='×'+combo.toFixed(1);
+    cel.classList.toggle('live', combo>=1.5);
+    document.getElementById('best').textContent=Math.max(best,Math.round(scoreF));
+  }
+
+  // ---- geometry: distance from point to segment ----
+  function distToSeg(px,py, ax,ay, bx,by){
+    const dx=bx-ax, dy=by-ay; const l2=dx*dx+dy*dy;
+    let t = l2>0 ? ((px-ax)*dx+(py-ay)*dy)/l2 : 0;
+    t = t<0?0:t>1?1:t;
+    const cx=ax+t*dx, cy=ay+t*dy;
+    return Math.hypot(px-cx, py-cy);
+  }
+  // nearest distance from head to any eligible trail segment (excludes recent points)
+  function nearestTrail(){
+    let nb=1e9; const n=trail.length;
+    const limit = n-1-IGNORE_PTS;        // last segment index allowed
+    for(let i=0;i<limit;i++){
+      const a=trail[i], b=trail[i+1];
+      // bounding-window cull
+      if(Math.min(a.x,b.x)-head.x>R_GRAZE || head.x-Math.max(a.x,b.x)>R_GRAZE) continue;
+      if(Math.min(a.y,b.y)-head.y>R_GRAZE || head.y-Math.max(a.y,b.y)>R_GRAZE) continue;
+      const d=distToSeg(head.x,head.y, a.x,a.y, b.x,b.y);
+      if(d<nb) nb=d;
+    }
+    return nb;
+  }
+
+  function crash(reason){
+    state='dead';
+    fx.burst(head.x, head.y, ACC, 30, {spread:4.4, up:0, decay:0.03, r:3});
+    fx.ring(head.x, head.y, BAD, 52, {lw:3, decay:0.04});
+    J.tone(160,0.5,'sawtooth',0.12); J.tone(72,0.8,'sine',0.1,0.05);
+    if(!REDUCE) fx.shake(20);
+    haptic('fail');
+    const score=Math.round(scoreF);
+    const wasBest = score>best;
+    if(wasBest){ best=score; try{ localStorage.setItem('circuit_best',String(best)); }catch(e){} }
+    if(window.GameStats) GameStats.submitScore('CIRCUIT', score);
+    document.getElementById('finalScore').textContent=score;
+    document.getElementById('finalStats').innerHTML='peak combo <b style="color:#ffd23f">×'+peakCombo.toFixed(1)+'</b> &nbsp;·&nbsp; <b>'+pickupCount+'</b> charge'+(pickupCount===1?'':'s')+(wasBest?' &nbsp;·&nbsp; <b style="color:#36d399">NEW BEST</b>':'');
+    document.getElementById('over').style.display='flex';
+    updateHUD();
+  }
+
+  // ---- loop ----
+  function loop(now){ let dt=Math.min(48, now-last); last=now; const ds=dt/1000;
+    if(state==='play'){
+      if(window.GameStats) GameStats.ping('CIRCUIT', dt);
+
+      // steer: turn dir toward target at capped rate
+      let desired = Math.atan2(ty-head.y, tx-head.x);
+      let delta = desired - dir;
+      while(delta> Math.PI) delta-=2*Math.PI;
+      while(delta<-Math.PI) delta+=2*Math.PI;
+      const maxStep = MAX_TURN*ds;
+      dir += Math.max(-maxStep, Math.min(maxStep, delta));
+
+      // advance head
+      const step = speed*ds;
+      head.x += Math.cos(dir)*step;
+      head.y += Math.sin(dir)*step;
+
+      // survival drip (scaled by combo so brave play also drips faster)
+      scoreF += 2*ds*combo;
+
+      // walls = death
+      if(head.x<AL+R_DIE || head.x>AR-R_DIE || head.y<AT+R_DIE || head.y>AB-R_DIE){
+        head.x=Math.max(AL+R_DIE,Math.min(AR-R_DIE,head.x)); head.y=Math.max(AT+R_DIE,Math.min(AB-R_DIE,head.y));
+        crash('wall'); fx.update(dt); draw(); updateHUD(); requestAnimationFrame(loop); return;
+      }
+
+      // append to decimated trail
+      const tl=trail[trail.length-1];
+      const seg=Math.hypot(head.x-tl.x, head.y-tl.y);
+      if(seg>=MIN_GAP){ trail.push({x:head.x,y:head.y}); trailLen+=seg;
+        // trim tail to target length
+        while(trailLen>targetLen && trail.length>2){
+          const s=Math.hypot(trail[1].x-trail[0].x, trail[1].y-trail[0].y);
+          trailLen-=s; trail.shift();
+        }
+      }
+
+      // collision + graze against own trail
+      const nd=nearestTrail();
+      if(nd<=DIE_DIST){
+        crash('self'); fx.update(dt); draw(); updateHUD(); requestAnimationFrame(loop); return;
+      }
+      grazing = nd<=R_GRAZE;
+      if(grazing){
+        sinceGraze=0; grazeGlow=Math.min(1, grazeGlow+ds*4);
+        // closer graze → faster climb. reward concentrates near the inner (risky) edge:
+        // far edge of the band barely pays, a hair's-width skim pays full.
+        const prox = 1 - (nd-DIE_DIST)/(R_GRAZE-DIE_DIST);   // 0 at outer edge, 1 at death line
+        const pc = prox*prox;                                 // curve so only close skims pay big
+        combo = Math.min(COMBO_MAX, combo + COMBO_RAMP*(0.15+1.15*pc)*ds);
+        if(combo>peakCombo) peakCombo=combo;
+        grazeWarnT-=ds;
+        if(grazeWarnT<=0){ haptic('warn'); grazeWarnT=0.45; }
+        if(Math.floor(combo)>comboMilestone){ comboMilestone=Math.floor(combo); haptic('heavy');
+          if(!REDUCE) fx.float(head.x, head.y-14, '×'+comboMilestone, HOT, {size:18, decay:0.02, vy:-0.4}); bump('combo'); }
+      } else {
+        grazeGlow=Math.max(0, grazeGlow-ds*3); sinceGraze+=ds;
+        if(sinceGraze>COMBO_DECAY_DELAY && combo>1){ combo=Math.max(1, combo-COMBO_FADE*ds); if(Math.floor(combo)<comboMilestone) comboMilestone=Math.max(1,Math.floor(combo)); }
+      }
+
+      // pickup
+      if(pip){
+        const d=Math.hypot(head.x-pip.x, head.y-pip.y);
+        if(d<=PICKUP_DIST){
+          const gain=10*combo; scoreF+=gain; pickupCount++;
+          targetLen+=GROW; speed=Math.min(SPEED_CAP, speed+SPEED_STEP);
+          fx.float(pip.x, pip.y, '+'+Math.round(gain), ACC, {size:18, decay:0.02, vy:-0.5});
+          fx.burst(pip.x, pip.y, ACC, 11, {spread:2.6, up:0, decay:0.05, r:2});
+          fx.ring(pip.x, pip.y, ACC, 26, {lw:2, decay:0.05});
+          J.tone(660,0.07,'triangle',0.05); J.tone(990,0.06,'sine',0.035,0.04);
+          haptic('tap'); bump('score');
+          pip=nextPip();
+        }
+      }
+    }
+
+    fx.update(dt);
+    draw();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  // ---- draw ----
+  function draw(){
+    ctx.save();
+    const sm=fx.shakeMag; if(sm>0) ctx.translate((Math.random()-.5)*sm,(Math.random()-.5)*sm);
+    ctx.clearRect(-40,-40,W+80,H+80);
+
+    // arena floor grid (texture)
+    ctx.strokeStyle='rgba(47,224,176,0.06)'; ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let x=AL; x<=AR; x+=34){ ctx.moveTo(x,AT); ctx.lineTo(x,AB); }
+    for(let y=AT; y<=AB; y+=34){ ctx.moveTo(AL,y); ctx.lineTo(AR,y); }
+    ctx.stroke();
+
+    // walls
+    ctx.strokeStyle='rgba(47,224,176,0.5)'; ctx.lineWidth=2;
+    ctx.strokeRect(AL,AT,ARENA_W,ARENA_H);
+
+    // pip
+    if(pip){
+      const pl=0.6+0.4*Math.sin(performance.now()/180);
+      ctx.globalCompositeOperation='lighter';
+      const g=ctx.createRadialGradient(pip.x,pip.y,0,pip.x,pip.y,16);
+      g.addColorStop(0,'rgba(120,255,225,'+(0.9*pl)+')'); g.addColorStop(0.5,'rgba(47,224,176,'+(0.45*pl)+')'); g.addColorStop(1,'rgba(47,224,176,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(pip.x,pip.y,16,0,7); ctx.fill();
+      ctx.fillStyle='#bafff0'; ctx.beginPath(); ctx.arc(pip.x,pip.y,3.2,0,7); ctx.fill();
+      ctx.globalCompositeOperation='source-over';
+    }
+
+    // trail
+    if(trail.length>1){
+      ctx.globalCompositeOperation='lighter';
+      ctx.lineJoin='round'; ctx.lineCap='round';
+      // outer glow
+      ctx.strokeStyle='rgba(47,224,176,0.20)'; ctx.lineWidth=7;
+      ctx.beginPath(); ctx.moveTo(trail[0].x,trail[0].y);
+      for(let i=1;i<trail.length;i++) ctx.lineTo(trail[i].x,trail[i].y); ctx.stroke();
+      // core
+      ctx.strokeStyle='rgba(140,255,228,0.9)'; ctx.lineWidth=2.4;
+      ctx.beginPath(); ctx.moveTo(trail[0].x,trail[0].y);
+      for(let i=1;i<trail.length;i++) ctx.lineTo(trail[i].x,trail[i].y); ctx.stroke();
+      ctx.globalCompositeOperation='source-over';
+    }
+
+    // head — glow ramps when grazing
+    ctx.globalCompositeOperation='lighter';
+    const gr = HEAD_R*2.4 + grazeGlow*8;
+    const hg=ctx.createRadialGradient(head.x,head.y,1,head.x,head.y,gr);
+    if(grazeGlow>0.02){ hg.addColorStop(0,'rgba(255,231,150,0.95)'); hg.addColorStop(0.5,'rgba(255,210,63,'+(0.4+0.4*grazeGlow)+')'); hg.addColorStop(1,'rgba(255,210,63,0)'); }
+    else { hg.addColorStop(0,'rgba(190,255,240,0.95)'); hg.addColorStop(0.5,'rgba(47,224,176,0.55)'); hg.addColorStop(1,'rgba(47,224,176,0)'); }
+    ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(head.x,head.y,gr,0,7); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    ctx.fillStyle = grazeGlow>0.02 ? '#fff4c8' : '#eafff8';
+    ctx.beginPath(); ctx.arc(head.x,head.y,HEAD_R,0,7); ctx.fill();
+
+    fx.render(ctx);
+    ctx.restore();
+
+    // combo vignette as it climbs
+    if(combo>2.5){ J.vignette(ctx,W,H,Math.min(0.4,(combo-2.5)/7*0.4),'rgba(120,90,20,A)'); }
+  }
+
+  // debug hook (inert in normal play)
+  window.__circuit={ getScore:()=>Math.round(scoreF), getCombo:()=>combo, getState:()=>state,
+    setState:v=>state=v, getHead:()=>({x:head.x,y:head.y,dir}), getTrailLen:()=>Math.round(trailLen),
+    getPip:()=>pip&&{x:pip.x,y:pip.y}, getPicks:()=>pickupCount, getSpeed:()=>Math.round(speed),
+    aimAt:(x,y)=>{tx=x;ty=y;steering=true;}, setSpeed:v=>speed=v };
+
+  reset(true); last=performance.now(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -13,7 +13,7 @@
 
   const COLORS = { CINDER:'#ff6a3d', SHIFT:'#5ad1ff', CONDUIT:'#b98cff', HOMEOSTAT:'#36d399',
                    NOVA:'#ff5ec7', SURGE:'#ffd23f', CLEAVE:'#3fe0c2', FLUX:'#6c8cff', WEAVE:'#d6f84a',
-                   PULSE:'#ff2e4d', INTERCEPT:'#ff4747', DESCENT:'#b15cff', MOTHERLOAD:'#e8a13a' };
+                   PULSE:'#ff2e4d', INTERCEPT:'#ff4747', DESCENT:'#b15cff', SORTIE:'#ff9d3d', CIRCUIT:'#2fe0b0', MOTHERLOAD:'#e8a13a' };
   const ACC = COLORS[GAME] || '#ffb13d';
   document.body.style.setProperty('--cab-acc', ACC);
 

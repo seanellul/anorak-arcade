@@ -226,6 +226,38 @@
       "controls": ["touch", "mouse"],
       "entry": "descent.html",
       "bundle": { "version": "1.0.0", "url": "/bundles/descent-1.0.0.zip", "bytes": 0, "sha256": "" }
+    },
+    {
+      "id": "SORTIE",
+      "slug": "sortie",
+      "title": "SORTIE",
+      "verb": "FORMATION",
+      "tag": "formation · slide & break",
+      "blurb": "Hold the line. Enemies assemble overhead, then peel off to dive — slide to dodge while you auto-fire. A captor can tractor-beam your ship; destroy it mid-capture to recover and fly as two: double fire, double score. Risk capture to double everything.",
+      "accent": "#ff9d3d",
+      "type": "prototype",
+      "wave": 5,
+      "featured": false,
+      "platforms": ["mobile", "desktop"],
+      "controls": ["touch", "mouse"],
+      "entry": "sortie.html",
+      "bundle": { "version": "1.0.0", "url": "/bundles/sortie-1.0.0.zip", "bytes": 0, "sha256": "" }
+    },
+    {
+      "id": "CIRCUIT",
+      "slug": "circuit",
+      "title": "CIRCUIT",
+      "verb": "GROW & GRAZE",
+      "tag": "circuit · grow & graze",
+      "blurb": "A live current. Steer to collect charge and grow your light-trail — then skim your own trail a hair's width away to pump a combo multiplier. Touch the trail or a wall and you discharge. The braver your line, the bigger the score.",
+      "accent": "#2fe0b0",
+      "type": "prototype",
+      "wave": 5,
+      "featured": false,
+      "platforms": ["mobile", "desktop"],
+      "controls": ["touch", "mouse"],
+      "entry": "circuit.html",
+      "bundle": { "version": "1.0.0", "url": "/bundles/circuit-1.0.0.zip", "bytes": 0, "sha256": "" }
     }
   ]
 }
