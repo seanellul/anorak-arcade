@@ -432,6 +432,7 @@
       '</select></div>';
     html += '<div class="aa-grid">' + (list.length ? list.map(gcard).join('') : '<div class="aa-empty" style="grid-column:1/-1">No favourites yet — tap ☆ on a game.</div>') + '</div>';
     if (_filter === 'all' && desktop.length) html += '<div class="aa-sec">FULL GAMES · DESKTOP</div><div class="aa-grid">' + sortGames(desktop).map(gcard).join('') + '</div>';
+    html += '<a class="aa-about" href="about.html"><span class="t"><b>How it works · About</b><span>Why we built this — plays offline, no login to play</span></span><span class="go">›</span></a>';
     root.innerHTML = html;
     // wire
     root.querySelectorAll('.aa-filter button').forEach(function (b) { b.onclick = function () { feel('select'); _filter = b.getAttribute('data-f'); renderHome(root); }; });

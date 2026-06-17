@@ -1,13 +1,41 @@
-# Anorak Arcade — iOS App Architecture
+# Anorak Arcade — App Architecture
 
-Turn the web arcade into a native iOS app where:
+Turn the web arcade into native apps (iOS first, Android fast-follow) on top of the existing web
+arcade, where:
 
 - the **shell** (home, nav, leaderboard, account) ships in the app and works offline;
-- **games** are HTML5 bundles served from our server, **downloaded on demand**, playable offline;
-- **new games ship by pushing to Cloudflare** — no App Store update, no review (App Store
-  Review Guideline **4.7**: HTML5 mini-games run in a WebView are allowed);
+- **games ship bundled inside the app** (the whole `public/` tree) so the full arcade plays
+  **offline, on first launch, with no login** — the "play everything on a plane" promise. New
+  games arrive with each app build; over-the-air delivery is a deferred optimization (see
+  [`arcade-app-phase3.md`](arcade-app-phase3.md)), not a launch requirement;
+- **play is free and anonymous; signing in is only ever required to *save* a score to a global
+  board** — never to play (see [`score-integrity.md`](score-integrity.md), the login-to-save model);
 - **accounts** use **Sign in with Apple** → our Cloudflare Worker, unlocking leaderboards,
   voting, suggestions, and challenges on a single `user_id` backbone.
+
+> **Decision (2026-06-17): bundle-first offline, OTA-later.** A real tester wanted to play the whole
+> arcade on a flight. Bundling is the best possible offline UX — zero action, works on first launch,
+> works with no network — and it already works today (iOS has `webDir: ../public`, **no `server.url`**,
+> all 13 games + assets synced into the bundle). The unbuilt Phase-3 zip-download pipeline (fflate
+> unzip, sha256, install registry) was an iOS-only optimization for *new games between app builds*;
+> it's orthogonal to offline play, so it's deferred until release cadence actually demands it.
+
+## Platform strategy
+
+**Launch: Web + iOS. Android: fast-follow.** The games are web, so reach is already everywhere — the
+web arcade runs in any browser, including Android, *today*. "iOS-only native" ≠ "iOS-only reach";
+nobody is locked out at launch. Native iOS is where the platform work already exists (Sign in with
+Apple, APNs push, the `AnorakViewController` shell, entitlements). A native **Android** app is a
+*fast-follow*, not a launch gate, because it is a genuine second track — a different auth path
+(Google Sign-In / email, since Sign in with Apple is Apple-only), FCM instead of APNs, a Play Console
+listing + review, and Android WebView QA. Don't triple the store-review/support surface before the
+core loop is validated.
+
+| Surface | Status | Offline story | Notes |
+|---|---|---|---|
+| **Web** (Cloudflare Pages) | live | PWA precache + "Download for offline" (to-do) | Source of truth; zero review friction; the no-install demo. |
+| **iOS** (Capacitor) | building | **bundled — works now** | Where the native work lives. Launch surface. |
+| **Android** (Capacitor) | fast-follow | bundled (same as iOS) | `cap add android` + auth/push swap once the loop is proven. |
 
 ## Stack
 
@@ -15,32 +43,39 @@ Turn the web arcade into a native iOS app where:
 |---|---|---|
 | Native shell | **Capacitor** (`mobile/`) | `WKWebView` + native plugins. Reuses `public/` as-is. |
 | Web source of truth | `public/` (Cloudflare Pages) | The same site that runs at the web URL. |
-| Game catalog | `public/catalog.json` | Machine-readable list of games + bundle versions. |
-| Game bundles | `public/bundles/<slug>-<ver>.zip` | Self-contained HTML/JS/assets per game. |
+| Game catalog | `public/catalog.json` | Machine-readable list of games + versions. |
+| Game delivery | **bundled in the app** (`webDir: ../public`) | Whole arcade ships in the binary → offline by default. OTA zips deferred. |
 | Backend / data | **Cloudflare Worker + D1** (`api/`) | Auth, accounts, scores, social features. |
 | Auth | **Sign in with Apple** | Native plugin → identity token → Worker verifies → session. |
 | Ads | AdMob (Capacitor plugin) | Secondary; add after core loop works. |
 
-## Offline + remote-update model (the 4.7-safe pattern)
+## Offline model (bundle-first)
 
 ```
-App launch ──► bundled shell (always offline)
+App launch ──► whole arcade is bundled (shell + all games) ─► plays offline, no login, first launch
                   │
-                  ├─ online?  ─► GET /catalog.json ─► diff against installed bundle versions
-                  │                                   └─► show "update available" / "new game" badges
+                  ├─ play a game ─► runs from the bundle (no network ever needed)
+                  │                  personal bests saved on-device (localStorage)
                   │
-   tap a game ──► installed?  ─► run from Filesystem (offline OK)
-                  │  └─ no/stale ─► download /bundles/<slug>-<ver>.zip ─► unzip to Filesystem ─► run
+                  ├─ online + signed in? ─► score lands on the GLOBAL board via Worker API
+                  │                          (anonymous / offline submits return {saved:false})
                   │
-   leaderboard / vote / challenge ─► needs network ─► Worker API (matches "wifi only for leaderboard")
+                  └─ new games ─► arrive with the next app build (OTA is deferred — see phase3 doc)
 ```
 
-- **Shell is bundled** in the app so it opens with no network. Games are **downloaded content**,
-  not native code — this is exactly what 4.7 permits.
-- **Bundle versioning**: `catalog.json` is the source of truth. Each game has a
-  `bundle.version`; the app stores installed versions and re-downloads when the catalog bumps.
-  Pushing a new `catalog.json` + zip to Pages ships an update instantly.
-- **Integrity**: each bundle carries a `sha256`; the app verifies after download before unzipping.
+- **Everything is bundled** — shell *and* games ship in the binary (`webDir: ../public`). The app
+  opens and plays the full catalog with no network. Games are **content, not native code**, run in a
+  `WKWebView` — exactly what App Store Guideline **4.7** permits.
+- **No login to play.** Anonymous = full play + on-device personal bests + playtime. Signing in
+  (Sign in with Apple) is required *only* to save a score to a **global** board — never to play.
+- **Trust is bifurcated** (see [`score-integrity.md`](score-integrity.md)): casual/offline play and
+  personal bests are lenient and login-free; **global/competitive boards are online + authenticated +
+  server-authoritative** (board name comes from the account handle, anonymous submits don't write).
+  The high-stakes tier is where integrity is enforced; offline play stays pure fun.
+- **New games** currently arrive by shipping a new app build (a `cap sync` + store update). That's
+  fine at this stage. Over-the-air delivery — pushing a game to Cloudflare and having it appear in the
+  installed app with no rebuild — is the **deferred** Phase-3 optimization; pick it up only when the
+  release cadence makes per-game rebuilds painful.
 
 ### Catalog shape — `public/catalog.json`
 
@@ -60,6 +95,9 @@ App launch ──► bundled shell (always offline)
     "controls": ["touch","mouse"],
     "entry": "cinder.html",          // entry file inside the bundle
     "bundle": { "version": "1.0.0", "url": "/bundles/cinder-1.0.0.zip", "bytes": 0, "sha256": "" }
+    // ^ bundle{} fields stay in the schema but are DORMANT under bundle-first delivery —
+    //   they only become live if/when OTA download (phase3) is picked up. Today the game
+    //   plays from the in-app copy at `entry`; nothing is downloaded.
   }]
 }
 ```
@@ -120,8 +158,12 @@ Web/back-end deploy is unchanged: push to `main` → Cloudflare Pages rebuild; W
 
 ## Phasing
 
-1. **Spike** — Capacitor wraps `public/`; arcade runs in the simulator. *(this commit)*
-2. **Auth** — Sign in with Apple → Worker sessions → `/api/me`; claim anonymous history.
-3. **Offline downloads** — catalog diffing + bundle download/unzip/run from Filesystem.
+1. **Spike** — Capacitor wraps `public/`; arcade runs in the simulator. *(done)*
+2. **Auth** — Sign in with Apple → Worker sessions → `/api/me`; claim anonymous history. *(done — login-to-save model)*
+3. **Offline play** — **achieved by bundling** (whole `public/` ships in the binary; plays offline,
+   no login). ✅ No download/unzip pipeline needed for offline. *(OTA download — old Phase 3 —
+   deferred; see [`arcade-app-phase3.md`](arcade-app-phase3.md).)*
 4. **Social** — suggestions + voting, then challenges.
 5. **Ads** — AdMob, interstitial between runs.
+6. **Android fast-follow** — `cap add android` + auth/push swap, once the loop is validated.
+7. **(Deferred) OTA game delivery** — pick up Phase 3 when per-game app rebuilds become painful.

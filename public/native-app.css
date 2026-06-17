@@ -152,6 +152,18 @@ html.aa-native .aa-hub .card .t b{ display:block; font-size:14px; letter-spacing
 html.aa-native .aa-hub .card .t span{ color:var(--aa-dim); font-size:11.5px; letter-spacing:.04em; }
 html.aa-native .aa-hub .card .go{ color:var(--aa-card-acc,#e8a13a); font-size:18px; }
 
+/* "How it works · About" footer link on the home — quieter than a game card */
+html.aa-native .aa-about{
+  display:flex; align-items:center; gap:14px; text-decoration:none;
+  margin:26px 2px 8px; padding:14px 16px;
+  background:var(--aa-panel); border:1px solid var(--aa-line); border-radius:14px; color:var(--aa-ink);
+}
+html.aa-native .aa-about .t{ flex:1; }
+html.aa-native .aa-about .t b{ display:block; font-size:13px; letter-spacing:.06em; }
+html.aa-native .aa-about .t span{ color:var(--aa-dim); font-size:11.5px; letter-spacing:.04em; }
+html.aa-native .aa-about .go{ color:var(--aa-dim); font-size:20px; }
+html.aa-native .aa-about:active{ border-color:var(--aa-dim); }
+
 /* ---- the web top nav is redundant in-app (bottom tab bar replaces it) ---- */
 html.aa-native .nav{ display:none !important; }
 
