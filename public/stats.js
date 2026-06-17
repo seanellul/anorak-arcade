@@ -197,6 +197,6 @@
     localBest(g){ return (data[g]&&data[g].best)||0; },
     reset(){ for(const k in data) delete data[k]; lastPing={}; save(); },   // LOCAL only — server keeps the global record
     fmt(ms){ const s=Math.round(ms/1000); if(s<60) return s+'s'; const m=Math.floor(s/60); if(m<60) return m+'m '+(s%60)+'s'; const h=Math.floor(m/60); return h+'h '+(m%60)+'m'; },
-    api(path){ if(!API) return Promise.reject(new Error('no-api')); return fetch(API+path).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }); }
+    api(path,headers){ if(!API) return Promise.reject(new Error('no-api')); return fetch(API+path,{headers:headers||{}}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }); }
   };
 })();

@@ -56,7 +56,7 @@
     msg.textContent='loading…'; out.innerHTML='';
     if(!window.GameStats || !GameStats.hasAPI){ msg.innerHTML='<span class="err">API not configured</span>'; return; }
     try{
-      const d = await GameStats.api('/api/admin?key='+encodeURIComponent(key));
+      const d = await GameStats.api('/api/admin', {Authorization:'Bearer '+key});
       sessionStorage.setItem('aa.adminkey', key); msg.textContent='';
       render(d);
     }catch(e){
