@@ -39,13 +39,16 @@
   // this is best-effort — if the network or crypto is unavailable, scores still flow
   // through the legacy /api/sync path exactly as before.
   const sess={};                 // game -> {id, secret, seed} | 'pending'
+  // a duel/daily seed passed via the URL (?seed=duel-xxxx) tags this run for resolution
+  let _urlSeed=''; try{ var qs=(new URLSearchParams(location.search)).get('seed')||''; if(/^(daily-\d{4}-\d{2}-\d{2}|duel-[a-z0-9]{1,32})$/.test(qs)) _urlSeed=qs; }catch(e){}
   function token(){ return lget('aa.token')||''; }
   function ensureSession(game, seed){
     if(!API || LOCAL || !game) return;
     if(sess[game]) return;       // already have one (or one in flight)
     sess[game]='pending';
+    const sd = seed || _urlSeed || '';
     const h={'Content-Type':'application/json'}; if(token()) h.Authorization='Bearer '+token();
-    fetch(API+'/api/session/start',{method:'POST',headers:h,body:JSON.stringify({clientId,game,seed:seed||'',clientVersion:VER})})
+    fetch(API+'/api/session/start',{method:'POST',headers:h,body:JSON.stringify({clientId,game,seed:sd,clientVersion:VER})})
       .then(r=>r.json()).then(d=>{ sess[game]=(d&&d.sessionId&&d.secret)?{id:d.sessionId,secret:d.secret,seed:d.seed||''}:null; })
       .catch(()=>{ sess[game]=null; });
   }

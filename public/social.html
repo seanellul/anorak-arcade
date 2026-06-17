@@ -82,6 +82,7 @@
     <button data-t="activity" class="on">ACTIVITY</button>
     <button data-t="following">FOLLOWING</button>
     <button data-t="followers">FOLLOWERS</button>
+    <button data-t="duels">DUELS</button>
     <button data-t="find">FIND</button>
   </div>
   <div id="content"><div class="empty">Loading…</div></div>
@@ -165,6 +166,8 @@
         content.querySelectorAll('[data-unf]').forEach(b=>b.onclick=()=>{ api('POST','/api/friends/remove',{handle:b.getAttribute('data-unf')}).then(()=>render()); });
         wireRows();
       });
+    } else if(tab==='duels'){
+      renderDuels();
     } else if(tab==='find'){
       content.innerHTML='<div class="findbar"><input id="q" placeholder="search players by name…" autocomplete="off"></div><div id="results"></div>';
       const inp=document.getElementById('q'), res=document.getElementById('results'); let t;
@@ -180,6 +183,51 @@
     }
   }
   document.querySelectorAll('#subtabs button').forEach(b=>b.onclick=()=>{ tab=b.getAttribute('data-t'); document.getElementById('counts').textContent=''; render(); });
+
+  // ---- duels (head-to-head, same seed) ----
+  const DGAMES=['CINDER','SHIFT','CONDUIT','HOMEOSTAT','NOVA','SURGE','CLEAVE','FLUX','WEAVE','PULSE','INTERCEPT'];
+  function entry(g){ g=(g||'').toLowerCase(); if(g==='motherload'||g==='motherload_cash')return 'motherload/index.html'; if(g==='ecotone')return 'ecotone/index.html'; return g+'.html'; }
+  function fmtSc(v){ return v==null?'—':Number(v).toLocaleString(); }
+  function renderDuels(){
+    if(!tok()){ needSignIn(); return; }
+    content.innerHTML='<div class="empty">Loading…</div>';
+    api('GET','/api/duels').then(d=>{
+      const list=(d&&d.duels)||[];
+      let html='<button class="followbtn" id="newduel" style="margin:2px 0 14px">+ CHALLENGE A FRIEND</button>';
+      if(!list.length){ html+='<div class="empty">No duels yet. Challenge a friend to beat your score on the same seed.</div>'; }
+      else html+='<div class="slist">'+list.map(du=>{
+        const other=du.youAreChallenger?du.opponent:du.challenger;
+        const mine=du.youAreChallenger?du.challengerScore:du.opponentScore;
+        const theirs=du.youAreChallenger?du.opponentScore:du.challengerScore;
+        let st='', act='';
+        if(du.status==='complete'){ const iWon=(du.youAreChallenger&&du.winner==='challenger')||(du.youAreOpponent&&du.winner==='opponent'); st=du.winner==='tie'?'TIED':(iWon?'YOU WON 🏆':'YOU LOST'); }
+        else if(du.status==='declined'){ st='DECLINED'; }
+        else if(mine==null){ st='Your move'; act='<a class="followbtn" href="'+entry(du.game)+'?seed='+encodeURIComponent(du.seed)+'">PLAY</a>'; }
+        else { st='Waiting for '+esc(other); }
+        return '<div class="srow"><span class="av">⚔</span><span class="mid"><div class="nm">'+esc(du.game)+' · vs '+esc(other)+'</div>'+
+          '<div class="meta">you '+fmtSc(mine)+' · them '+fmtSc(theirs)+' — '+st+'</div></span>'+act+'</div>';
+      }).join('')+'</div>';
+      content.innerHTML=html;
+      document.getElementById('newduel').onclick=newDuel;
+    });
+  }
+  function newDuel(){
+    content.innerHTML='<button class="followbtn out" id="back" style="margin:2px 0 14px">← back</button>'+
+      '<div style="display:flex;flex-direction:column;gap:10px">'+
+      '<input class="findbar" id="dopp" placeholder="friend’s name" autocomplete="off" style="padding:11px 14px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px">'+
+      '<select id="dgame" style="padding:11px 14px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;font-family:inherit">'+DGAMES.map(g=>'<option value="'+g+'">'+g+'</option>').join('')+'</select>'+
+      '<button class="followbtn" id="dcreate">CREATE DUEL</button><div class="empty" id="dmsg" style="padding:6px 2px"></div></div>';
+    document.getElementById('back').onclick=()=>{ tab='duels'; render(); };
+    document.getElementById('dcreate').onclick=()=>{
+      const opp=document.getElementById('dopp').value.trim(), game=document.getElementById('dgame').value;
+      if(!opp){ document.getElementById('dmsg').textContent='Enter a name.'; return; }
+      api('POST','/api/duel',{game,opponent:opp}).then(r=>{
+        if(!r||r.error){ document.getElementById('dmsg').textContent=(r&&r.error)||'Couldn’t create duel.'; return; }
+        content.innerHTML='<div class="empty" style="padding:24px 10px">Duel sent to <b style="color:var(--ink)">'+esc(opp)+'</b> in <b style="color:var(--ink)">'+esc(game)+'</b>.<br>Play your run on the same seed:</div>'+
+          '<a class="followbtn" href="'+entry(game)+'?seed='+encodeURIComponent(r.seed)+'">▶ PLAY YOUR RUN</a>';
+      });
+    };
+  }
 
   // ---- notifications (bell + tray + filters) ----
   const NLABEL={follow:'New followers',beaten:'Score beaten',dethroned:'Knocked out of top 10',fav_record:'Record on a favourite',new_game:'New games',challenge:'Challenges',challenge_result:'Challenge results'};
