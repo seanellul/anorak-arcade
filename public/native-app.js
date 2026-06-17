@@ -312,6 +312,10 @@
     bar.appendChild(tab('👥', 'SOCIAL', onSocial, null, 'social.html'));   // dedicated social page
     bar.appendChild(tab('◐', 'YOU', onYou, null, 'profile.html'));   // dedicated profile page (self)
     document.body.appendChild(bar);
+    // unread-notification dot on the SOCIAL tab
+    if (token()) api('GET', '/api/notifications').then(function (d) {
+      if (d && d.unread > 0) { var st = bar.children[2]; if (st && !st.querySelector('.aa-tabdot')) { var dot = document.createElement('span'); dot.className = 'aa-tabdot'; st.appendChild(dot); } }
+    });
   }
   /* ---- favourites ---- */
   function favs() { try { return JSON.parse(lget('aa.favs')) || []; } catch (e) { return []; } }

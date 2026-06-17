@@ -54,6 +54,8 @@ html.aa-native .aa-tab{
 }
 html.aa-native .aa-tab .ic{ font-size:20px; line-height:1; transition:transform .12s ease; }
 html.aa-native .aa-tab.active{ color:var(--aa-brand); }
+html.aa-native .aa-tab{ position:relative; }
+html.aa-native .aa-tabdot{ position:absolute; top:6px; left:calc(50% + 8px); width:8px; height:8px; border-radius:50%; background:#ff2e4d; box-shadow:0 0 6px #ff2e4d; }
 html.aa-native .aa-tab.active .ic{ transform:translateY(-1px) scale(1.08); }
 html.aa-native .aa-tab:active .ic{ transform:scale(.9); }
 /* lift page content above the bar on shell pages */

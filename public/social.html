@@ -40,6 +40,29 @@
   .empty{color:var(--dim);padding:18px 2px;text-align:center;font-size:13px}
   .signin{text-align:center;padding:30px 10px}
   .back{color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}
+  .bell{position:relative;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-size:18px;width:42px;height:42px;border-radius:12px;cursor:pointer;flex:0 0 auto}
+  .bell .badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#ff2e4d;color:#fff;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;line-height:18px}
+  .bell .badge.show{display:flex}
+  #ntray{position:fixed;inset:0;z-index:9999;display:none;background:rgba(4,6,11,.6);backdrop-filter:blur(3px)}
+  #ntray.open{display:block}
+  #ntray .panel{position:absolute;left:0;right:0;bottom:0;max-height:88vh;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--panel);border-top-left-radius:20px;border-top-right-radius:20px;border-top:1px solid var(--line2);padding:8px 18px calc(24px + env(safe-area-inset-bottom));box-shadow:0 -24px 70px rgba(0,0,0,.55)}
+  #ntray .grab{width:38px;height:4px;border-radius:99px;background:var(--line2);margin:8px auto 12px}
+  #ntray .nhd{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  #ntray .nhd h3{flex:1;margin:0;font-size:14px;letter-spacing:.18em}
+  #ntray .filt{background:none;border:1px solid var(--line2);color:var(--dim);font-family:inherit;font-size:11px;letter-spacing:.08em;padding:6px 11px;border-radius:8px;cursor:pointer}
+  .nitem{display:flex;align-items:flex-start;gap:11px;padding:12px 2px;border-bottom:1px solid #161d2b;font-size:13px;line-height:1.45}
+  .nitem.unread{background:color-mix(in srgb,var(--acc) 7%,transparent);border-radius:8px}
+  .nitem .ic{flex:0 0 auto;width:22px;text-align:center;font-size:16px}
+  .nitem .tx{flex:1;color:#c2ccdd}
+  .nitem .tx b{color:var(--ink);font-weight:700}
+  .nitem .ago{color:var(--dim);font-size:11px;margin-top:2px}
+  .prefs{padding:6px 0}
+  .prefrow{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid #161d2b}
+  .prefrow .lbl{flex:1;font-size:13px}
+  .toggle{width:46px;height:28px;border-radius:99px;background:var(--line);border:0;position:relative;cursor:pointer;flex:0 0 auto}
+  .toggle.on{background:var(--acc)}
+  .toggle::after{content:'';position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:transform .15s}
+  .toggle.on::after{transform:translateX(18px)}
 </style>
 </head>
 <body class="v2">
@@ -54,7 +77,7 @@
   <a class="link active" href="social.html">SOCIAL</a>
 </nav>
 <div class="wrap">
-  <div class="shead"><h1>Social</h1><span id="counts" style="color:var(--dim);font-size:12px;letter-spacing:.06em"></span></div>
+  <div class="shead"><h1>Social</h1><span id="counts" style="color:var(--dim);font-size:12px;letter-spacing:.06em"></span><button class="bell" id="bell" style="display:none">🔔<span class="badge" id="nbadge"></span></button></div>
   <div class="subtabs" id="subtabs">
     <button data-t="activity" class="on">ACTIVITY</button>
     <button data-t="following">FOLLOWING</button>
@@ -63,6 +86,11 @@
   </div>
   <div id="content"><div class="empty">Loading…</div></div>
 </div>
+<div id="ntray"><div class="panel">
+  <div class="grab"></div>
+  <div class="nhd"><h3>NOTIFICATIONS</h3><button class="filt" id="filt">FILTERS</button></div>
+  <div id="nbody"><div class="empty">Loading…</div></div>
+</div></div>
 <div class="footer">Anorak Arcade · <a href="index.html">arcade</a> · <a href="leaderboard.html">leaderboard</a></div>
 <script src="site.js"></script>
 <script src="stats.js"></script>
@@ -152,6 +180,44 @@
     }
   }
   document.querySelectorAll('#subtabs button').forEach(b=>b.onclick=()=>{ tab=b.getAttribute('data-t'); document.getElementById('counts').textContent=''; render(); });
+
+  // ---- notifications (bell + tray + filters) ----
+  const NLABEL={follow:'New followers',beaten:'Score beaten',dethroned:'Knocked out of top 10',fav_record:'Record on a favourite',new_game:'New games',challenge:'Challenges',challenge_result:'Challenge results'};
+  function ago(ts){ const s=Math.floor((Date.now()-ts)/1000); if(s<60)return 'just now'; const m=Math.floor(s/60); if(m<60)return m+'m ago'; const h=Math.floor(m/60); if(h<24)return h+'h ago'; return Math.floor(h/24)+'d ago'; }
+  function notifText(n){
+    let pay={}; try{pay=JSON.parse(n.payload||'{}');}catch(x){}
+    const a=esc(n.actor_name||'Someone'), g=esc(n.game||''), sc=pay.score?Number(pay.score).toLocaleString():'', gp='game.html?id='+encodeURIComponent(n.game||'');
+    switch(n.kind){
+      case 'follow': return {ic:'👤',tx:'<b>'+a+'</b> started following you',go:prof(n.actor_name)};
+      case 'beaten': return {ic:'⚔',tx:'<b>'+a+'</b> beat your <b>'+g+'</b> score'+(sc?' · '+sc:''),go:gp};
+      case 'dethroned': return {ic:'📉',tx:'You dropped out of the <b>'+g+'</b> top 10',go:gp};
+      case 'fav_record': return {ic:'👑',tx:'<b>'+a+'</b> took <b>#1</b> in <b>'+g+'</b>',go:gp};
+      case 'new_game': return {ic:'🎮',tx:'New game: <b>'+g+'</b>',go:gp};
+      case 'challenge': return {ic:'🎯',tx:'<b>'+a+'</b> challenged you in <b>'+g+'</b>',go:'social.html'};
+      case 'challenge_result': return {ic:'🏁',tx:esc(pay.text||('Challenge result · '+g)),go:'social.html'};
+      default: return {ic:'•',tx:esc(n.kind),go:''};
+    }
+  }
+  let _notifs=[];
+  function loadUnread(){ if(!tok())return; api('GET','/api/notifications').then(d=>{ if(!d)return; _notifs=d.notifications||[]; const u=d.unread||0, bd=document.getElementById('nbadge'); bd.textContent=u>9?'9+':String(u); bd.classList.toggle('show',u>0); }); }
+  function openTray(){
+    const tray=document.getElementById('ntray'), body=document.getElementById('nbody');
+    tray.classList.add('open');
+    body.innerHTML=_notifs.length?_notifs.map(n=>{ const t=notifText(n); return '<div class="nitem'+(n.read_at?'':' unread')+'"'+(t.go?' data-go="'+t.go+'"':'')+'><span class="ic">'+t.ic+'</span><span class="tx">'+t.tx+'<div class="ago">'+ago(n.created_at)+'</div></span></div>'; }).join(''):'<div class="empty">No notifications yet.</div>';
+    body.querySelectorAll('[data-go]').forEach(el=>el.onclick=()=>{ location.href=el.getAttribute('data-go'); });
+    api('POST','/api/notifications/read'); document.getElementById('nbadge').classList.remove('show');
+  }
+  function showFilters(){
+    const body=document.getElementById('nbody'); body.innerHTML='<div class="empty">Loading…</div>';
+    api('GET','/api/notifications/prefs').then(d=>{ const p=(d&&d.prefs)||{};
+      body.innerHTML='<div class="prefs">'+Object.keys(NLABEL).filter(k=>k!=='challenge'&&k!=='challenge_result').map(k=>'<div class="prefrow"><span class="lbl">'+NLABEL[k]+'</span><button class="toggle'+(p[k]!==false?' on':'')+'" data-k="'+k+'"></button></div>').join('')+'</div>';
+      body.querySelectorAll('.toggle').forEach(t=>t.onclick=()=>{ t.classList.toggle('on'); const cur={}; body.querySelectorAll('.toggle').forEach(x=>cur[x.getAttribute('data-k')]=x.classList.contains('on')); api('POST','/api/notifications/prefs',cur); });
+    });
+  }
+  if(tok()){ const bell=document.getElementById('bell'); bell.style.display=''; bell.onclick=openTray; loadUnread(); }
+  document.getElementById('filt').onclick=showFilters;
+  document.getElementById('ntray').onclick=e=>{ if(e.target.id==='ntray') document.getElementById('ntray').classList.remove('open'); };
+
   render();
 })();
 </script>
