@@ -245,6 +245,11 @@
     localBest(g){ return (data[g]&&data[g].best)||0; },
     reset(){ for(const k in data) delete data[k]; lastPing={}; save(); },   // LOCAL only — server keeps the global record
     fmt(ms){ const s=Math.round(ms/1000); if(s<60) return s+'s'; const m=Math.floor(s/60); if(m<60) return m+'m '+(s%60)+'s'; const h=Math.floor(m/60); return h+'h '+(m%60)+'m'; },
-    api(path,headers){ if(!API) return Promise.reject(new Error('no-api')); return fetch(API+path,{headers:headers||{}}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }); }
+    // Authed by default: several GET endpoints (e.g. /api/compare, /api/friends) require the
+    // account token. Without it they 401 and callers silently fail (the old "VS YOU stuck on
+    // Comparing…" bug). Attach the Bearer token whenever we have one.
+    api(path,headers){ if(!API) return Promise.reject(new Error('no-api'));
+      const h=Object.assign({}, headers||{}); if(token() && !h.Authorization) h.Authorization='Bearer '+token();
+      return fetch(API+path,{headers:h}).then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }); }
   };
 })();

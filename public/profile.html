@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="site.css">
 <style>
   html,body{overflow-x:hidden;max-width:100%}
-  .pcard{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin:14px 0;flex-wrap:wrap}
+  .pcard{position:relative;display:flex;align-items:center;gap:16px;background:linear-gradient(150deg,color-mix(in srgb,var(--acc) 12%,var(--panel)),var(--panel) 64%);border:1px solid var(--line);border-radius:18px;padding:18px;margin:14px 0;flex-wrap:wrap;overflow:hidden}
   .pava{width:80px;height:80px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:44px;border-radius:20px;background:radial-gradient(120% 120% at 50% 0%,color-mix(in srgb,var(--acc) 22%,transparent),#0c1220);border:1px solid var(--line2);position:relative}
   .pava.editable{cursor:pointer}
   .pava .edit{position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:var(--acc);color:#0a0e14;font-size:12px;display:flex;align-items:center;justify-content:center;border:2px solid var(--panel)}
@@ -25,11 +25,31 @@
   .pbtn{background:none;border:1px solid var(--line2);color:var(--dim);font-family:inherit;font-size:11px;padding:7px 13px;border-radius:8px;cursor:pointer;letter-spacing:.1em}
   .pbtn:hover{color:var(--ink);border-color:var(--ink)}
   .pbtn.primary{background:var(--acc);border-color:transparent;color:#0a0e14;font-weight:700}
-  .pstats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0}
-  @media(min-width:560px){.pstats{grid-template-columns:repeat(4,1fr)}}
+  .pbtn.out{border-color:color-mix(in srgb,var(--acc) 45%,var(--line2));color:var(--acc)}
+  /* small icon edit button, top-right of the card (self only) — reusable, low-prominence */
+  .pgear{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(10,14,20,.5);border:1px solid var(--line2);color:var(--dim);font-size:15px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .pgear:hover,.pgear:active{color:var(--ink);border-color:var(--acc)}
+  /* hero arcade-score banner + sub-stats */
+  .phero{background:radial-gradient(130% 150% at 50% 0%,color-mix(in srgb,var(--acc) 16%,transparent),transparent 68%);border:1px solid color-mix(in srgb,var(--acc) 38%,var(--line));border-radius:16px;padding:16px;text-align:center;margin:12px 0}
+  .phero .k{color:var(--dim);font-size:10px;letter-spacing:.24em}
+  .phero .v{font-size:40px;font-weight:800;line-height:1.04;margin-top:2px;color:var(--acc);font-variant-numeric:tabular-nums;text-shadow:0 0 30px color-mix(in srgb,var(--acc) 45%,transparent)}
+  .phero .vsub{color:var(--dim);font-size:11px;letter-spacing:.06em;margin-top:4px}
+  .pstats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
   .pcell{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 10px;text-align:center}
   .pcell .k{color:var(--dim);font-size:9px;letter-spacing:.16em}
-  .pcell .v{font-size:23px;font-weight:800;margin-top:3px;color:var(--acc);font-variant-numeric:tabular-nums}
+  .pcell .v{font-size:23px;font-weight:800;margin-top:3px;color:var(--ink);font-variant-numeric:tabular-nums}
+  /* combined edit menu (bottom sheet) */
+  #editwrap{position:fixed;inset:0;z-index:9999;display:none;align-items:flex-end;justify-content:center;background:rgba(5,7,12,.7);backdrop-filter:blur(2px)}
+  #editwrap.open{display:flex}
+  .editbox{background:var(--panel);border:1px solid var(--line2);border-top-left-radius:20px;border-top-right-radius:20px;width:100%;max-width:520px;padding:8px 18px calc(22px + env(safe-area-inset-bottom));box-shadow:0 -24px 70px rgba(0,0,0,.55)}
+  .editbox .grab{width:38px;height:4px;border-radius:99px;background:var(--line2);margin:8px auto 14px}
+  .editbox h3{margin:0 0 12px;font-size:13px;letter-spacing:.2em;color:var(--acc);text-align:center}
+  .editrow{display:flex;align-items:center;gap:14px;width:100%;background:var(--bg2,#070a10);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px;padding:15px 16px;border-radius:13px;cursor:pointer;margin-bottom:10px;text-align:left}
+  .editrow .ic{font-size:20px;width:24px;text-align:center}
+  .editrow .t{flex:1}.editrow .t b{display:block;font-size:14px;letter-spacing:.03em}
+  .editrow .t span{display:block;color:var(--dim);font-size:11px;margin-top:2px}
+  .editrow .go{color:var(--dim)}
+  .editrow:active{border-color:var(--acc)}
   table.lb{border-collapse:collapse;width:100%;font-size:13px;table-layout:fixed}
   table.lb th{color:var(--dim);text-align:left;font-size:10px;letter-spacing:.16em;padding:6px 8px;border-bottom:1px solid var(--line)}
   table.lb td{padding:10px 8px;border-bottom:1px solid #161d2b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -78,6 +98,12 @@
   <div id="profile"><div class="empty" style="margin-top:20px">Loading…</div></div>
 </div>
 
+<div id="editwrap"><div class="editbox">
+  <div class="grab"></div>
+  <h3>EDIT PROFILE</h3>
+  <button class="editrow" id="edName"><span class="ic">✎</span><span class="t"><b>Change name</b><span>Your handle on every leaderboard</span></span><span class="go">›</span></button>
+  <button class="editrow" id="edPic"><span class="ic">🙂</span><span class="t"><b>Change picture</b><span>Pick a new profile icon</span></span><span class="go">›</span></button>
+</div></div>
 <div id="avawrap"><div class="avabox">
   <h3>CHOOSE YOUR ICON</h3>
   <div class="ahint">Pick a profile picture — shows on every leaderboard.</div>
@@ -159,21 +185,22 @@
   function render(d){
     const div=d.division||'', games=d.games||[];
     const signedIn=!!localStorage.getItem('aa.token');
+    const bestRank=games.length?games[0].rank:0;
     root.innerHTML=
       '<div class="pcard">'+
+        (isSelf?'<button class="pgear" id="pEdit" aria-label="edit profile">✎</button>':'')+
         '<div class="pava'+(isSelf?' editable':'')+'" id="bigava">'+(d.avatar||'👾')+(isSelf?'<span class="edit">✎</span>':'')+'</div>'+
         '<div class="pid"><h1>'+esc(d.name)+'</h1>'+
           '<div class="sub">'+(div?'<span class="divb" style="background:'+(DIVCOL[div]||'#888')+'">'+div+'</span>':'')+
+            (d.arcadeRank?'<span>Arcade #'+d.arcadeRank+'</span>':'')+
             (d.worldNo1>0?'<span>👑 ×'+d.worldNo1+'</span>':'')+'</div>'+
-          '<div class="pbtns">'+
-            (isSelf?'<button class="pbtn" id="chName">CHANGE NAME</button><button class="pbtn" id="chPic">CHANGE PICTURE</button>'
-                   :(signedIn?'<button class="pbtn primary" id="addFr">+ ADD FRIEND</button>':''))+
-          '</div>'+
+          (!isSelf&&signedIn?'<div class="pbtns"><button class="pbtn primary" id="folBtn">…</button></div>':'')+
         '</div>'+
       '</div>'+
+      '<div class="phero"><div class="k">ARCADE SCORE</div><div class="v">'+Number(d.arcadeScore||0).toLocaleString()+'</div>'+
+        '<div class="vsub">'+(d.arcadeRank?'Ranked #'+d.arcadeRank+' worldwide':'Unranked — play to climb the ladder')+'</div></div>'+
       '<div class="pstats">'+
-        '<div class="pcell"><div class="k">ARCADE SCORE</div><div class="v">'+Number(d.arcadeScore||0).toLocaleString()+'</div></div>'+
-        '<div class="pcell"><div class="k">ARCADE RANK</div><div class="v">'+(d.arcadeRank?'#'+d.arcadeRank:'—')+'</div></div>'+
+        '<div class="pcell"><div class="k">BEST RANK</div><div class="v">'+(bestRank?medal(bestRank):'—')+'</div></div>'+
         '<div class="pcell"><div class="k">WORLD #1s</div><div class="v">'+(d.worldNo1||0)+'</div></div>'+
         '<div class="pcell"><div class="k">GAMES RANKED</div><div class="v">'+games.length+'</div></div>'+
       '</div>'+
@@ -188,12 +215,11 @@
     // wire
     if(isSelf){
       const bp=document.getElementById('bigava'); if(bp) bp.onclick=openPicker;
-      const cn=document.getElementById('chName'); if(cn) cn.onclick=()=>GameStats.promptName(()=>location.reload());
-      const cp=document.getElementById('chPic'); if(cp) cp.onclick=openPicker;
+      const pe=document.getElementById('pEdit'); if(pe) pe.onclick=openEditMenu;
       wireSettings();
-    } else {
-      const af=document.getElementById('addFr'); if(af) af.onclick=addFriend;
-      if(localStorage.getItem('aa.token')) renderCompare();
+    } else if(signedIn){
+      resolveFollow();
+      renderCompare();
     }
     document.querySelectorAll('tr.grow[data-play]').forEach(tr=>tr.onclick=()=>{ location.href=tr.getAttribute('data-play'); });
     window.AAChrome&&AAChrome.bind(root);
@@ -228,11 +254,37 @@
     wrap.classList.add('open'); wrap.onclick=e=>{ if(e.target===wrap) wrap.classList.remove('open'); };
   }
 
-  function addFriend(){
-    const tok=localStorage.getItem('aa.token'); if(!tok){ toast('Sign in to add friends'); return; }
-    fetch('https://anorak-arcade-api.sean-ellul.workers.dev/api/friends/add',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({handle:target})})
-      .then(r=>r.json()).then(d=>{ toast(d&&d.ok?('Added '+target+' as a friend'):(d&&d.error||'Couldn’t add friend')); const b=document.getElementById('addFr'); if(b&&d&&d.ok){ b.textContent='✓ FRIEND'; b.disabled=true; } })
-      .catch(()=>toast('Couldn’t reach the server'));
+  // ---- follow / unfollow toggle on another player's profile ----
+  function setFollowBtn(following){
+    const b=document.getElementById('folBtn'); if(!b) return;
+    b.textContent=following?'✓ FOLLOWING':'+ FOLLOW';
+    b.classList.toggle('out',following); b.classList.toggle('primary',!following);
+    b.onclick=()=>{
+      const tok=localStorage.getItem('aa.token'); if(!tok){ toast('Sign in to follow'); return; }
+      const path=following?'/api/friends/remove':'/api/friends/add';
+      b.disabled=true;
+      fetch('https://anorak-arcade-api.sean-ellul.workers.dev'+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({handle:target})})
+        .then(r=>r.json()).then(d=>{ b.disabled=false;
+          if(d&&d.error){ toast(d.error); return; }
+          following=!following; setFollowBtn(following); toast(following?('Following '+target):('Unfollowed '+target));
+        }).catch(()=>{ b.disabled=false; toast('Couldn’t reach the server'); });
+    };
+  }
+  function resolveFollow(){
+    setFollowBtn(false);   // neutral default while we check
+    GameStats.api('/api/friends').then(d=>{
+      const fr=(d&&d.friends)||[];
+      setFollowBtn(fr.some(f=>String(f.name||f.handle).toLowerCase()===target.toLowerCase()));
+    }).catch(()=>{});
+  }
+
+  // ---- combined edit menu (name + picture) — reached from the small ✎ on the card ----
+  function openEditMenu(){
+    const wrap=document.getElementById('editwrap');
+    wrap.classList.add('open');
+    wrap.onclick=e=>{ if(e.target===wrap) wrap.classList.remove('open'); };
+    document.getElementById('edName').onclick=()=>{ wrap.classList.remove('open'); GameStats.promptName(()=>location.reload()); };
+    document.getElementById('edPic').onclick=()=>{ wrap.classList.remove('open'); openPicker(); };
   }
 
   GameStats.api('/api/profile?name='+encodeURIComponent(target))

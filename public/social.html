@@ -13,30 +13,37 @@
 <link rel="stylesheet" href="site.css">
 <style>
   html,body{overflow-x:hidden;max-width:100%}
-  .shead{display:flex;align-items:center;gap:12px;margin:12px 0 6px}
-  .shead h1{font-size:26px;letter-spacing:.04em;margin:0;flex:1}
-  .subtabs{display:flex;gap:6px;margin:10px 0 14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .subtabs button{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--dim);font-family:inherit;font-size:11px;letter-spacing:.1em;padding:9px 15px;border-radius:99px;cursor:pointer}
-  .subtabs button.on{color:#0a0e14;background:var(--acc);border-color:transparent;font-weight:700}
-  .slist{display:flex;flex-direction:column}
-  .srow{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid #161d2b;cursor:pointer}
-  .srow .av{font-size:22px;flex:0 0 auto;width:30px;text-align:center}
+  .shead{display:flex;align-items:center;gap:12px;margin:14px 0 2px}
+  .shead h1{font-size:28px;letter-spacing:.02em;margin:0;flex:1}
+  .ssub{color:var(--dim);font-size:12.5px;line-height:1.5;margin:2px 2px 12px}
+  /* segmented tabs — equal columns inside one pill, no horizontal scroll */
+  .subtabs{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin:8px 0 16px;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
+  .subtabs button{background:transparent;border:0;color:var(--dim);font-family:inherit;font-size:9px;letter-spacing:.02em;padding:11px 1px;border-radius:10px;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent}
+  .subtabs button.on{color:#0a0e14;background:var(--acc);font-weight:700}
+  /* people rows as soft cards */
+  .slist{display:flex;flex-direction:column;gap:8px}
+  .srow{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:13px;cursor:pointer}
+  .srow:active{border-color:var(--line2)}
+  .srow .av{font-size:22px;flex:0 0 auto;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:#0a0e14;border:1px solid var(--line)}
   .srow .mid{flex:1;min-width:0}
   .srow .nm{font-weight:700;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .srow .meta{color:var(--dim);font-size:11px;letter-spacing:.04em;margin-top:2px}
+  .srow .meta{color:var(--dim);font-size:11px;letter-spacing:.04em;margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
   .divb{display:inline-block;padding:1px 7px;border-radius:99px;font-size:9px;font-weight:700;letter-spacing:.1em;color:#0a0e14}
-  .vs{font-size:11px;font-weight:700;letter-spacing:.08em;padding:3px 8px;border-radius:99px;flex:0 0 auto}
-  .vs.ahead{color:#36d399;border:1px solid color-mix(in srgb,#36d399 40%,transparent)}
-  .vs.behind{color:#ff6a6a;border:1px solid color-mix(in srgb,#ff6a6a 40%,transparent)}
+  .vs{font-size:10px;font-weight:700;letter-spacing:.06em;padding:4px 9px;border-radius:99px;flex:0 0 auto}
+  .vs.ahead{color:#36d399;background:color-mix(in srgb,#36d399 12%,transparent);border:1px solid color-mix(in srgb,#36d399 40%,transparent)}
+  .vs.behind{color:#ff6a6a;background:color-mix(in srgb,#ff6a6a 12%,transparent);border:1px solid color-mix(in srgb,#ff6a6a 40%,transparent)}
   .vs.even{color:var(--dim);border:1px solid var(--line2)}
-  .followbtn{flex:0 0 auto;background:var(--acc);border:0;color:#0a0e14;font-family:inherit;font-weight:700;font-size:11px;letter-spacing:.08em;padding:8px 13px;border-radius:9px;cursor:pointer}
+  .followbtn{flex:0 0 auto;background:var(--acc);border:0;color:#0a0e14;font-family:inherit;font-weight:700;font-size:10.5px;letter-spacing:.06em;padding:9px 14px;border-radius:10px;cursor:pointer;min-height:36px}
   .followbtn.out{background:transparent;border:1px solid var(--line2);color:var(--dim)}
-  .feed .fi{display:flex;align-items:flex-start;gap:10px;padding:11px 4px;border-bottom:1px solid #161d2b;font-size:13px;line-height:1.45}
-  .feed .fi .ic{flex:0 0 auto;width:20px;text-align:center}
+  /* activity feed as soft cards */
+  .feed{display:flex;flex-direction:column;gap:8px}
+  .feed .fi{display:flex;align-items:flex-start;gap:12px;padding:13px 14px;background:var(--panel);border:1px solid var(--line);border-radius:13px;font-size:13px;line-height:1.45}
+  .feed .fi .ic{flex:0 0 auto;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:#0a0e14;font-size:14px}
   .feed .fi .tx{flex:1;color:#c2ccdd}
   .feed .fi .tx b{color:var(--ink);font-weight:700}
-  .findbar{display:flex;gap:8px;margin-bottom:6px}
-  .findbar input{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px;padding:11px 14px;border-radius:10px;outline:none}
+  .findbar{display:flex;gap:8px;margin-bottom:10px}
+  .findbar input{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:14px;padding:13px 16px;border-radius:12px;outline:none}
+  .findbar input:focus{border-color:color-mix(in srgb,var(--acc) 50%,var(--line))}
   .empty{color:var(--dim);padding:18px 2px;text-align:center;font-size:13px}
   .signin{text-align:center;padding:30px 10px}
   .back{color:var(--dim);text-decoration:none;font-size:12px;letter-spacing:.1em}
@@ -78,6 +85,7 @@
 </nav>
 <div class="wrap">
   <div class="shead"><h1>Social</h1><span id="counts" style="color:var(--dim);font-size:12px;letter-spacing:.06em"></span><button class="bell" id="bell" style="display:none">🔔<span class="badge" id="nbadge"></span></button></div>
+  <p class="ssub">Follow players, see who’s ahead, and track the competition.</p>
   <div class="subtabs" id="subtabs">
     <button data-t="activity" class="on">ACTIVITY</button>
     <button data-t="following">FOLLOWING</button>

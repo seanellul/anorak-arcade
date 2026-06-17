@@ -47,7 +47,12 @@
     veil.querySelector('.nm').textContent = name || '';
     veil.classList.add('show');
   }
-  // intercept same-origin link clicks to other pages → flash the target's accent, then go
+  // The shell's bottom tabs, in left-to-right order — used to pick a slide direction.
+  var TAB_ORDER = ['index.html', 'leaderboard.html', 'social.html', 'profile.html'];
+  function pageOf(href) { return (href.split('?')[0].split('#')[0].split('/').pop() || 'index.html'); }
+  // intercept same-origin link clicks to other pages.
+  //   game link  → branded accent veil (the "entering a game" moment)
+  //   shell link → record a slide direction; the next page slides in (no veil flash)
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a[href]');
     if (!a) return;
@@ -55,12 +60,18 @@
     if (!href || href[0] === '#' || /^(https?:|mailto:|tel:)/.test(href) || a.target === '_blank') return;
     var slug = (href.replace(/index\.html$/, '').replace(/\/$/, '').replace(/\.html$/, '').split('/').pop() || '').toLowerCase();
     var acc = ACCENT[slug];
-    if (acc) showVeil(acc, slug.toUpperCase());          // a game link → branded veil
-    else showVeil('#e8a13a', '');                         // a shell link → brand veil
-    // let navigation proceed normally (veil is painted this frame, new doc replaces it)
+    if (acc) { showVeil(acc, slug.toUpperCase()); return; }   // a game link → branded veil
+    var ti = TAB_ORDER.indexOf(pageOf(href)), ci = TAB_ORDER.indexOf(path);
+    try { sessionStorage.setItem('aa.navdir', (ci >= 0 && ti >= 0 && ti < ci) ? 'back' : 'fwd'); } catch (x) {}
+    // navigation proceeds normally; the incoming page reads aa.navdir and slides in
   }, true);
-  // pageshow from bfcache: hide any stale veil
-  window.addEventListener('pageshow', function () { veil.classList.remove('show'); });
+  // apply the directional enter transition recorded by the previous screen
+  try {
+    var _nd = sessionStorage.getItem('aa.navdir');
+    if (_nd) { sessionStorage.removeItem('aa.navdir'); document.body.classList.add(_nd === 'back' ? 'aa-nav-back' : 'aa-nav-fwd'); }
+  } catch (e) {}
+  // pageshow from bfcache: hide any stale veil + clear a finished slide class
+  window.addEventListener('pageshow', function () { veil.classList.remove('show'); document.body.classList.remove('aa-nav-fwd', 'aa-nav-back'); });
 
   /* ===================================================================
      Sheets framework (#5/#6/#9)
@@ -422,17 +433,19 @@
     var html = '<div class="top"><span class="dot"></span><span class="wm">ARCADE</span><span class="count">' + playable.length + ' games</span></div>';
     html += hubHTML();
     html += '<div class="aa-filter">' +
-      '<button data-f="all" class="' + (_filter === 'all' ? 'on' : '') + '">ALL</button>' +
-      '<button data-f="fav" class="' + (_filter === 'fav' ? 'on' : '') + '">★ FAVES</button>' +
-      '<select class="aa-sort" aria-label="sort">' +
-        '<option value="default"' + (_sort === 'default' ? ' selected' : '') + '>Sort: Featured</option>' +
-        '<option value="playtime"' + (_sort === 'playtime' ? ' selected' : '') + '>Sort: Playtime</option>' +
-        '<option value="name"' + (_sort === 'name' ? ' selected' : '') + '>Sort: Name</option>' +
-        '<option value="favs"' + (_sort === 'favs' ? ' selected' : '') + '>Sort: Most favourited</option>' +
-      '</select></div>';
+      '<div class="seg">' +
+        '<button data-f="all" class="' + (_filter === 'all' ? 'on' : '') + '">ALL</button>' +
+        '<button data-f="fav" class="' + (_filter === 'fav' ? 'on' : '') + '">★ FAVES</button>' +
+      '</div>' +
+      '<span class="sortwrap"><select class="aa-sort' + (_sort !== 'default' ? ' sorted' : '') + '" aria-label="sort">' +
+        '<option value="default"' + (_sort === 'default' ? ' selected' : '') + '>Featured</option>' +
+        '<option value="playtime"' + (_sort === 'playtime' ? ' selected' : '') + '>Most played</option>' +
+        '<option value="name"' + (_sort === 'name' ? ' selected' : '') + '>A–Z</option>' +
+        '<option value="favs"' + (_sort === 'favs' ? ' selected' : '') + '>Most favourited</option>' +
+      '</select></span></div>';
     html += '<div class="aa-grid">' + (list.length ? list.map(gcard).join('') : '<div class="aa-empty" style="grid-column:1/-1">No favourites yet — tap ☆ on a game.</div>') + '</div>';
     if (_filter === 'all' && desktop.length) html += '<div class="aa-sec">FULL GAMES · DESKTOP</div><div class="aa-grid">' + sortGames(desktop).map(gcard).join('') + '</div>';
-    html += '<a class="aa-about" href="about.html"><span class="t"><b>How it works · About</b><span>Why we built this — plays offline, no login to play</span></span><span class="go">›</span></a>';
+    html += '<a class="aa-about" href="about.html"><span class="mk">◆</span><span class="t"><b>How it works · About</b><span>A love letter to the arcade — why we built this. Plays offline, no login to play.</span></span><span class="go">›</span></a>';
     root.innerHTML = html;
     // wire
     root.querySelectorAll('.aa-filter button').forEach(function (b) { b.onclick = function () { feel('select'); _filter = b.getAttribute('data-f'); renderHome(root); }; });
@@ -705,6 +718,37 @@
   }
 
   /* ===================================================================
+     Fullscreen playfield — scale the game canvas to fill the area left after
+     the HUD (contain-fit, both axes, upscaling allowed). We set explicit px on
+     the canvas (not the bitmap resolution) so the element box == displayed
+     bitmap and every game's getBoundingClientRect pointer mapping stays exact.
+     =================================================================== */
+  function fitGameCanvas() {
+    var wrap = document.getElementById('wrap'); if (!wrap) return;
+    var cv = wrap.querySelector('canvas'); if (!cv) return;
+    var iw = cv.width || +cv.getAttribute('width'), ih = cv.height || +cv.getAttribute('height');
+    if (!iw || !ih) return;
+    var availW = wrap.clientWidth, availH = wrap.clientHeight;
+    if (availW <= 1 || availH <= 1) return;
+    var ar = iw / ih, w = availW, h = w / ar;
+    if (h > availH) { h = availH; w = h * ar; }
+    cv.style.width = Math.round(w) + 'px';
+    cv.style.height = Math.round(h) + 'px';
+  }
+  function setupFitCanvas() {
+    var run = function () { fitGameCanvas(); };
+    requestAnimationFrame(function () { run(); requestAnimationFrame(run); });
+    [120, 400, 1000].forEach(function (t) { setTimeout(run, t); });
+    window.addEventListener('resize', run);
+    window.addEventListener('orientationchange', function () { setTimeout(run, 140); });
+    // re-fit if a game swaps its canvas resolution after first start (sets width/height attrs)
+    try {
+      var cv = document.querySelector('#wrap canvas');
+      if (cv && window.MutationObserver) new MutationObserver(run).observe(cv, { attributes: true, attributeFilter: ['width', 'height'] });
+    } catch (e) {}
+  }
+
+  /* ===================================================================
      init
      =================================================================== */
   function init() {
@@ -714,7 +758,7 @@
       var K = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Keyboard;
       if (K && K.setAccessoryBarVisible) K.setAccessoryBarVisible({ isVisible: false });
     } catch (e) {}
-    if (isGame) { wireUniversalJuice(); buildPause(); wireGameOverHome(); }
+    if (isGame) { wireUniversalJuice(); buildPause(); wireGameOverHome(); setupFitCanvas(); }
     else {
       buildTabBar();
       if (path === 'index.html' || path === '') buildHome();

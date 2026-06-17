@@ -11,12 +11,25 @@
   --aa-tabh:58px;
 }
 
-/* ---- page entrance: every screen fades in (no hard cut) (#2).
-   Opacity-only: animating transform on <body> would make it the containing
-   block for position:fixed children (tab bar) and break their pinning. ---- */
+/* ---- dark base under every screen so a document swap never flashes white/black
+   (the old "black screen / strange flutter between screens") (#3) ---- */
+html.aa-native, html.aa-native body{ background-color:#0a0e14; }
+
+/* ---- page entrance: every screen fades in (no hard cut) (#2). ---- */
 @keyframes aa-enter{ from{ opacity:0 } to{ opacity:1 } }
 html.aa-native body{ animation:aa-enter .2s ease both; }
-@media(prefers-reduced-motion: reduce){ html.aa-native body{ animation:none; } }
+
+/* ---- directional slide between shell screens. The previous page records a
+   direction in sessionStorage (forward = deeper/rightward, back = leftward) and
+   this page slides in from that side — a crisp push instead of a veil flash. The
+   transform briefly makes body the containing block for the fixed tab bar, but it
+   resolves to translateX(0) so pinning is correct once the slide settles. (#2) ---- */
+@keyframes aa-nav-in-right{ from{ opacity:0; transform:translateX(30px) } to{ opacity:1; transform:none } }
+@keyframes aa-nav-in-left{ from{ opacity:0; transform:translateX(-30px) } to{ opacity:1; transform:none } }
+html.aa-native body.aa-nav-fwd{ animation:aa-nav-in-right .28s cubic-bezier(.22,1,.36,1) both; }
+html.aa-native body.aa-nav-back{ animation:aa-nav-in-left .28s cubic-bezier(.22,1,.36,1) both; }
+@media(prefers-reduced-motion: reduce){ html.aa-native body,
+  html.aa-native body.aa-nav-fwd, html.aa-native body.aa-nav-back{ animation:none; } }
 
 /* ---- outgoing veil: masks the document swap with the target's accent (#3) ---- */
 .aa-veil{
@@ -152,17 +165,24 @@ html.aa-native .aa-hub .card .t b{ display:block; font-size:14px; letter-spacing
 html.aa-native .aa-hub .card .t span{ color:var(--aa-dim); font-size:11.5px; letter-spacing:.04em; }
 html.aa-native .aa-hub .card .go{ color:var(--aa-card-acc,#e8a13a); font-size:18px; }
 
-/* "How it works · About" footer link on the home — quieter than a game card */
+/* "How it works · About" entry on the home — a branded card with real presence
+   (a love-letter project deserves more than a grey footer link) */
 html.aa-native .aa-about{
   display:flex; align-items:center; gap:14px; text-decoration:none;
-  margin:26px 2px 8px; padding:14px 16px;
-  background:var(--aa-panel); border:1px solid var(--aa-line); border-radius:14px; color:var(--aa-ink);
+  margin:24px 2px 8px; padding:16px 16px;
+  background:linear-gradient(120deg, color-mix(in srgb,var(--aa-brand) 14%, var(--aa-panel)), var(--aa-panel) 72%);
+  border:1px solid color-mix(in srgb,var(--aa-brand) 34%, var(--aa-line)); border-radius:16px; color:var(--aa-ink);
+}
+html.aa-native .aa-about .mk{
+  flex:0 0 auto; width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center;
+  font-size:19px; background:radial-gradient(120% 120% at 50% 0%, color-mix(in srgb,var(--aa-brand) 40%,transparent), #0c1220);
+  border:1px solid color-mix(in srgb,var(--aa-brand) 40%,var(--aa-line2));
 }
 html.aa-native .aa-about .t{ flex:1; }
-html.aa-native .aa-about .t b{ display:block; font-size:13px; letter-spacing:.06em; }
-html.aa-native .aa-about .t span{ color:var(--aa-dim); font-size:11.5px; letter-spacing:.04em; }
-html.aa-native .aa-about .go{ color:var(--aa-dim); font-size:20px; }
-html.aa-native .aa-about:active{ border-color:var(--aa-dim); }
+html.aa-native .aa-about .t b{ display:block; font-size:13.5px; letter-spacing:.06em; }
+html.aa-native .aa-about .t span{ color:var(--aa-dim); font-size:11.5px; letter-spacing:.04em; margin-top:2px; display:block; }
+html.aa-native .aa-about .go{ color:var(--aa-brand); font-size:20px; }
+html.aa-native .aa-about:active{ border-color:var(--aa-brand); transform:scale(.99); }
 
 /* ---- the web top nav is redundant in-app (bottom tab bar replaces it) ---- */
 html.aa-native .nav{ display:none !important; }
@@ -198,6 +218,16 @@ html.aa-native.aa-game .bar .lab{ font-size:7px !important; line-height:9px !imp
 /* CINDER: drop the COMBO stat (frees room near the pause button) → 3-column HUD */
 html.aa-native .hud:has(#combo){ grid-template-columns:repeat(3,1fr) !important; }
 html.aa-native .hud .stat:has(#combo){ display:none !important; }
+/* ---- FULLSCREEN playfield: every game's canvas scales to fill the area left after the
+   HUD, in BOTH axes (contain-fit, upscaling allowed) — instead of stopping at its fixed
+   intrinsic pixel size and leaving a gap (most visible on WEAVE). #wrap grows to take the
+   leftover height; native-app.js fitGameCanvas() sets the exact px size so the element box
+   equals the displayed bitmap — pointer mapping (getBoundingClientRect) stays pixel-exact.
+   Game pages are height:100dvh/overflow:hidden (shell base CSS), so fitting BOTH axes is
+   required — a width-only stretch would clip tall games off the bottom. ---- */
+html.aa-native.aa-game #wrap{ flex:1 1 auto; min-height:0; width:100%; display:flex; align-items:center; justify-content:center; margin:2px 0 !important; }
+html.aa-native.aa-game #wrap > canvas,
+html.aa-native.aa-game #wrap > #c{ max-width:100% !important; max-height:100% !important; }
 /* never double-tap-zoom on interactive chrome */
 html.aa-native .aa-tab, html.aa-native .aa-btn, html.aa-native .aa-gcard,
 html.aa-native .fav, html.aa-native .cab-opt{ touch-action:manipulation; }
@@ -247,14 +277,25 @@ html.aa-native.aa-home body{ padding-top:calc(env(safe-area-inset-top) + 10px) !
 .aa-home .top .wm{ font-size:13px; letter-spacing:.28em; font-weight:700; color:var(--aa-ink); }
 .aa-home .top .count{ margin-left:auto; color:var(--aa-dim); font-size:11px; letter-spacing:.1em; }
 
-/* filter / favourites row */
-.aa-filter{ display:flex; gap:8px; margin:0 2px 14px; }
-.aa-filter button{
-  min-height:38px; padding:0 14px; background:var(--aa-panel); border:1px solid var(--aa-line);
-  color:var(--aa-dim); font-family:inherit; font-size:11px; letter-spacing:.12em; border-radius:99px; cursor:pointer;
+/* filter / favourites row — ALL/FAVES as a connected segmented control on the left,
+   a refined Sort chip (custom chevron, no OS default look) pushed to the right */
+.aa-filter{ display:flex; gap:8px; align-items:center; margin:0 2px 14px; }
+.aa-filter .seg{ display:inline-flex; padding:3px; gap:3px; background:var(--aa-panel); border:1px solid var(--aa-line); border-radius:99px; }
+.aa-filter .seg button{
+  min-height:34px; padding:0 16px; background:transparent; border:0; cursor:pointer;
+  color:var(--aa-dim); font-family:inherit; font-size:11px; letter-spacing:.12em; border-radius:99px;
+  transition:background .15s, color .15s;
 }
-.aa-filter button.on{ color:var(--aa-brand); border-color:color-mix(in srgb,var(--aa-brand) 45%,var(--aa-line)); }
-.aa-filter .aa-sort{ margin-left:auto; min-height:38px; padding:0 10px; background:var(--aa-panel); border:1px solid var(--aa-line); color:var(--aa-dim); font-family:inherit; font-size:11px; letter-spacing:.04em; border-radius:99px; }
+.aa-filter .seg button.on{ color:#15100a; background:var(--aa-brand); font-weight:700; }
+.aa-filter .sortwrap{ margin-left:auto; position:relative; display:inline-flex; align-items:center; }
+.aa-filter .sortwrap::after{ content:"⌄"; position:absolute; right:13px; top:48%; transform:translateY(-50%); color:var(--aa-dim); font-size:14px; pointer-events:none; }
+.aa-filter .aa-sort{
+  -webkit-appearance:none; appearance:none; min-height:38px; padding:0 30px 0 16px;
+  background:var(--aa-panel); border:1px solid var(--aa-line); color:var(--aa-ink);
+  font-family:inherit; font-size:11px; letter-spacing:.06em; border-radius:99px; cursor:pointer;
+}
+.aa-filter .aa-sort.sorted{ color:var(--aa-brand); border-color:color-mix(in srgb,var(--aa-brand) 45%,var(--aa-line)); }
+.aa-filter .sortwrap:has(.sorted)::after{ color:var(--aa-brand); }
 
 /* 2-up game grid — each card shows a LIVE preview (reuses the home demo engine) */
 .aa-grid{ display:grid; grid-template-columns:1fr 1fr; gap:11px; }
