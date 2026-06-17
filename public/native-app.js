@@ -154,9 +154,17 @@
       (signedIn ? '' : '<button class="aa-btn" id="aaSignIn"> Sign in with Apple</button>') +
       '<div id="aaCompete"></div>' +
       '<h3 style="margin-top:20px;font-size:12px;letter-spacing:.18em;color:var(--aa-dim)">SETTINGS</h3>' +
-      settingsBlock();
+      settingsBlock() +
+      (signedIn ?
+        '<h3 style="margin-top:20px;font-size:12px;letter-spacing:.18em;color:var(--aa-dim)">ACCOUNT</h3>' +
+        '<button class="aa-btn ghost" id="aaSignOut">Sign out</button>' +
+        '<button class="aa-btn ghost" id="aaDelAcct" style="margin-top:10px;color:#ff7a7a;border-color:#5b2030">Delete account</button>' +
+        '<div class="hint" style="margin-top:8px">Deleting permanently removes your account, scores and profile.</div>'
+        : '');
     wireSettings(b);
     var si = b.querySelector('#aaSignIn'); if (si) si.onclick = signInWithApple;
+    var so = b.querySelector('#aaSignOut'); if (so) so.onclick = signOut;
+    var da = b.querySelector('#aaDelAcct'); if (da) da.onclick = confirmDeleteAccount;
     // signed in: the PLAYED/GAMES/RUNS tiles show the ACCOUNT totals (server), not just
     // this device — otherwise a reinstall wrongly reads 0.
     if (token()) api('GET', '/api/me').then(function (d) {
@@ -285,6 +293,36 @@
       return false;
     }).catch(function () { return false; });
   }
+
+  function signOut() {
+    feel('tap');
+    try { localStorage.removeItem('aa.token'); } catch (e) {}
+    feel('success');
+    if (profileSheet) renderProfile();
+    if (friendsSheet) renderFriends();
+  }
+  // App Store Guideline 5.1.1(v): in-app account deletion. Confirms, calls the worker,
+  // then drops the local session + handle so the app returns to the guest state.
+  function confirmDeleteAccount() {
+    feel('tap');
+    if (!window.confirm('Delete your account permanently?\n\nThis removes your scores, ranks and profile, and cannot be undone.')) return;
+    api('POST', '/api/account/delete', {}).then(function (d) {
+      try { localStorage.removeItem('aa.token'); localStorage.removeItem('aa.name'); } catch (e) {}
+      feel('success');
+      if (profileSheet) renderProfile();
+      if (friendsSheet) renderFriends();
+      alert('Your account has been deleted.');
+    });
+  }
+  // "Frictionless play, sign in to save": when an anonymous player sets a new best, stats.js
+  // fires aa:save-prompt. Offer sign-in once per session so we never nag mid-run.
+  window.addEventListener('aa:save-prompt', function (e) {
+    if (token() || window.__aaSavePrompted) return;
+    window.__aaSavePrompted = true;
+    var sc = e && e.detail && e.detail.score;
+    feel('success');
+    if (window.confirm('New best' + (sc ? ' — ' + Number(sc).toLocaleString() : '') + '!\n\nSign in with Apple to save it to the leaderboard and compete.')) signInWithApple();
+  });
 
   function esc(s) { return String(s == null ? '' : s).replace(/[<>&]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]; }); }
 

@@ -79,8 +79,14 @@
     ensureSession(game);
     const p=pend(game); if(countPlay) p.plays+=1; p.score=Math.max(p.score,score); save();
     if(score>0) signScore(game, score);   // precompute the HMAC so flush can attach it
-    // nudge for a name on every new personal best while still anonymous (openNameModal self-guards against stacking)
-    if(!name && score>0 && newBest) openNameModal(()=>flush(false));
+    // On a new personal best: if signed in, nudge for a handle once (the board name); if not
+    // signed in, ask the shell to prompt sign-in so the score can be SAVED. On the web (no
+    // sign-in handler) this is a graceful no-op — anonymous players keep their local best and
+    // simply don't appear on a global board. This is the "frictionless play, sign in to save" UX.
+    if(score>0 && newBest){
+      if(token() && !name) openNameModal(()=>flush(false));
+      else if(!token()){ try{ window.dispatchEvent(new CustomEvent('aa:save-prompt',{detail:{game,score}})); }catch(e){} }
+    }
     setTimeout(()=>flush(false),250);
   }
 
@@ -180,11 +186,11 @@
         || /\/motherload(\/|$)/i.test(location.pathname);                            // Motherload
   }
   function firstRunNamePrompt(){
-    if(name || !onGamePage()) return;   // already named, or not actually in a game
+    if(name || !token() || !onGamePage()) return;   // need an account to claim a board handle
     lset(AKEY,'1');                     // ask at most once per browser, even if they skip
     openNameModal(()=>flush(false));
   }
-  if(!name && !lget(AKEY)){
+  if(!name && token() && !lget(AKEY)){
     const arm=()=>setTimeout(firstRunNamePrompt,1600);   // let the title / start screen settle first
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',arm); else arm();
   }
