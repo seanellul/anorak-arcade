@@ -12,7 +12,10 @@ database_id = "3000f69e-fdd4-4a85-9568-29fb2e1288aa"
 # Secrets — set via `wrangler secret put <NAME>`:
 #   ADMIN_KEY       -> guards /api/admin
 #   SESSION_SECRET  -> HMAC key for our session tokens (any long random string)
-#   APPLE_BUNDLE_ID -> the app's bundle id, e.g. com.seanellul.anorak (verified as the token 'aud')
+#   APPLE_BUNDLE_ID -> the app's bundle id, e.g. com.seanellul.anorak (verified as the token 'aud'; also APNs topic)
+#   APNS_KEY        -> the APNs Auth Key .p8 PEM contents (multi-line; paste the whole file)
+#   APNS_KEY_ID     -> the APNs key id, e.g. V2JVRX4LA5
+#   APNS_TEAM_ID    -> the Apple Developer team id, e.g. 28RR6KPKGP
 
 # Per-IP rate limit shared by the write endpoints (sync / session/start / auth/apple).
 # 120 requests / 60s per IP — generous for real play (a run = 1 session + 1 sync), brutal

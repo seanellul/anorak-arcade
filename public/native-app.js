@@ -300,9 +300,36 @@
       var fullName = [r.givenName, r.familyName].filter(Boolean).join(' ');
       return api('POST', '/api/auth/apple', { identityToken: r.identityToken, fullName: fullName, clientId: lget('aa.clientId') || '' });
     }).then(function (d) {
-      if (d && d.token) { try { localStorage.setItem('aa.token', d.token); if (d.user && d.user.handle) localStorage.setItem('aa.name', d.user.handle); } catch (e) {} feel('success'); if (profileSheet) renderProfile(); if (friendsSheet) renderFriends(); return true; }
+      if (d && d.token) { try { localStorage.setItem('aa.token', d.token); if (d.user && d.user.handle) localStorage.setItem('aa.name', d.user.handle); } catch (e) {} feel('success'); registerPush(); if (profileSheet) renderProfile(); if (friendsSheet) renderFriends(); return true; }
       return false;
     }).catch(function () { return false; });
+  }
+
+  /* ---- Push notifications (APNs via @capacitor/push-notifications) ----
+     Needs a signed-in session so the device token can be tied to the account.
+     Idempotent: safe to call on every launch + right after sign-in. */
+  var _pushWired = false;
+  function registerPush() {
+    if (!token()) return;                                    // only meaningful once signed in
+    var Cap = window.Capacitor, P = Cap && Cap.Plugins && Cap.Plugins.PushNotifications;
+    if (!P) return;                                          // web / plugin missing → no-op
+    if (!_pushWired) {
+      _pushWired = true;
+      P.addListener('registration', function (t) {
+        if (t && t.value) api('POST', '/api/push/register', { token: t.value, platform: 'ios' });
+      });
+      P.addListener('registrationError', function () { _pushWired = false; });
+      // Tap on a delivered notification → take them to the social/notifications screen.
+      P.addListener('pushNotificationActionPerformed', function () {
+        try { location.href = '/social.html'; } catch (e) {}
+      });
+    }
+    P.checkPermissions().then(function (res) {
+      if (res && (res.receive === 'prompt' || res.receive === 'prompt-with-rationale')) return P.requestPermissions();
+      return res;
+    }).then(function (res) {
+      if (res && res.receive === 'granted') P.register();
+    }).catch(function () {});
   }
 
   function signOut() {
@@ -764,6 +791,8 @@
       if (path === 'index.html' || path === '') buildHome();
       else if (path === 'leaderboard.html') leaderboardStagger();
     }
+    // already signed in from a previous launch → (re)register for push so the token stays fresh
+    try { registerPush(); } catch (e) {}
     // expose for in-game hooks
     window.AnorakNative = { shareScore: shareScore, openProfile: openProfile, openFriends: openFriends, openSettings: openSettings, openScores: openScores, signInWithApple: signInWithApple };
   }
